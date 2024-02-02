@@ -1,0 +1,46 @@
+<div class="modal fade" {% block modal-id %} id="editBranchModal{{branch.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="editBranchModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h6 class="modal-title" id="editBranchModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Edit Branch{% endblock modal-title %}</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!--Forms begins-->
+            <form {% block Action %} action="{% url 'editbranch' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+            {% csrf_token %}
+    
+                <div class="modal-body">
+                    {% block Value-id %}
+                    <div class="input-group mb-3">
+                        {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
+                        <input type="hidden" class="form-control" name="id" value="{{branch.id}}" readonly>
+                    </div>
+                    {% endblock Value-id %}
+
+                    {% block Value-branch_name %}
+                    <div class="mb-3">
+                        <label for="branch_name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="branch_name" name="branch_name"  value="{{branch.branch_name}}">
+                    </div>
+                    {% endblock Value-branch_name %}
+
+                    {% block Value-branch_address %}
+                    <div class="mb-3">
+                        <label for="branch_address" class="form-label">Address</label>
+                        <input type="text" class="form-control" id="branch_address" name="branch_address"  value="{{branch.branch_address}}">
+                    </div>
+                    {% endblock Value-branch_address %}
+
+
+                    <div class="mt-4 text-center" style="width:100%;">
+                        <button type="submit" class="btn btn-secondary">
+                        {% block Btn-action %}<i class="fa-solid fa-floppy-disk"></i>&nbsp;&nbsp; Save{% endblock Btn-action %}
+                        </button>
+                        
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+

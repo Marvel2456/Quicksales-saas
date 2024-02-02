@@ -1,0 +1,46 @@
+<div class="modal fade" {% block modal-id %} id="addCountModal{{inventory.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="addCountModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+      <div class="modal-content">
+          <div class="modal-header">
+          <h6 class="modal-title" id="addCountModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Add Count{% endblock modal-title %}</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <!--Forms begins-->
+          <form {% block Action %} action="{% url 'addcount' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+          {% csrf_token %}
+  
+              <div class="modal-body">
+                  {% block Value-id %}
+                  <div class="input-group mb-3">
+                      {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
+                      <input type="hidden" class="form-control" name="id" value="{{inventory.id}}" readonly>
+                  </div>
+                  {% endblock Value-id %}
+
+                  {% block Value-count %}
+                  <div class="mb-3">
+                      <label for="count" class="form-label">Quantity</label>
+                      <input type="text" class="form-control" id="count" name="count"  value="{{inventory.count}}">
+                  </div>
+                  {% endblock Value-count %}
+
+
+                  <div class="mt-4 text-center" style="width:100%;">
+                      <button type="submit" class="btn btn-secondary">
+                      {% block Btn-action %}<i class="fa-solid fa-floppy-disk"></i>&nbsp;&nbsp; Save{% endblock Btn-action %}
+                      </button>
+                      
+                  </div>
+              </div>
+          </form>
+      </div>
+  </div>
+</div>
+<script>
+  const formsInInput = document.querySelector('#count');
+      
+  console.log(formsInInput.value);
+
+  formsInInput.value = '';
+
+</script>

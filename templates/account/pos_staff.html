@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} Sales {% endblock title %}
+
+{% block content %}
+
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <h1 class="app-page-title mb-0">Sales</h1>
+            </div>
+            <div class="col-auto">
+                 <div class="page-utilities">
+                    <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
+                        <div class="col-auto">
+                            <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
+                                <div class="col-auto">
+                                    <label for="start_date">Start Date</label>
+                                    <div class="input-group mb-3 date" id="datepicker">
+                                        <input type="text" class="form-control" name="start_date" id="due" placeholder="yy-mm-dd" aria-describedby="basic-addon2">
+                                        <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <label for="end_date">End Date</label>
+                                    <div class="input-group mb-3 date" id="datepicker">
+                                        <input type="text" class="form-control" name="end_date" id="due2" placeholder="yy-mm-dd" aria-describedby="basic-addon2">
+                                        <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
+                                    </div>
+                                </div> 
+                                <div class="col-auto">
+                                    <button type="submit" class="btn app-btn-secondary">Search</button>
+                                </div>  
+                            </form>
+                        </div><!--//col-->
+                        
+                    </div><!--//row-->
+                </div><!--//table-utilities-->
+            </div><!--//col-auto-->
+        </div><!--//row-->
+        
+        <div class="col-auto pb-2">
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' %}">Export to Csv</a>
+        </div>  
+        <div class="tab-content" id="orders-table-tab-content">
+            <div class="tab-pane fade show active" id="orders-all" role="tabpanel" aria-labelledby="orders-all-tab">
+                <div class="app-card app-card-orders-table shadow-sm mb-5">
+                    <div class="app-card-body">
+                        <div class="table-responsive">
+                            <table class="table app-table-hover mb-0 text-left">
+                                <thead>
+                                    <tr>
+                                        <th class="cell">Staff</th>
+                                        <th class="cell">Branch</th>
+                                        <th class="cell">Pos</th>
+                                        <th class="cell">Date Created</th>
+                                    </tr>
+                                </thead>
+                                
+                                <tbody>
+                                    {% for staff in staff %}
+                                    <tr>
+                                        <td class="cell">{{staff.username}}</td>
+                                        <td class="cell"><span class="truncate">{{staff.pos.branch}}</span></td>
+                                        <td class="cell"><span>{{staff.pos}}</span></td>
+                                        <td class="cell"><span>{{staff.date_created}}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                    
+                                </tbody>
+                            </table>
+                        </div><!--//table-responsive-->
+                       
+                    </div><!--//app-card-body-->		
+                </div><!--//app-card-->
+                {% comment %} <div class="pagination">
+                    <span class="step-links">
+                      <nav aria-label="Page navigation example">
+                        <ul class="pagination" style="color:yellow;">
+                            {% if sale_page.has_previous %}
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}">previous</a></li>
+                            {% endif %}
+                            {% for i in nums %}
+                            <span class="current">
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}">{{forloop.counter}}</a></li>
+                            </span>
+                            {% endfor %}
+                            {% if sale_page.has_next %}
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}">next</a></li>
+                            {% endif %}
+                        </ul>
+                      </nav>
+                    </span>
+                </div> {% endcomment %}
+        </div><!--//tab-content-->             
+    </div><!--//container-fluid-->
+</div><!--//app-content-->
+{% endblock content %}

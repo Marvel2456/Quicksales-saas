@@ -1,0 +1,59 @@
+<div class="modal fade" {% block modal-id %} id="addRestockModal{{inventory.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="addRestockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h6 class="modal-title" id="addRestockModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Restock{% endblock modal-title %}</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!--Forms begins-->
+            <form {% block Action %} action="{% url 'restock' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+            {% csrf_token %}
+    
+                <div class="modal-body">
+                    {% block Value-id %}
+                    <div class="input-group mb-3">
+                        {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
+                        <input type="hidden" class="form-control" name="id" value="{{inventory.id}}" readonly>
+                    </div>
+                    {% endblock Value-id %}
+
+                    {% block Value-quantity_restocked %}
+                    <div class="mb-3">
+                        <label for="quantity_restocked" class="form-label">Quantity</label>
+                        <input type="text" class="form-control" id="quantity_restocked" name="quantity_restocked"  value="{{inventory.quantity_restocked}}">
+                    </div>
+                    {% endblock Value-quantity_restocked %}
+
+                    {% block Value-cost_price %}
+                    <div class="mb-3 py-2">
+                        <label for="cost_price" class="form-label">Cost Price</label>
+                        <input type="text" class="form-control" name="cost_price"  value="{{inventory.cost_price}}">
+                    </div>
+                    {% endblock Value-cost_price %}
+
+                    {% block Value-sale_price %}
+                    <div class="mb-3 py-2">
+                        <label for="sale_price" class="form-label">Sale Price</label>
+                        <input type="text" class="form-control" name="sale_price"  value="{{inventory.sale_price}}">
+                    </div>
+                    {% endblock Value-sale_price %}
+
+                    <div class="mt-4 text-center" style="width:100%;">
+                        <button type="submit" class="btn btn-secondary">
+                        {% block Btn-action %}<i class="fa-solid fa-floppy-disk"></i>&nbsp;&nbsp; Save{% endblock Btn-action %}
+                        </button>
+                        
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    const formInInput = document.querySelector('#quantity_restocked');
+        
+    console.log(formInInput.value);
+
+    formInInput.value = '';
+
+</script>

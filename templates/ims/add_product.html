@@ -1,0 +1,72 @@
+<!-- Modal -->
+<div class="modal fade" {% block modal-id %} id="addProductModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="addProductModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Add Product{% endblock modal-title %}</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <!--Forms begins-->
+      <form {% block Action %} action="{% url 'products' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="modal-body">
+
+        <!--==Block Id==-->
+        {% block Value-id %}  {% endblock Value-id %}
+
+          <div class="mb-3">
+            <label for="product_name" class="form-label">Product</label>
+            <input name="product_name" type="text" class="form-control" placeholder="Product Name" required {% block Value-product_name %} {% endblock Value-product_name %}>
+            <div class="m-3" style="color:red;">{{form.product_name.errors}}</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="category" class="form-label">Category</label>
+            {{form.category}}
+            {% comment %} <select id="id_category" name="category" class="form-select form-select-sm rounded-0" required {% block Value-category %} {% endblock Value-category %}>
+            {% if not products.category %}
+            <option value="" disabled selected>Select Category</option>
+            {% else %}
+            <option value="" disabled></option>
+            {% endif %}
+            {% for category in category %}
+                {% if products.category == category.id %}
+                <option value="{{ category.id }}" selected>{{ category.category_name }}</option>
+                {% else %}
+                <option value="{{ category.id }}">{{ category.category_name }}</option>
+                {% endif %}
+            {% endfor %}
+            </select> {% endcomment %}
+          </div>
+
+          <div class="mb-3">
+            <label for="brand" class="form-label">Brand</label>
+            <input name="brand" type="text" class="form-control" placeholder="Brand" required {% block Value-brand %} {% endblock Value-brand %}>
+          </div>
+
+          <div class="mb-3">
+            <label for="unit" class="form-label">Unit</label>
+            <input name="unit" type="text" class="form-control" placeholder="Unit" {% block Value-unit %} {% endblock Value-unit %}>
+          </div>
+
+          <div class="mb-3">
+            <label for="batch_no" class="form-label">Batch No</label>
+            <input name="batch_no" type="text" class="form-control" placeholder="Batch No" {% block Value-batch_no %} {% endblock Value-batch_no %}>
+          </div>
+          <div class="mt-4 text-center" style="width:100%;">
+            <button type="submit" class="btn btn-secondary">
+              {% block Btn-action %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Add Product{% endblock Btn-action %}
+            </button>
+            
+            <button type="reset" class="btn btn-secondary" title="Reset">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      </form>
+      <!--Form ends-->
+    </div>
+  </div>
+</div>

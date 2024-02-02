@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %} {% endblock title %}
+
+{% block content %}
+<div class="col-12 pt-3" style="width: 100%">
+    <div class="app-card app-card-account shadow-sm d-flex flex-column align-items-start">
+        <div class="app-card-header p-3 border-bottom-0">
+            <div class="row align-items-center gx-3">
+                <div class="col-auto">
+                    <div class="app-icon-holder">
+                        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-sliders" fill="currentColor">
+                        <path fill-rule="evenodd" d="M11.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.05 3a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0V3h9.05zM4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2.05 8a2.5 2.5 0 0 1 4.9 0H16v1H6.95a2.5 2.5 0 0 1-4.9 0H0V8h2.05zm9.45 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-2.45 1a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0v-1h9.05z"/>
+                        </svg>
+                    </div><!--//icon-holder-->
+                    
+                </div><!--//col-->
+                <div class="col-auto">
+                    <h4 class="app-card-title">Checkout</h4>
+                </div><!--//col-->
+            </div><!--//row-->
+        </div><!--//app-card-header-->
+        <div class="app-card-body px-4 w-100">
+            <div class="item border-bottom py-3">
+                <div class="row justify-content-between align-items-center">
+                    <div class="col-auto">
+                        <div class="item-label"><strong>Product</strong></div>
+                    </div><!--//col-->
+                    <div class="col text-end">
+                        <div class="item-data"><strong><span class="px-5">Quantity</span><span class="">Price</span></strong></div>
+                    </div><!--//col-->
+                </div><!--//row-->
+                
+            </div><!--//item-->
+            {% for item in items %}
+            <div class="item border-bottom py-3">
+                <div class="row justify-content-between align-items-center">
+                    <div class="col-auto">
+                        <div class="item-label"><strong>{{item.inventory.product.product_name}}</strong></div>
+                    </div><!--//col-->
+                    <div class="col text-end">
+                        <div class="item-data"><span class="px-5">{{item.quantity}}</span><span class=""><i class="fa-solid fa-naira-sign"></i>{{item.get_total}}</span></div>
+                    </div><!--//col-->
+                </div><!--//row-->
+            </div><!--//item-->
+            {% endfor %}
+            <div class="item border-bottom py-3">
+                <div class="row justify-content-between align-items-center">
+                    <div class="col-auto">
+                        <div class="item-label"><strong>Total : </strong></div>
+                    </div><!--//col-->
+                    <div class="col text-end">
+                        <div class="item-data"><span class="px-5">{{sale.get_cart_items}}</span><span class=""><i class="fa-solid fa-naira-sign"></i>{{sale.get_cart_total}}</span></div>
+                    </div><!--//col-->
+                </div><!--//row-->   
+            </div><!--//item-->
+            <div class="item border-bottom py-3">
+                <div class="row justify-content-between align-items-center">
+                    <div class="col text-end" id="forms">
+                        <form method="post" id="form">
+                            {% csrf_token %}
+                            <label for="method" class="form-check-label mb-2" for="inlineCheckbox1"><strong>Payment Method</strong></label>
+                            <select id="method" name="method" class="form-select">
+                                <option value="{{sale.method}}">{{sale.method}}</option>
+                                <option>Cash</option>
+                                <option>Transfer</option>
+                                <option>POS</option>
+                            </select>
+                            <br>
+                            <button type="submit" class="btn btn-secondary" id="pmd">
+                                <i class="fas fa-plus"></i>&nbsp;&nbsp; Add
+                            </button>
+                        </form>
+                    </div><!--//col-->
+                </div><!--//row-->   
+            </div><!--//item-->
+        </div><!--//app-card-body-->
+        <div class="app-card-footer p-4 mt-auto">
+           <a class="btn app-btn-secondary"  id="pay" type="submit">Confirm Payment</a>
+           <a class="btn app-btn-secondary" href="{% url 'cart' %}" type="">Back</a>
+        </div><!--//app-card-footer-->
+        
+    </div><!--//app-card-->
+</div><!--//col-->
+
+<script type="text/javascript">
+    console.log('processing payment')
+    let total_cart = '{{sale.get_cart_total}}'
+
+    
+
+    document.getElementById('pay').addEventListener('click', function(e){
+        submitPayment()
+    })
+
+
+    function submitPayment(){
+        console.log('paymrnt')
+        let paymentData = {
+            
+            'total_cart':total_cart
+        }
+
+        let url = "{% url 'completed' branch.id %}"
+        fetch(url, {
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json',
+                'X-CSRFToken':csrftoken,
+            },
+            body:JSON.stringify({'payment':paymentData})
+
+        })
+        .then(res => res.json())
+        .then((data) =>{
+            console.log('Success', data)
+            window.location.href = "{% url 'reciept' sale.id %}"
+        })
+
+    }
+
+</script>
+
+
+{% endblock content %}

@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} Products {% endblock title %}
+
+{% block content %}
+
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <h1 class="app-page-title mb-0">Products</h1>
+            </div>
+            <div class="col-auto">
+                 <div class="page-utilities">
+                    <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
+                        <div class="col-auto">
+                            <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
+                               
+                                <div class="col-auto">
+                                    <input type="text" id="search-orders" name="product_name" class="form-control search-orders" placeholder="Product Name">
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn app-btn-secondary">Search</button>
+                                </div>
+                            </form>
+                            
+                        </div><!--col-->
+                    </div><!--row-->
+                </div><!--table-utilities-->
+            </div><!--col-auto-->
+        </div><!--row-->
+       
+        <nav id="orders-table-tab" class="orders-table-tab app-nav-tabs nav shadow-sm flex-column flex-sm-row mb-4">
+            <a class="flex-sm-fill text-sm-center nav-link active" id="orders-all-tab" data-bs-toggle="tab" href="#orders-all" role="tab" aria-controls="orders-all" aria-selected="true">Products</a>
+        </nav>
+        
+        <div class="tab-content" id="orders-table-tab-content">
+            <div class="tab-pane fade show active" id="orders-all" role="tabpanel" aria-labelledby="orders-all-tab">
+                <div class="app-card app-card-orders-table shadow-sm mb-5">
+                    <div class="app-card-body">
+                        <div class="table-responsive">
+                            <table class="table app-table-hover mb-0 text-left" id="example">
+                                <thead>
+                                    <tr>
+                                        <th class="cell">Product</th>
+                                        <th class="cell">Category</th>
+                                        <th class="cell">Last Updated</th>
+                                        <th class="cell"></th>
+                                        <th class="cell"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if user.is_admin %}
+                                    <div class="m-2 py-2">
+                                        <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addProductModal">
+                                            <i class="fas fa-plus"></i>
+                                            Add Product
+                                        </a>
+                                    </div> 
+                                    {% else %}
+                                    <div class="m-2 py-2" style="display:None;">
+                                        <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addProductModal">
+                                            <i class="fas fa-plus"></i>
+                                            Add Product
+                                        </a>
+                                    </div> 
+                                    {% endif %}   
+                                    {% for products in products_page %}
+                                    <tr>
+                                        <td class="cell"><span class="truncate">{{products.product_name}}</span></td>
+                                        <td class="cell">{{products.category}}</td>
+                                        <td class="cell"><span class="note">{{products.last_updated}}</span></td>
+                                        {% if user.is_admin %}
+                                        <td class="cell">
+                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{products.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{products.pk}}"><i class="fa-solid fa-trash-can"></i></a>
+                                        </td>
+                                        {% else %}
+                                        <td class="cell" style="display:None;">
+                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{products.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{products.pk}}"><i class="fa-solid fa-trash-can"></i></a>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% include 'ims/delete_product.html' %}
+                                    {% include 'ims/modal_edit_product.html' %}
+                                    {% endfor %}
+                                    
+                                </tbody>
+                            </table>
+                        </div><!--table-responsive-->
+                       
+                    </div><!--app-card-body-->		
+                </div><!--app-card-->
+                <div class="pagination">
+                    <span class="step-links">
+                      <nav aria-label="Page navigation example">
+                        <ul class="pagination" style="color:yellow;">
+                            {% if products_page.has_previous %}
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ products_page.previous_page_number }}">previous</a></li>
+                            {% endif %}
+                            {% for i in nums %}
+                            <span class="current">
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}">{{forloop.counter}}</a></li>
+                            </span>
+                            {% endfor %}
+                            {% if products_page.has_next %}
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ products_page.next_page_number }}">next</a></li>
+                            {% endif %}
+                        </ul>
+                      </nav>
+                    </span>
+                </div>
+            </div><!--tab-pane-->
+        </div><!--//tab-content-->
+        
+    </div><!--//container-fluid-->
+</div><!--//app-content-->
+
+{% comment %} {% for message in messages %}
+    {% if message.tags == 'success' %}
+    <script src="{% static 'assets/js/sweetalert2.all.min.js' %}"></script>
+    <script>
+        var m = "{{ message }}";
+        swal.fire("perfect !", m, "success")
+    </script>
+    {% endif %}
+{% endfor %} {% endcomment %}
+
+{% endblock content %}

@@ -1,0 +1,65 @@
+{% block content %}
+
+<div class="modal fade" {% block modal-id %} id="addSalePriceModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="addSalePriceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h6 class="modal-title" id="addSalePriceModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Sale Price{% endblock modal-title %}</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!--Forms begins-->
+            <form {% block Action %} action="" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" id="addSalePrice" enctype="multipart/form-data">
+            {% csrf_token %}
+    
+                <div class="modal-body">
+
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" name="sale_price" id="salePrice" value="{{products.sale_price}}">
+                    </div>
+                    <div class="mt-4 text-center" style="width:100%;">
+                        <button type="submit" class="btn btn-secondary">
+                        {% block Btn-action %}<i class="fa-solid fa-floppy-disk"></i>&nbsp;&nbsp; Save{% endblock Btn-action %}
+                        </button>
+                        
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('addSalePrice').addEventListener
+    ('submit', addSalePrice);
+
+    function addSalePrice(e){
+        e.preventDefault();
+        salePrice = document.getElementById('salePrice').value;
+
+        var salePrice = new SalePrice();
+        salePrice.append('sale_price', sale_price);
+        salePrice.append('csrfmiddlewaretoken', '{{csrf_token }}');
+        console.log(salePrice);
+        var url = '/product_details/'
+
+        fetch(url, {
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json',
+        
+            },
+            body: salePrice
+        })
+        .then((res) => res.json())
+        .then((data) => console.log(data))
+        .catch(error => {
+            console.error('Error:', error);
+          });
+    }
+    
+
+
+</script>
+
+
+{% endblock content %}

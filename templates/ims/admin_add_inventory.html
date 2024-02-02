@@ -1,0 +1,77 @@
+<!-- Modal -->
+<div class="modal fade" {% block modal-id %} id="adminAddInventoryModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="adminAddInventoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title" id="adminAddInventoryModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Inventory{% endblock modal-title %}</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <!--Forms begins-->
+        <form {% block Action %} action="{% url 'branchinv' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+          {% csrf_token %}
+  
+          <div class="modal-body">
+  
+          <!--==Block Id==-->
+          {% block Value-id %}  {% endblock Value-id %}
+  
+          <div class="mb-3">
+            <label for="product" class="form-label">Product</label>
+            <select id="id_product" name="product" class="form-select form-select-sm rounded-0" required {% block Value-product %} {% endblock Value-product %}>
+            {% if not inventory.product %}
+            <option value="" disabled selected>Select Product</option>
+            {% else %}
+            <option value="" disabled></option>
+            {% endif %}
+            {% for product in product %}
+                {% if inventory.product == product.id %}
+                <option value="{{ product.id }}" selected>{{ product.product_name }}</option>
+                {% else %}
+                <option value="{{ product.id }}">{{ product.product_name }}</option>
+                {% endif %}
+            {% endfor %}
+            </select>
+            <div class="m-3" style="color:red;">{{form.product.errors}}</div>
+          </div>
+
+            <div class="mb-3">
+                <label for="branch" class="form-label">Branch</label>
+                {{form.branch}}
+                <div class="m-3" style="color:red;">{{form.product.errors}}</div>
+            </div>
+  
+            <div class="mb-3">
+              <label for="quantity" class="form-label">Quantity</label>
+              <input name="quantity" type="text" class="form-control" placeholder="Quantity" required {% block Value-quantity %} {% endblock Value-quantity %}>
+            </div>
+  
+            <div class=" mb-3">
+              <label for="cost_price" class="form-label">Cost Price</label>
+              <input name="cost_price" type="text" class="form-control" placeholder="Cost Price" required {% block Value-cost_price %} {% endblock Value-cost_price %}>
+            </div>
+  
+            <div class="mb-3">
+              <label for="sale_price" class="form-label">Sale Price</label>
+              <input name="sale_price" type="text" class="form-control" placeholder="Sale Price" required {% block Value-sale_price %} {% endblock Value-sale_price %}>
+            </div>
+  
+            <div class="mb-3">
+              <label for="reorder_level" class="form-label">Reorder Level</label>
+              <input name="reorder_level" type="text" class="form-control" placeholder="Reorder Level" {% block Value-reorder_level %} {% endblock Value-reorder_level %}>
+            </div>
+  
+            <div class="mt-4 text-center" style="width:100%;">
+              <button type="submit" class="btn btn-secondary">
+                {% block Btn-action %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Inventory{% endblock Btn-action %}
+              </button>
+              
+              <button type="reset" class="btn btn-secondary" title="Reset">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+        <!--Form ends-->
+      </div>
+    </div>
+  </div>

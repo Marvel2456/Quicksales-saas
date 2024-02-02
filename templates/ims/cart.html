@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %} Cart {% endblock title %}
+
+{% block content %}
+
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="md">
+                    <div class="card border-0">
+                        <div class="app-card-body p-2">
+                            <table class="table app-table-hover">
+                                <tr>
+                                    <th class="cell"><h6 id="sum_quantity"><b>Item: </b><div>{{sale.get_cart_items}}</div></h6></th>
+                                    <th class="cell">
+                                        <h6 id="final_total"><b>Total: </b>
+                                        <div><i class="fa-solid fa-naira-sign"></i>{{sale.get_cart_total}}</div>
+              
+                                    </h6>
+                                    </th>
+
+                                    <th class="cell">
+                                        <a class="btn app-btn-secondary" href="{% url 'checkout' %}">Checkout</a>
+                                    </th>
+                                </tr>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            
+        </div>  
+        <div class="row py-3">
+            <div class="col-md-12">
+                <div class="md">
+                    <div class="card border-0">
+                        <div class="app-card-body p-2">
+                            <div class="row">
+                                
+                                    <div style="flex: 2;"><h6><b>Item</b></h6></div>
+                                    <div style="flex: 1;"><h6><b>Price</b></h6></div>
+                                    <div style="flex: 2;"><h6><b>Quantity</b></h6></div>
+                                    <div style="flex: 1;"><h6><b>Total</b></h6></div>
+                               
+                            </div><hr>
+
+                            {% for item in items %}
+                                <div class="row">
+                                    
+                                        <div style="flex: 2;"><h6>{{item.inventory.product.product_name}}</h6></div>
+                                        <div style="flex: 1;"><h6>{{item.inventory.sale_price}}</h6></div>
+                                        <div style="flex: 2;">
+                                            <h6 class="quantity">
+                                                <input type="number" class="Qty" data-inventory="{{item.inventory.id}}" value="{{item.quantity}}" name="quantity" min="0" max="100" style="width: 80%;">
+                                            </h6>
+                                        </div>
+                                        <div style="flex: 1;"><h6 id="sub_total">{{item.get_total}}</h6></div>
+                                    
+                                </div><hr>
+                            {% endfor %}
+                        </div>
+
+                    </div>
+                    
+                </div>
+            </div>
+        </div>   
+        <!-- end cart -->
+    </div>
+</div>
+
+{% endblock content %}

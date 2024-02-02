@@ -1,0 +1,48 @@
+<!-- Modal -->
+<div class="modal fade" {% block modal-id %} id="addBranchModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="addBranchModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title" id="addBranchModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Branch{% endblock modal-title %}</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <!--Forms begins-->
+        <form {% block Action %} action="{% url 'branch' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+          {% csrf_token %}
+  
+          <div class="modal-body">
+  
+          <!--==Block Id==-->
+          {% block Value-id %}  {% endblock Value-id %}
+  
+            <div class="mb-3">
+              <label for="branch_name" class="form-label">Name</label>
+              <input name="branch_name" type="text" class="form-control" placeholder="Branch Name" required {% block Value-branch_name %} {% endblock Value-branch_name %}>
+              {% comment %} <div class="m-3" style="color:red;">{{form.pos_name.errors}}</div> {% endcomment %}
+            </div>
+            <div class="mb-3">
+                <label for="branch_address" class="form-label">Address</label>
+                <input name="branch_address" type="text" class="form-control" placeholder="Branch Address" required {% block Value-branch_address %} {% endblock Value-branch_address %}>
+            </div>
+            <div class="mb-3">
+                <label for="branch" class="form-label">Company</label>
+                {{form.shop}}
+            </div>
+  
+            <div class="mt-4 text-center" style="width:100%;">
+              <button type="submit" class="btn btn-secondary">
+                {% block Btn-action %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Branch{% endblock Btn-action %}
+              </button>
+              
+              <button type="reset" class="btn btn-secondary" title="Reset">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+        <!--Form ends-->
+      </div>
+    </div>
+</div>
+  
+  

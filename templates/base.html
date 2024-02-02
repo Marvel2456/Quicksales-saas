@@ -1,0 +1,246 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en"> 
+<head>
+    <title>Quicksales |{% block title %} {% endblock %}</title>
+    
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="description" content="">
+    <meta name="author" content="">    
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}"> 
+    
+    <!-- FontAwesome JS-->
+    <script defer src="{% static 'assets/plugins/fontawesome/js/all.min.js' %}"></script>
+    
+    <!-- App CSS -->  
+    <link id="theme-style" rel="stylesheet" href="{% static 'assets/css/portal.css' %}">
+    <link rel="stylesheet" href-"{% static 'assets/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/jquery-ui.min.css' %}">
+    {% comment %} <link rel="stylesheet" href="{% static 'assets/css/bootstrap-datepicker.min.css' %}"> {% endcomment %}
+    <link rel="stylesheet" href="{% static 'assets/css/jquery-ui.structure.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/jquery-ui.theme.min.css' %}">
+    
+</head> 
+
+<body class="app">
+    <header class="app-header fixed-top">
+        {% include 'partials/_navbar.html' %}
+        {% include 'partials/_sidebar.html' %}
+        
+    </header>
+    <div class="app-wrapper">
+        {% include 'ims/message.html' %}
+        {% block content %}
+        
+    
+
+        {% endblock content %}
+        {% include 'ims/add_product.html' %}
+        {% include 'ims/add_category.html' %}
+        {% include 'ims/sale_price.html' %}
+        {% include 'ims/cost_price.html' %}
+        {% include 'ims/restock.html' %}
+        {% include 'ims/add_inventory.html' %}
+        {% include 'ims/add_staff.html' %}
+        {% include 'ims/add_count.html' %}
+        {% include 'ims/admin_add_inventory.html' %}
+        {% include 'ims/admin_restock.html' %}
+        {% include 'account/addpos.html' %}
+        {% include 'account/addbranch.html' %}
+        
+        {% include 'partials/_footer.html' %}
+    </div>
+    
+    
+    <!-- Javascript -->          
+    <script src="{% static 'assets/plugins/popper.min.js' %}"></script>
+    <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'assets/js/jQuery 3.6.1.min.js' %}"></script>
+
+    <!-- html2pdf JS -->
+    {% comment %} <static src="{% static 'assets/js/dist/html2pdf.bundle.min.js' %}"></script> {% endcomment %}
+    
+
+    <!-- Charts JS -->
+    <script src="{% static 'assets/plugins/chart.js/chart.min.js' %}"></script> 
+    <script src="{% static 'assets/js/index-charts.js' %}"></script> 
+    <script src="{% static 'assets/js/zingchart/zingchart.min.js' %}"></script>
+    <script>
+        setTimeout(function(){
+            if ($('#msg').length > 0 ){
+                $('#msg').remove();
+            }
+        }, 4000)
+    </script>
+    <script>
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in item %}'{{ item.inventory.product}}', {% endfor %}],
+                datasets: [{
+                    label: 'largest recent sales',
+                    data: [{% for item in item %}'{{ item.quantity }}', {% endfor %}],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                title: {
+                  display:true,
+                  text: 'Product sale summary'
+                },
+            }
+        });
+      
+      </script>
+      
+    </div>
+</div>
+</div>
+</script>
+
+
+    <!--Zing Chart-->
+    <script>
+        let saleID =   "{{sale.id}}"
+
+
+        let dataURL= `/profitData/${saleID}/`
+
+        $.ajax({
+            method:'GET',
+            url:dataURL,
+            success:function(response){
+                console.log('RESPONSE:', response)
+            }
+        })
+
+
+        let chartData = {
+            type:'bar',
+            title: {
+                text: 'Data Basics',
+                fontSize: 24,
+              },
+              legend: {
+                draggable: true,
+              },
+              scaleX: {
+                // Set scale label
+                label: { text: 'Days' },
+                // Convert text on scale indices
+                labels: [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ]
+              },
+              scaleY: {
+                // Scale label with unicode character
+                label: { text: 'Temperature (°F)' }
+              },
+              plot: {
+                // Animation docs here:
+                // https://www.zingchart.com/docs/tutorials/styling/animation#effect
+                animation: {
+                  effect: 'ANIMATION_EXPAND_BOTTOM',
+                  method: 'ANIMATION_STRONG_EASE_OUT',
+                  sequence: 'ANIMATION_BY_NODE',
+                  speed: 275,
+                }
+              },
+              series: [
+                {
+                  // plot 1 values, linear data
+                  values: [23,20,27,29,25,17,15],
+                  text: 'Week 1',
+                },
+                {
+                  // plot 2 values, linear data
+                  values: [35,42,33,49,35,47,35],
+                  text: 'Week 2'
+                },
+                {
+                  // plot 2 values, linear data
+                  values: [15,22,13,33,44,27,31],
+                  text: 'Week 3'
+                }
+              ]
+        }
+
+
+        zingchart.render({
+            id:'zChart',
+            data:chartData,
+        });
+
+
+    </script>
+    <!--Zing Chart End-->
+    
+    <!-- Page Specific JS -->
+    <script src="{% static 'assets/js/app.js' %}"></script>
+    <script src="{% static 'assets/js/cart.js' %}"></script>
+    <script src="{% static 'assets/js/jquery-3.4.1.js' %}"></script>
+    <script src="{% static 'assets/js/jquery-ui.min.js' %}"></script>
+
+    <script>
+        $(document) .ready(function(){
+            var date_input=$('input[id="due"]');
+            var container=$('.bootstrap-iso form').length>0 ? $('.bootstrap-iso form').parent() : "body";
+            var options={
+                dateFormat: 'yy-mm-dd',
+            }
+            date_input.datepicker(options);
+        })
+    </script>
+    <script>
+        $(document) .ready(function(){
+            var date_input=$('input[id="due2"]');
+            var container=$('.bootstrap-iso form').length>0 ? $('.bootstrap-iso form').parent() : "body";
+            var options={
+                dateFormat: 'yy-mm-dd',
+            }
+            date_input.datepicker(options);
+        })
+    </script>
+    <script>
+        let user = '{{request.user}}'
+    </script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+    </script>
+
+</body>
+</html>

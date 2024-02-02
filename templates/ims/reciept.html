@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+        <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
+        <title class="hidden-print">Quicksales</title>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-12 pt-2">
+                    <div class="text-center">
+                        <img src="" alt="Logo">
+                        <h2><strong>Quicksales</strong></h2><hr><br>
+                        <p>Date: {{sale.date_added|date:"D, d M, Y"}}</p>
+                        <p>Total Sales: {{sale.final_total_price}}</p>
+                    </div><hr><br>
+                    <div>
+                        <table class="table text-center">
+                            <thead>
+                              <tr>
+                                <th scope="col">Product</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">Price</th>
+                                <th scope="col">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                            {% for salesitem in salesitem %}
+                              <tr>
+                                <td>{{salesitem.inventory}}</td>
+                                <td>{{salesitem.quantity}}</td>
+                                <td>{{salesitem.inventory.sale_price}}</td>
+                                <td>{{salesitem.get_total}}</td>
+                              </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <a class="btn btn-secondary hidden-print" id="btnPrint" href="{% url 'store' %}">Print</a>
+                </div>
+            </div>
+        </div>
+        
+        <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.min.js' %}"></script>  
+        <script >
+            let btnPrint = document.querySelector("#btnPrint");
+            btnPrint.addEventListener("click", () => {
+                window.print();
+            });
+        </script>
+    </body>
+</html>

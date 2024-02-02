@@ -1,0 +1,34 @@
+<div class="modal fade" {% block modal-id %} id="deleteBranchModal{{branch.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="deleteBranchModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h6 class="modal-title" id="deleteBranchModalLabel">{% block modal-title %} {% endblock modal-title %}</h6>
+            <span class=""><i class="fa-solid fa-trash-can"></i></span>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!--Forms begins-->
+            <form {% block Action %} action="{% url 'deletebranch' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+            {% csrf_token %}
+    
+                <div class="modal-body">
+                    {% block Value-id %}
+                    <div class="input-group mb-3">
+                        {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
+                        <input type="hidden" class="form-control" name="id" value="{{branch.id}}" readonly>
+                    </div>
+                    {% endblock Value-id %}
+
+                    <div class="card card-body form-group align-items-center">
+                        <h5>Want to delete {{branch.branch_name}} ?</h5>
+                        <p>
+                            <a href="">
+                            <button type="submit" class="btn btn-success">Yes</button>
+                            </a>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

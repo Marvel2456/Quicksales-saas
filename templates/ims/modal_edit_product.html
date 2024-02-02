@@ -1,0 +1,45 @@
+{% extends 'ims/add_product.html' %}
+
+<!-- Modal ID -->
+{% block modal-id %} id="editProductModal{{ products.pk }}" {% endblock modal-id %}
+
+<!-- Modal title -->
+{% block modal-title %}<i class="fas fa-edit"></i>&nbsp;&nbsp; Edit Product{% endblock modal-title %}
+
+<!-- Form Action -->
+{% block Action %} action="{% url 'edit_product' %}" {% endblock Action %}
+
+<!--==Btn action==-->
+{% block Btn-action %}<i class="fas fa-server"></i>&nbsp;&nbsp; Save Changes{% endblock Btn-action %}
+
+<!--== All content ==-->
+<!--==Block ID==-->
+{% block Value-id %}
+<div class="input-group mb-3">
+    {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
+    <input type="hidden" class="form-control" name="id" value="{{products.id}}" readonly>
+</div>
+{% endblock Value-id %}
+
+<!--Name-->
+{% block Value-product_name %} value="{{products.product_name}}" {% endblock Value-product_name %}
+
+<!--brand-->
+{% block Value-brand %} value="{{products.brand}}" {% endblock Value-brand %}
+
+<!--category-->
+{% block Value-category %} value="{{products.category}}" {% endblock Value-category %}
+
+{% comment %} <!--price-->
+{% block Value-cost_price %} value="{{products.cost_price}}" {% endblock Value-cost_price %}
+
+{% block Value-sale_price %} value="{{products.sale_price}}" {% endblock Value-sale_price %} {% endcomment %}
+
+<!--unit-->
+{% block Value-unit %} value="{{products.unit}}" {% endblock Value-unit %}
+
+<!--batch_no-->
+{% block Value-batch_no %} value="{{products.batch_no}}" {% endblock Value-batch_no %}
+
+
+

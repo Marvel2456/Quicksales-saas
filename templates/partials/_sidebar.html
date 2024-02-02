@@ -1,0 +1,310 @@
+{% load static %}
+<div id="app-sidepanel" class="app-sidepanel"> 
+    <div id="sidepanel-drop" class="sidepanel-drop"></div>
+    <div class="sidepanel-inner d-flex flex-column">
+        <a href="#" id="sidepanel-close" class="sidepanel-close d-xl-none">&times;</a>
+        <div class="app-branding">
+            <a class="app-logo" href="."><span class="logo-text">Quicksales</span></a>
+
+        </div><!--//app-branding-->  
+        
+        <nav id="app-nav-main" class="app-nav app-nav-main flex-grow-1">
+            <ul class="app-menu list-unstyled accordion" id="menu-accordion">
+                {% if request.user.is_admin %}
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if '/' == request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'index' %}">
+                        <span class="nav-icon">
+                        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-columns-gap" fill="currentColor">
+                            <path fill-rule="evenodd" d="M6 1H1v3h5V1zM1 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1H1zm14 12h-5v3h5v-3zm-5-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-5zM6 8H1v7h5V8zM1 7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H1zm14-6h-5v7h5V1zm-5-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1h-5z"/>
+                        </svg>
+                         </span>
+                         <span class="nav-link-text">Dashboard</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                <li class="nav-item has-submenu">
+                    <a {% if 'category_list' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'category_list' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
+                                <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
+                                <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1v5.086z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Category</span>
+                    </a>
+                </li><!--//nav-item-->
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'products' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'products' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tag" viewBox="0 0 16 16">
+                                <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z"/>
+                                <path d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z"/>
+                            </svg>    
+                         </span>
+                         <span class="nav-link-text">Products</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branchinv' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchinv' %}">
+                        <span class="nav-icon">
+                            <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-folder" fill="currentColor">
+                                <path d="M9.828 4a3 3 0 0 1-2.12-.879l-.83-.828A1 1 0 0 0 6.173 2H2.5a1 1 0 0 0-1 .981L1.546 4h-1L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3v1z"/>
+                                <path fill-rule="evenodd" d="M13.81 4H2.19a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zM2.19 3A2 2 0 0 0 .198 5.181l.637 7A2 2 0 0 0 2.826 14h10.348a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H2.19z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Inventory</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                <li class="nav-item has-submenu">
+                    <a {% if 'branchcount' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchcount' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-calculator-fill" viewBox="0 0 16 16">
+                                <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2 .5v2a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-2a.5.5 0 0 0-.5-.5h-7a.5.5 0 0 0-.5.5zm0 4v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5zM4.5 9a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1zM4 12.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5zM7.5 6a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1zM7 9.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5zm.5 2.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1zM10 6.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5zm.5 2.5a.5.5 0 0 0-.5.5v4a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 0-.5-.5h-1z"/>
+                            </svg> 
+                        </span>
+                        <span class="nav-link-text">Count</span>
+                    </a>
+                </li><!--//nav-item--> 
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branchstore' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchstore' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-cart4" viewBox="0 0 16 16">
+                                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l.5 2H5V5H3.14zM6 5v2h2V5H6zm3 0v2h2V5H9zm3 0v2h1.36l.5-2H12zm1.11 3H12v2h.61l.5-2zM11 8H9v2h2V8zM8 8H6v2h2V8zM5 8H3.89l.5 2H5V8zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Store</span>
+                    </a><!--//nav-link-->
+                </li>
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'sales' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'sales' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-receipt" viewBox="0 0 16 16">
+                                <path d="M1.92.506a.5.5 0 0 1 .434.14L3 1.293l.646-.647a.5.5 0 0 1 .708 0L5 1.293l.646-.647a.5.5 0 0 1 .708 0L7 1.293l.646-.647a.5.5 0 0 1 .708 0L9 1.293l.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .801.13l.5 1A.5.5 0 0 1 15 2v12a.5.5 0 0 1-.053.224l-.5 1a.5.5 0 0 1-.8.13L13 14.707l-.646.647a.5.5 0 0 1-.708 0L11 14.707l-.646.647a.5.5 0 0 1-.708 0L9 14.707l-.646.647a.5.5 0 0 1-.708 0L7 14.707l-.646.647a.5.5 0 0 1-.708 0L5 14.707l-.646.647a.5.5 0 0 1-.708 0L3 14.707l-.646.647a.5.5 0 0 1-.801-.13l-.5-1A.5.5 0 0 1 1 14V2a.5.5 0 0 1 .053-.224l.5-1a.5.5 0 0 1 .367-.27zm.217 1.338L2 2.118v11.764l.137.274.51-.51a.5.5 0 0 1 .707 0l.646.647.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.646.646.646-.646a.5.5 0 0 1 .708 0l.509.509.137-.274V2.118l-.137-.274-.51.51a.5.5 0 0 1-.707 0L12 1.707l-.646.647a.5.5 0 0 1-.708 0L10 1.707l-.646.647a.5.5 0 0 1-.708 0L8 1.707l-.646.647a.5.5 0 0 1-.708 0L6 1.707l-.646.647a.5.5 0 0 1-.708 0L4 1.707l-.646.647a.5.5 0 0 1-.708 0l-.509-.51z"/>
+                                <path d="M3 4.5a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 1 1 0 1h-6a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5zm8-6a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Sales</span>
+                    </a><!--//nav-link-->
+                </li>
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'records' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'records' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-file-earmark-spreadsheet" viewBox="0 0 16 16">
+                                <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V9H3V2a1 1 0 0 1 1-1h5.5v2zM3 12v-2h2v2H3zm0 1h2v2H4a1 1 0 0 1-1-1v-1zm3 2v-2h3v2H6zm4 0v-2h3v1a1 1 0 0 1-1 1h-2zm3-3h-3v-2h3v2zm-7 0v-2h3v2H6z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Records</span>
+                    </a><!--//nav-link-->
+                </li>
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branchaudit' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchaudit' %}">
+                        <span class="nav-icon">
+                        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-card-list" fill="currentColor">
+                            <path fill-rule="evenodd" d="M14.5 3h-13a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13z"/>
+                            <path fill-rule="evenodd" d="M5 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 5 8zm0-2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5zm0 5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5z"/>
+                            <circle cx="3.5" cy="5.5" r=".5"/>
+                            <circle cx="3.5" cy="8" r=".5"/>
+                            <circle cx="3.5" cy="10.5" r=".5"/>
+                        </svg>
+                         </span>
+                         <span class="nav-link-text">Audit</span>
+                    </a><!--//nav-link-->
+                </li>
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'staff' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'staff' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-person-bounding-box" viewBox="0 0 16 16">
+                                <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 1-1 0v-3A1.5 1.5 0 0 1 1.5 0h3a.5.5 0 0 1 0 1h-3zM11 .5a.5.5 0 0 1 .5-.5h3A1.5 1.5 0 0 1 16 1.5v3a.5.5 0 0 1-1 0v-3a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 1-.5-.5zM.5 11a.5.5 0 0 1 .5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 1 0 1h-3A1.5 1.5 0 0 1 0 14.5v-3a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v3a1.5 1.5 0 0 1-1.5 1.5h-3a.5.5 0 0 1 0-1h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 1 .5-.5z"/>
+                                <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm8-9a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Staffs</span>
+                    </a><!--//nav-link-->
+                </li>	
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'ticket' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'ticket' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-ticket-detailed" viewBox="0 0 16 16">
+                                <path d="M4 5.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5Zm0 5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5ZM5 7a1 1 0 0 0 0 2h6a1 1 0 1 0 0-2H5Z"/>
+                                <path d="M0 4.5A1.5 1.5 0 0 1 1.5 3h13A1.5 1.5 0 0 1 16 4.5V6a.5.5 0 0 1-.5.5 1.5 1.5 0 0 0 0 3 .5.5 0 0 1 .5.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 11.5V10a.5.5 0 0 1 .5-.5 1.5 1.5 0 1 0 0-3A.5.5 0 0 1 0 6V4.5ZM1.5 4a.5.5 0 0 0-.5.5v1.05a2.5 2.5 0 0 1 0 4.9v1.05a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-1.05a2.5 2.5 0 0 1 0-4.9V4.5a.5.5 0 0 0-.5-.5h-13Z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Tickets</span>
+                    </a><!--//nav-link-->
+                </li>		
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branchrep' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchrep' %}">
+                        <span class="nav-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-graph-up-arrow" viewBox="0 0 16 16">
+                                <path fill-rule="evenodd" d="M0 0h1v15h15v1H0V0Zm10 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V4.9l-3.613 4.417a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61L13.445 4H10.5a.5.5 0 0 1-.5-.5Z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Report</span>
+                    </a><!--//nav-link-->
+                </li> 
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'pos' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'pos' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-cart-check" viewBox="0 0 16 16">
+                                <path d="M11.354 6.354a.5.5 0 0 0-.708-.708L8 8.293 6.854 7.146a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0l3-3z"/>
+                                <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1H.5zm3.915 10L3.102 4h10.796l-1.313 7h-8.17zM6 14a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm7 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Pos</span>
+                    </a><!--//nav-link-->
+                </li>   
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branch' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branch' %}">
+                        <span class="nav-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-shop" viewBox="0 0 16 16">
+                                <path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35l2.609 3.044A1.5 1.5 0 0 1 16 5.37v.255a2.375 2.375 0 0 1-4.25 1.458A2.371 2.371 0 0 1 9.875 8 2.37 2.37 0 0 1 8 7.083 2.37 2.37 0 0 1 6.125 8a2.37 2.37 0 0 1-1.875-.917A2.375 2.375 0 0 1 0 5.625V5.37a1.5 1.5 0 0 1 .361-.976l2.61-3.045zm1.78 4.275a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 1 0 2.75 0V5.37a.5.5 0 0 0-.12-.325L12.27 2H3.73L1.12 5.045A.5.5 0 0 0 1 5.37v.255a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0zM1.5 8.5A.5.5 0 0 1 2 9v6h1v-5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v5h6V9a.5.5 0 0 1 1 0v6h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1V9a.5.5 0 0 1 .5-.5zM4 15h3v-5H4v5zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3zm3 0h-2v3h2v-3z"/>
+                              </svg>
+                        </span>
+                        <span class="nav-link-text">Branch</span>
+                    </a><!--//nav-link-->
+                </li>   
+     
+                <!--For Managers-->
+
+                {% elif request.user.is_sub_admin %}
+                {% if user.branch %}
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branchdash' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchdash' user.branch.id %}">
+                        <span class="nav-icon">
+                        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-columns-gap" fill="currentColor">
+                            <path fill-rule="evenodd" d="M6 1H1v3h5V1zM1 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1H1zm14 12h-5v3h5v-3zm-5-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-5zM6 8H1v7h5V8zM1 7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H1zm14-6h-5v7h5V1zm-5-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1h-5z"/>
+                        </svg>
+                         </span>
+                         <span class="nav-link-text">Dashboard</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                {% endif %}
+                <li class="nav-item has-submenu">
+                    <a {% if 'category_list' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'category_list' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
+                                <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
+                                <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1v5.086z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Category</span>
+                    </a>
+                </li><!--//nav-item-->
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'products' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'products' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tag" viewBox="0 0 16 16">
+                                <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z"/>
+                                <path d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z"/>
+                            </svg>    
+                         </span>
+                         <span class="nav-link-text">Products</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                {% if user.branch  %}
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'inventorys' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'inventorys' %}">
+                        <span class="nav-icon">
+                            <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-folder" fill="currentColor">
+                                <path d="M9.828 4a3 3 0 0 1-2.12-.879l-.83-.828A1 1 0 0 0 6.173 2H2.5a1 1 0 0 0-1 .981L1.546 4h-1L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3v1z"/>
+                                <path fill-rule="evenodd" d="M13.81 4H2.19a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zM2.19 3A2 2 0 0 0 .198 5.181l.637 7A2 2 0 0 0 2.826 14h10.348a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H2.19z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Inventory</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                <li class="nav-item has-submenu">
+                    <a {% if 'productlist' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'productlist' user.branch.id %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
+                                <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
+                                <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1v5.086z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Count</span>
+                    </a>
+                </li><!--//nav-item-->
+                {% endif %}
+                <li class="nav-item has-submenu">
+                    <a {% if 'create_ticket' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'create_ticket' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
+                                <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
+                                <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1v5.086z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Add Ticket</span>
+                    </a>
+                </li><!--//nav-item-->
+                {% elif request.user.is_work_staff %}
+                {% if user.branch %}
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'branchdash' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branchdash' user.branch.id %}">
+                        <span class="nav-icon">
+                        <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-columns-gap" fill="currentColor">
+                            <path fill-rule="evenodd" d="M6 1H1v3h5V1zM1 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1H1zm14 12h-5v3h5v-3zm-5-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-5zM6 8H1v7h5V8zM1 7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H1zm14-6h-5v7h5V1zm-5-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1h-5z"/>
+                        </svg>
+                         </span>
+                         <span class="nav-link-text">Dashboard</span>
+                    </a><!--//nav-link-->
+                </li><!--//nav-item-->
+                <li class="nav-item">
+                    <!--//Bootstrap Icons -->
+                    <a {% if 'store' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'store' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-cart4" viewBox="0 0 16 16">
+                                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5zM3.14 5l.5 2H5V5H3.14zM6 5v2h2V5H6zm3 0v2h2V5H9zm3 0v2h1.36l.5-2H12zm1.11 3H12v2h.61l.5-2zM11 8H9v2h2V8zM8 8H6v2h2V8zM5 8H3.89l.5 2H5V8zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0zm9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0z"/>
+                            </svg>
+                         </span>
+                         <span class="nav-link-text">Store</span>
+                    </a><!--//nav-link-->
+                </li>
+                {% endif %}
+                <li class="nav-item has-submenu">
+                    <a {% if 'create_ticket' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'create_ticket' %}">
+                        <span class="nav-icon">
+                            <svg width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
+                                <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
+                                <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1zm0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1v5.086z"/>
+                            </svg>
+                            
+                        </span>
+                        <span class="nav-link-text">Add Ticket</span>
+                    </a>
+                </li><!--//nav-item-->
+                {% endif %}
+                    
+            </ul><!--//app-menu-->
+        </nav><!--//app-nav-->
+        <div class="app-sidepanel-footer">
+            <nav class="app-nav app-nav-footer">
+                <ul class="app-menu footer-menu list-unstyled">
+                   
+                    <small class="copyright">Designed <span class="sr-only"></span> by <a class="app-link" href="" target="_blank">Marvex</a> for .....</small>
+                </ul><!--//footer-menu-->
+            </nav>
+        </div><!--//app-sidepanel-footer-->
+       
+    </div><!--//sidepanel-inner-->
+</div><!--//app-sidepanel-->

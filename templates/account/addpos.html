@@ -1,0 +1,44 @@
+<!-- Modal -->
+<div class="modal fade" {% block modal-id %} id="addPosModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="addPosModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title" id="addPosModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Pos{% endblock modal-title %}</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <!--Forms begins-->
+        <form {% block Action %} action="{% url 'pos' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+          {% csrf_token %}
+  
+          <div class="modal-body">
+  
+          <!--==Block Id==-->
+          {% block Value-id %}  {% endblock Value-id %}
+  
+            <div class="mb-3">
+              <label for="pos_name" class="form-label">Name</label>
+              <input name="pos_name" type="text" class="form-control" placeholder="Pos Name" required {% block Value-pos_name %} {% endblock Value-pos_name %}>
+              <div class="m-3" style="color:red;">{{form.pos_name.errors}}</div>
+            </div>
+            <div class="mb-3">
+                <label for="branch" class="form-label">Branch</label>
+                {% block Value-branch %} {{form.branch}}  {% endblock Value-branch %}
+            </div>
+  
+            <div class="mt-4 text-center" style="width:100%;">
+              <button type="submit" class="btn btn-secondary">
+                {% block Btn-action %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Pos{% endblock Btn-action %}
+              </button>
+              
+              <button type="reset" class="btn btn-secondary" title="Reset">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+        <!--Form ends-->
+      </div>
+    </div>
+</div>
+  
+  

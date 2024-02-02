@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %} Staff Detail {% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="first_name" class="form-label">Username</label>
+                <input type="text" class="form-control" name="first_name"  value="{{staff.username}}">
+            </div>
+            <div class="form-check form-check-inline mb-3">
+                <input name="is_admin" class="form-check-input" type="checkbox" id="inlineCheckbox1" value="{{staff.is_admin}}">
+                <label for="is_admin" class="form-check-label" for="inlineCheckbox1">Admin</label>
+            </div>
+            <div class="form-check form-check-inline mb-3">
+                <input name="is_sub_admin" class="form-check-input" type="checkbox" id="inlineCheckbox2" value="{{staff.is_sub_admin}}">
+                <label for="is_sub_admin" class="form-check-label" for="inlineCheckbox1">Sub Admin</label>
+            </div>
+            <div class="form-check form-check-inline mb-3">
+                <input name="is_work_staff" class="form-check-input" type="checkbox" id="inlineCheckbox3" value="{{staff.is_work_staff}}">
+                <label for="is_work_staff" class="form-check-label" for="inlineCheckbox1">Staff</label>
+            </div>
+            <div class="mb-3">
+                <label for="branch" class="form-label">Branch</label>
+                {{form.branch}}
+            </div>
+            <div class="mb-3">
+                <label for="pos" class="form-label">Pos</label>
+                {{form.pos}}
+            </div>
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-plus"></i>&nbsp;&nbsp; Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+
+{% endblock content %}

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} Inventory {% endblock title %}
+
+{% block content %}
+
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <h1 class="app-page-title mb-0">Ticket</h1>
+            </div>
+            <div class="col-auto">
+                 <div class="page-utilities">
+                    <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
+                        <div class="col-auto">
+                            <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
+                                
+                                <div class="col-auto">
+                                    <input type="text" id="search-orders" name="product" class="form-control search-orders" placeholder="Product Name">
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn app-btn-secondary">Search</button>
+                                </div>
+                            </form>
+                            
+                        </div><!--col-->
+                    </div><!--row-->
+                </div><!--table-utilities-->
+            </div><!--col-auto-->
+        </div><!--row-->
+       
+        <nav id="orders-table-tab" class="orders-table-tab app-nav-tabs nav shadow-sm flex-column flex-sm-row mb-4">
+            <a class="flex-sm-fill text-sm-center nav-link active" id="orders-all-tab" data-bs-toggle="tab" href="#orders-all" role="tab" aria-controls="orders-all" aria-selected="true">Tickets</a>
+        </nav>
+        
+        <div class="tab-content" id="orders-table-tab-content">
+            <div class="tab-pane fade show active" id="orders-all" role="tabpanel" aria-labelledby="orders-all-tab">
+                <div class="app-card app-card-orders-table shadow-sm mb-5">
+                    <div class="app-card-body">
+                        <div class="table-responsive">
+                            <table class="table app-table-hover mb-0 text-left" id="example">
+                                <thead>
+                                    <tr>
+                                        <th class="cell">Sent By</th>
+                                        <th class="cell">Branch</th>
+                                        <th class="cell">POS</th>
+                                        <th class="cell">Title</th>
+                                        <th class="cell">Status</th>
+                                        <th class="cell">Date</th>
+                                        <th class="cell">Viewed On</th>
+                                        <th class="cell"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <div class="m-2 py-2">
+                                        
+                                    </div>    
+                                    {% for ticket in ticket %}
+                                    <tr>
+                                        <td class="cell"><span class="truncate">{{ticket.staff}}</span></td>
+                                        <td class="cell">{{ticket.branch}}</td>
+                                        <td class="cell">{{ticket.pos}}</td>
+                                        <td class="cell">{{ticket.title}}</td>
+                                        <td class="cell"><span class="note">{{ticket.status}}</span></td>
+                                        <td class="cell"><span class="note">{{ticket.date_added}}</span></td>
+                                        <td class="cell"><span class="note">{{ticket.date_updated}}</span></td>
+                                        <td class="cell">
+                                            <a class="btn-sm app-btn-secondary" style="cursor:pointer;" href="{% url 'tickets' ticket.id %}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            {% comment %} <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#deleteInventoryModal{{inventory.pk}}"><i class="fa-solid fa-trash-can"></i></a> {% endcomment %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    
+                                </tbody>
+                            </table>
+                        </div><!--table-responsive-->
+                       
+                    </div><!--app-card-body-->		
+                </div><!--app-card-->
+                {% comment %} <div class="pagination">
+                    <span class="step-links">
+                      <nav aria-label="Page navigation example">
+                        <ul class="pagination" style="color:yellow;">
+                            {% if inventory_page.has_previous %}
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ inventory_page.previous_page_number }}">previous</a></li>
+                            {% endif %}
+                            {% for i in nums %}
+                            <span class="current">
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}">{{forloop.counter}}</a></li>
+                            </span>
+                            {% endfor %}
+                            {% if inventory_page.has_next %}
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ inventory_page.next_page_number }}">next</a></li>
+                            {% endif %}
+                        </ul>
+                      </nav>
+                    </span>
+                </div> {% endcomment %}
+                
+            </div><!--tab-pane-->
+            
+        </div><!--//tab-content-->
+        
+    </div><!--//container-fluid-->
+</div><!--//app-content-->
+
+{% endblock content %}

@@ -1,0 +1,80 @@
+<div class="modal fade" {% block modal-id %} id="editStaffModal{{staff.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h6 class="modal-title" id="editStaffModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Add Staff{% endblock modal-title %}</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!--Forms begins-->
+            <form {% block Action %} action="{% url 'edit_staff' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+            {% csrf_token %}
+    
+                <div class="modal-body">
+                    {% block Value-id %}
+                    <div class="input-group mb-3">
+                        {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
+                        <input type="hidden" class="form-control" name="id" value="{{staff.id}}" readonly>
+                    </div>
+                    {% endblock Value-id %}
+
+                    {% block Value-first_name %}
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" name="first_name"  value="{{staff.first_name}}">
+                    </div>
+                    {% endblock Value-first_name %}
+
+                    {% block Value-last_name %}
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" name="last_name"  value="{{staff.last_name}}">
+                    </div>
+                    {% endblock Value-last_name %}
+
+                    {% block Value-phone_number %}
+                    <div class="mb-3 py-2">
+                        <label for="phone_number" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control" name="phone_number"  value="{{staff.phone_number}}">
+                    </div>
+                    {% endblock Value-phone_number %}
+
+                    {% block Value-address %}
+                    <div class="mb-3 py-2">
+                        <label for="address" class="form-label">Address</label>
+                        <input type="text" class="form-control" name="address"  value="{{staff.address}}">
+                    </div>
+                    {% endblock Value-address %}
+
+                    {% comment %} {% block Value-is_admin %} 
+                    <div class="form-check form-check-inline mb-3">
+                        <input name="is_admin" class="form-check-input" type="checkbox" id="inlineCheckbox1" value="{{staff.is_admin}}">
+                        <label for="is_admin" class="form-check-label" for="inlineCheckbox1">Admin</label>
+                    </div>
+                    {% endblock Value-is_admin %}
+
+                    {% block Value-is_sub_admin %}
+                    <div class="form-check form-check-inline mb-3">
+                        <input name="is_sub_admin" class="form-check-input" type="checkbox" id="inlineCheckbox2" value="{{staff.is_sub_admin}}">
+                        <label for="is_sub_admin" class="form-check-label" for="inlineCheckbox1">Sub Admin</label>
+                    </div>
+                    {% endblock Value-is_sub_admin %}
+
+                    {% block Value-is_work_staff %}
+                    <div class="form-check form-check-inline mb-3">
+                        <input name="is_work_staff" class="form-check-input" type="checkbox" id="inlineCheckbox3" value="{{staff.is_work_staff}}">
+                        <label for="is_work_staff" class="form-check-label" for="inlineCheckbox1">Staff</label>
+                    </div>
+                    {% endblock Value-is_work_staff %} {% endcomment %}
+                    
+
+                    <div class="mt-4 text-center" style="width:100%;">
+                        <button type="submit" class="btn btn-secondary">
+                        {% block Btn-action %}<i class="fa-solid fa-floppy-disk"></i>&nbsp;&nbsp; Save{% endblock Btn-action %}
+                        </button>
+                        
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
