@@ -17,10 +17,10 @@ def loginUser(request):
         user = authenticate(request, username=username, password=password)
         
 
-        if user is not None and user.is_subscribed==False:
-            messages.info(request, f'Subscription has expired kindly renew to continue')
-            return redirect('login')
-        elif user is not None and user.is_subscribed==True:
+        # if user is not None and user.is_subscribed==False:
+        #     messages.info(request, f'Subscription has expired kindly renew to continue')
+        #     return redirect('login')
+        if user is not None :
             if user.is_active and user.is_admin:
                 login(request, user)
                 LoggedIn.objects.create(staff=user,

@@ -13,7 +13,7 @@ class UserCreateForm(UserCreationForm):
             )
 
         widgets = {
-            'branch' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'brabch'}),
+            'branch' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'branch'}),
             'pos': forms.Select(attrs={'class':'form-control', 'placeholder':'Pos'})
         }
 

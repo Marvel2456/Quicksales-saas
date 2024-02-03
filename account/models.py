@@ -1,20 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-
-# Create your models here.
-class Shop(models.Model):
-    name = models.CharField(max_length=200, blank=True, null=True)
-    address = models.CharField(max_length=250, blank=True, null=True)
-    owner = models.CharField(max_length=250, blank=True, null=True)
-    is_subscribed = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.name
+from tenants.models import Organization
 
 class Branch(models.Model):
     branch_name = models.CharField(max_length=200, blank=True, null=True)
     branch_address = models.CharField(max_length=250, blank=True, null=True)
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
 
@@ -39,16 +29,16 @@ class Pos(models.Model):
 
 
 class CustomUser(AbstractUser):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     pos = models.ForeignKey(Pos, on_delete=models.SET_NULL, blank=True, null=True)
     is_admin = models.BooleanField(default = False)
     is_sub_admin = models.BooleanField(default = False)
     is_work_staff = models.BooleanField(default = False)
-    phone_number = models.CharField(max_length = 100)
-    address = models.CharField(max_length = 200)
+    phone_number = models.CharField(max_length = 100, blank=True, null=True)
+    address = models.CharField(max_length = 200, blank=True, null=True)
     is_subscribed = models.BooleanField(default=True)
     date_created = models.DateTimeField(auto_now_add=True)
-
 
 
 class LoggedIn(models.Model):

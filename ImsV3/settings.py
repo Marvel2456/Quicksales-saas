@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY')
 DEBUG = True
 
 
-CSRF_TRUSTED_ORIGINS = ['https://*.quicksaless.up.railway.app','https://*.127.0.0.1'] #for railway setup
+# CSRF_TRUSTED_ORIGINS = ['https://*.quicksaless.up.railway.app','https://*.127.0.0.1'] #for railway setup
 ALLOWED_HOSTS = ["*"]
 
 
@@ -46,6 +46,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Django Tenants
+    'django_tenants.middleware.main.TenantMainMiddleware',
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -80,12 +83,32 @@ WSGI_APPLICATION = 'ImsV3.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        # Tenant Engine
+        'ENGINE': 'django_tenants.postgresql_backend',
+        # set database name
+        'NAME': 'sales',
+        # set your user details
+        'USER': 'postgres',
+        'PASSWORD': 'admin123',
+        'HOST': 'localhost',
+        'POST': '5432'
     }
 }
+
+
+# DATABASE ROUTER
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
 
 
 # Password validation
