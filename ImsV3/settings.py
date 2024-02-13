@@ -33,17 +33,17 @@ ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'ims.apps.ImsConfig',
-    'account.apps.AccountConfig',
-    'simple_history',
-]
+# INSTALLED_APPS = [
+#     'django.contrib.admin',
+#     'django.contrib.auth',
+#     'django.contrib.contenttypes',
+#     'django.contrib.sessions',
+#     'django.contrib.messages',
+#     'django.contrib.staticfiles',
+#     'ims.apps.ImsConfig',
+#     'account.apps.AccountConfig',
+#     'simple_history',
+# ]
 
 MIDDLEWARE = [
     # Django Tenants
@@ -110,6 +110,43 @@ DATABASE_ROUTERS = (
     'django_tenants.routers.TenantSyncRouter',
 )
 
+
+TENANT_MODEL = "tenants.Organization"
+
+TENANT_DOMAIN_MODEL = "tenants.Domain"
+
+
+SHARED_APPS = [
+    'django_tenants',
+    'tenants',  
+
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'ims.apps.ImsConfig',
+    'account.apps.AccountConfig',
+    'simple_history',
+
+]
+
+TENANT_APPS = [
+    # The following Django contrib apps must be in TENANT_APPS
+    'django.contrib.contenttypes',
+    'django.contrib.auth',
+    'django.contrib.admin',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+
+    # tenant-specific apps
+    'ims.apps.ImsConfig',
+    'account.apps.AccountConfig',
+    'simple_history',
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators

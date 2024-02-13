@@ -2,9 +2,9 @@ from datetime import datetime
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from .models import CustomUser, LoggedIn, Pos, Branch, Shop
+from .models import CustomUser, LoggedIn, Pos, Branch
 from .forms import CreateBranchForm, EditBranchForm, CreatePosForm, EditPosForm
-from .decorators import for_admin, for_sub_admin, is_unsubscribed
+from .decorators import for_admin, for_sub_admin
 from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 # Create your views here.

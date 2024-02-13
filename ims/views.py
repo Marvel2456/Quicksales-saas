@@ -10,7 +10,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 import csv
 import json
-from account.decorators import for_admin, for_staff, for_sub_admin, is_unsubscribed
+from account.decorators import for_admin, for_staff, for_sub_admin
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 
@@ -19,7 +19,7 @@ from xhtml2pdf import pisa
 
 # Create your views here
 @login_required(login_url=('login'))
-@is_unsubscribed
+# @is_unsubscribed
 
 def branchDasboard(request):
     branch = Branch.objects.all()
@@ -40,7 +40,7 @@ def branchDasboard(request):
     return render(request, 'ims/branchdash.html', context)
 
 @login_required(login_url=('login'))
-@is_unsubscribed
+# @is_unsubscribed
 def dashboard(request, pk):
     branch = Branch.objects.get(id=pk)
     now = datetime.now()
@@ -100,7 +100,7 @@ def staffDashboard(request):
     return render(request, 'ims/dashboard.html')
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin
 
 def branchReport(request):
@@ -112,7 +112,7 @@ def branchReport(request):
     return render(request, 'ims/branchrep.html', context)
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin
 def report(request, pk):
     branch = Branch.objects.get(id=pk)
@@ -139,7 +139,7 @@ def report(request, pk):
     return render(request, 'ims/reports.html', context)
 
 @login_required(login_url=('login'))
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin
 
 def branchStore(request):
@@ -166,7 +166,7 @@ def branchStore(request):
 
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_staff
 def store(request):
     # branch = Branch.objects.get(id=pk)
@@ -193,7 +193,7 @@ def store(request):
 
 @for_staff
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def cart(request):
     # branch = Branch.objects.get(id=pk)
     
@@ -216,7 +216,7 @@ def cart(request):
 
 @for_staff
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def checkout(request):
     # branch = Branch.objects.get(id=pk)
        
@@ -326,7 +326,7 @@ def sale_complete(request, pk):
     return JsonResponse(context, safe=False)
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin    
 def sales(request):
     sale = Sale.objects.all().order_by('-date_updated')
@@ -441,7 +441,7 @@ def export_profit_csv(request, pk):
 
 @for_staff
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def reciept(request, pk):
     sale = Sale.objects.get(id = pk)
     salesitem = SalesItem.objects.filter(sale_id=sale).all()
@@ -468,7 +468,7 @@ def profitData(request, pk):
 #  only admin can create categories and products
 @for_sub_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def product_category(request):
     products = Product.objects.all().order_by('-date_created')
     category = Category.objects.filter().all()
@@ -531,7 +531,7 @@ def delete_product(request):
 
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_sub_admin
 def category_list(request):
     category = Category.objects.all()
@@ -562,7 +562,7 @@ def category_list(request):
 
 @for_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def category(request, pk):
     category = Category.objects.get(id=pk)
 
@@ -595,7 +595,7 @@ def delete_category(request):
 
 @for_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def branchInventory(request):
     inventory = Inventory.objects.all().order_by('branch')
     product = Product.objects.filter().all()
@@ -636,7 +636,7 @@ def branchInventory(request):
 
 @for_sub_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def inventory_list(request):
     branch = request.user.branch
     inventory = Inventory.objects.filter(branch_id = branch).all()
@@ -731,7 +731,7 @@ def restock(request):
 
 @for_sub_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def inventoryView(request, pk):
     branch = Branch.objects.get(id=pk)
     inventory = Inventory.objects.filter(branch_id = pk).all()
@@ -757,7 +757,7 @@ def inventoryView(request, pk):
 
 @for_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def branchCount(request):
     branch = Branch.objects.all()
 
@@ -782,7 +782,7 @@ def adminCountView(request, pk):
 
 @for_sub_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def countView(request):
     branch = request.user.branch
     inventory = Inventory.objects.filter(branch_id = branch).all()
@@ -829,7 +829,7 @@ def delete_inventory(request, pk):
 
 @for_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def branchAudit(request):
     branch = Branch.objects.all()
 
@@ -842,7 +842,7 @@ def branchAudit(request):
 
 @for_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def inventoryAudit(request, pk):
     branch = Branch.objects.get(id=pk)
     inventory = Inventory.objects.filter(branch_id = pk).all()
@@ -881,7 +881,7 @@ def export_audit_csv(request, pk):
 
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin
 def staffs(request): 
     staff = CustomUser.objects.all()
@@ -911,7 +911,7 @@ def staffs(request):
 
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin
 def staff(request, pk):
     staff = CustomUser.objects.get(id=pk)
@@ -925,7 +925,7 @@ def staff(request, pk):
 
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 @for_admin
 def edit_staff(request):
     if request.method == 'POST':
@@ -950,7 +950,7 @@ def delete_staff(request):
 
 @for_admin
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def record(request):
     login_trail = LoggedIn.objects.all().order_by('-timestamp')
     paginator = Paginator(LoggedIn.objects.all(), 15)
@@ -970,7 +970,7 @@ def record(request):
     return render(request, 'ims/records.html', context)
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def errorTicket(request):
     ticket = ErrorTicket.objects.all()
     pending = ErrorTicket.objects.filter(status='Pending')
@@ -983,7 +983,7 @@ def errorTicket(request):
     return render(request, 'ims/ticket.html', context)
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def Ticket(request, pk):
     ticket = ErrorTicket.objects.get(id=pk)
     form = UpdateTicketForm(instance=ticket)
@@ -1000,7 +1000,7 @@ def Ticket(request, pk):
     return render(request, 'ims/view_ticket.html', context)
 
 @login_required
-@is_unsubscribed
+# @is_unsubscribed
 def createTicket(request):
     staff = CustomUser.objects.all()
     form = CreateTicketForm()

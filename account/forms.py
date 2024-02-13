@@ -6,11 +6,11 @@ from .models import Branch, Pos
 class CreateBranchForm(ModelForm):
     class Meta:
         model = Branch
-        fields = ['branch_name', 'branch_address', 'shop']
+        fields = ['branch_name', 'branch_address']
 
-        widgets = {
-            'shop' : forms.Select(attrs={'class':'form-select form-control'})
-        }
+        # widgets = {
+        #     'shop' : forms.Select(attrs={'class':'form-select form-control'})
+        # }
 
 class EditBranchForm(ModelForm):
     class Meta:

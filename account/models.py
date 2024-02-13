@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from tenants.models import Organization
+# from tenants.models import Organization
 
 class Branch(models.Model):
     branch_name = models.CharField(max_length=200, blank=True, null=True)
@@ -29,7 +29,7 @@ class Pos(models.Model):
 
 
 class CustomUser(AbstractUser):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    organization = models.ForeignKey("tenants.Organization", on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     pos = models.ForeignKey(Pos, on_delete=models.SET_NULL, blank=True, null=True)
     is_admin = models.BooleanField(default = False)
@@ -37,7 +37,6 @@ class CustomUser(AbstractUser):
     is_work_staff = models.BooleanField(default = False)
     phone_number = models.CharField(max_length = 100, blank=True, null=True)
     address = models.CharField(max_length = 200, blank=True, null=True)
-    is_subscribed = models.BooleanField(default=True)
     date_created = models.DateTimeField(auto_now_add=True)
 
 
@@ -48,5 +47,5 @@ class LoggedIn(models.Model):
 
     def __str__(self):
         return str(self.staff)
-
+# research on adding the loggedin model to each tenants
 
