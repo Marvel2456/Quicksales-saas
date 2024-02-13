@@ -21,6 +21,7 @@ class Organization(TenantMixin):
     paid_until = models.IntegerField(blank=True, null=True)
     is_subscribed = models.BooleanField(default=False, blank=True)
     is_active = models.BooleanField(default=False, blank=True)
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     auto_create_schema = True
 

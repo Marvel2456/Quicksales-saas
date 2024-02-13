@@ -48,7 +48,9 @@ ALLOWED_HOSTS = ["*"]
 MIDDLEWARE = [
     # Django Tenants
     'django_tenants.middleware.main.TenantMainMiddleware',
-
+    
+    # custom tenant middleware
+    'ImsV3.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
