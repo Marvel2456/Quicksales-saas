@@ -4,21 +4,24 @@ from .models import Product, Sale, SalesItem, Category, Inventory, Supplier, Err
 
 # Register your models here.
 
-class InventoryHistoryAdmin(SimpleHistoryAdmin):
-    list_display = ["id", "product", "status"]
-    history_list_display = ["status"]
-    search_fields = ['product', 'user__username']
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('product_name', 'category')
+    search_fields = ('product_name',)
+    list_filter = ('category',)
+    ordering = ('-created_at',)
+    date_hierarchy = 'created_at'
+    list_per_page = 10
+    list_display_links = ('product_name',)
+    raw_id_fields = ('category',)
+    autocomplete_fields = ('category',)
 
-class SaleHistoryAdmin(SimpleHistoryAdmin):
-    list_display = ["id", "staff", "date_added"]
-    history_list_display = ["date_added"]
-    search_fields = ['staff__username', 'date_added']
 
-
-admin.site.register(Product)
-admin.site.register(Sale, SaleHistoryAdmin)
-admin.site.register(SalesItem)
-admin.site.register(Category)
-admin.site.register(Inventory, InventoryHistoryAdmin)
-admin.site.register(Supplier)
-admin.site.register(ErrorTicket)
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('category_name', 'last_updated', 'date_created')
+    search_fields = ('category_name',)
+    ordering = ('-date_created',)
+    date_hierarchy = 'date_created'
+    list_per_page = 10
+    list_display_links = ('category_name',)

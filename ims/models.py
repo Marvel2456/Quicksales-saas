@@ -1,6 +1,6 @@
 from datetime import date
 from django.db import models
-from account.models import CustomUser, Pos, Branch
+from account.models import CustomUser, Branch
 from simple_history.models import HistoricalRecords
 
 
@@ -23,8 +23,8 @@ class Product(models.Model):
     product_code = models.CharField(max_length=100)
     batch_no = models.CharField(max_length=20, blank=True, null=True)
     unit = models.CharField(max_length=50, blank=True, null=True)
-    last_updated = models.DateField(auto_now=True,)
-    date_created = models.DateTimeField(auto_now_add=True,)
+    updated_at = models.DateField(auto_now=True,)
+    created_at = models.DateTimeField(auto_now_add=True,)
     profit = models.FloatField(blank=True, null=True)
     
     def __str__(self):
@@ -160,7 +160,6 @@ class Supplier(models.Model):
 class ErrorTicket(models.Model):
     staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_assigned')
     title = models.CharField(max_length=150, blank=True, null=True)
-    pos = models.ForeignKey(Pos, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_reported')
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     choices = (

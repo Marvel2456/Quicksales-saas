@@ -9,29 +9,28 @@ class UserCreateForm(UserCreationForm):
     class Meta:
         model = CustomUser
         fields = (
-            'username', 'password1', 'password2', 'is_admin', 'is_sub_admin', 'is_work_staff', 'branch', 'pos'
+            'email', 'password1', 'password2', 'organization', 'branch',
             )
 
         widgets = {
             'branch' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'branch'}),
-            'pos': forms.Select(attrs={'class':'form-control', 'placeholder':'Pos'})
+            'organization' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'organization'}),
         }
 
 
 class UserEditForm(ModelForm):
     class Meta:
         model = CustomUser
-        fields = ('username', 'is_admin', 'is_sub_admin', 'is_work_staff', 'branch', 'pos')
+        fields = ('email', 'branch')
 
         widgets = {
             'branch' : forms.Select(attrs={'class':'form-select', 'placeholder':'brabch'}),
-            'pos': forms.Select(attrs={'class':'form-select', 'placeholder':'Pos'})
         }
 
 class UserForm(ModelForm):
     class Meta:
         model = CustomUser
-        fields = ('first_name', 'last_name', 'phone_number', 'address')
+        fields = ('first_name', 'last_name', 'phone_number', 'email', 'branch', 'role')
 
 class ProductForm(ModelForm):
     class Meta:
@@ -74,13 +73,7 @@ class EditProductForm(ModelForm):
            self.fields['unit'].widget.attrs['class'] = 'input'
            self.fields['batch_no'].widget.attrs['class'] = 'input'
 
-        # widget = {
-        #     'product_name' : forms.TextInput(attrs={'class':'form-control', 'placeholder':'Product'}),
-        #     'category' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'Category'}),
-        #     'brand': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Brand'}),
-        #     'unit': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Unit'}),
-        #     'batch_no': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Batch No'})
-        # }
+        
 
 class CategoryForm(ModelForm):
     class Meta:
@@ -163,7 +156,7 @@ class CreateTicketForm(ModelForm):
     class Meta:
         model = ErrorTicket
         fields = ('title', 'description')
-        exclude = ['staff', 'pos', 'branch']
+        exclude = ['staff', 'branch']
 
 class UpdateTicketForm(ModelForm):
     class Meta:

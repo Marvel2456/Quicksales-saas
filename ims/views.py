@@ -3,7 +3,7 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from datetime import datetime, date
 from .models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket
-from account.models import CustomUser, LoggedIn, Pos, Branch
+from account.models import CustomUser, Branch
 from django.contrib.auth.decorators import login_required
 from . forms import *
 from django.core.paginator import Paginator

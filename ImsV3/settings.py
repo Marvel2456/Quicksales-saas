@@ -33,24 +33,22 @@ ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
-# INSTALLED_APPS = [
-#     'django.contrib.admin',
-#     'django.contrib.auth',
-#     'django.contrib.contenttypes',
-#     'django.contrib.sessions',
-#     'django.contrib.messages',
-#     'django.contrib.staticfiles',
-#     'ims.apps.ImsConfig',
-#     'account.apps.AccountConfig',
-#     'simple_history',
-# ]
+INSTALLED_APPS = [
+    'unfold',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    "procrastinate.contrib.django",
+    'ims.apps.ImsConfig',
+    'account.apps.AccountConfig',
+    'subscriptions.apps.SubscriptionsConfig',
+    'simple_history',
+]
 
 MIDDLEWARE = [
-    # Django Tenants
-    'django_tenants.middleware.main.TenantMainMiddleware',
-    
-    # custom tenant middleware
-    'ImsV3.middleware.TenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -81,6 +79,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ImsV3.wsgi.application'
 
+UNFOLD = {
+    "SITE_HEADER": "Marvex Quicksales"
+}
+
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -94,61 +96,16 @@ WSGI_APPLICATION = 'ImsV3.wsgi.application'
 
 DATABASES = {
     'default': {
-        # Tenant Engine
-        'ENGINE': 'django_tenants.postgresql_backend',
-        # set database name
-        'NAME': 'sales',
-        # set your user details
-        'USER': 'postgres',
-        'PASSWORD': 'admin123',
-        'HOST': 'localhost',
-        'POST': '5432'
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'POST': config('DB_PORT'),
     }
 }
 
 
-# DATABASE ROUTER
-DATABASE_ROUTERS = (
-    'django_tenants.routers.TenantSyncRouter',
-)
-
-
-TENANT_MODEL = "tenants.Organization"
-
-TENANT_DOMAIN_MODEL = "tenants.Domain"
-
-
-SHARED_APPS = [
-    'django_tenants',
-    'tenants',  
-
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'ims.apps.ImsConfig',
-    'account.apps.AccountConfig',
-    'simple_history',
-
-]
-
-TENANT_APPS = [
-    # The following Django contrib apps must be in TENANT_APPS
-    'django.contrib.contenttypes',
-    'django.contrib.auth',
-    'django.contrib.admin',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-
-    # tenant-specific apps
-    'ims.apps.ImsConfig',
-    'account.apps.AccountConfig',
-    'simple_history',
-]
-
-INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -185,9 +142,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / "imsv3/static"]
+
     
 
 # media files
