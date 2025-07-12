@@ -1,11 +1,15 @@
 from datetime import date
 from django.db import models
-from account.models import CustomUser, Branch
+from account.models import Organization, Branch, CustomUser
 from simple_history.models import HistoricalRecords
+import uuid
 
 
 # Create your models here.
 class Category(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     category_name = models.CharField(max_length=200, unique=True)
     last_updated = models.DateField(auto_now=True,)
     date_created = models.DateTimeField(auto_now_add=True,)
@@ -17,6 +21,9 @@ class Category(models.Model):
         return self.category_name
 
 class Product(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     product_name = models.CharField(max_length=150, blank=True, null=True, unique=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     brand = models.CharField(max_length=150, blank=True, null=True)
@@ -31,6 +38,8 @@ class Product(models.Model):
         return self.product_name
 
 class Inventory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='products')
     quantity = models.IntegerField(default=0)
@@ -74,6 +83,8 @@ class Inventory(models.Model):
 
 
 class Sale(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
     staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True)
     total_profit = models.FloatField(default=0, blank=True, null=True)
@@ -122,6 +133,8 @@ class Sale(models.Model):
 
 
 class SalesItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
     inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, blank=True, null=True)
     sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, blank=True, null=True)
@@ -158,9 +171,11 @@ class Supplier(models.Model):
         return self.supplier_name
 
 class ErrorTicket(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_assigned')
     title = models.CharField(max_length=150, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     choices = (
         ('Pending', 'Pending'),

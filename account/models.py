@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.base_user import BaseUserManager
 import uuid
+from django.utils.text import slugify
+from django.urls import reverse
 
 
 class CustomUserManager(BaseUserManager):
@@ -29,9 +31,26 @@ class CustomUserManager(BaseUserManager):
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    trial_start = models.DateTimeField(auto_now_add=True)
-    trial_end = models.DateTimeField()
+    slug = models.SlugField(unique=True, blank=True)
+    country = models.CharField(max_length=300, blank=True, null=True)
+    owned_by = models.ForeignKey('account.CustomUser', on_delete=models.CASCADE, related_name='owned_organizations', blank=True, null=True)
+    BUSINESS_CHOICES = [
+        ('clothing', 'Clothing Store'),
+        ('electronics', 'Electronics Store'),
+        ('grocery', 'Grocery Store'),
+        ('pharmacy', 'Pharmacy'),
+        ('bookstore', 'Bookstore'),
+        ('convenience', 'Convenience Store'),
+        ('accessories', 'Accessories Store'),
+        ('hardware', 'Hardware Store'),
+        ('department', 'Department Store'),
+        ('others', 'Others'),
+    ]
+    business_type = models.CharField(max_length=50, choices=BUSINESS_CHOICES, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    trial_start = models.DateTimeField(blank=True, null=True)
+    trial_end = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -39,6 +58,23 @@ class Organization(models.Model):
 
     def __str__(self):
         return self.name
+
+    def current_subscription(self):
+        return self.subscriptions.filter(is_active=True).order_by('-end_date').first()
+
+    def get_absolute_url(self):
+        return reverse('org_login', kwargs={'org_slug': self.slug})
+
+    def save(self, *args, **kwargs):
+        if not self.slug and self.name:
+            base_slug = slugify(self.name)
+            slug = base_slug
+            count = 1
+            while Organization.objects.filter(slug=slug).exists():
+                slug = f"{base_slug}-{count}"
+                count += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
     
 class Branch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
@@ -64,7 +100,6 @@ class CustomUser(AbstractUser):
         ('sales', 'Sales')
     ]
     role = models.CharField(max_length=100, choices=role_choice, default='owner')
-
     username = None
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=100, blank=True, null=True)

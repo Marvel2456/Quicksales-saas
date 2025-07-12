@@ -18,24 +18,26 @@ from xhtml2pdf import pisa
 
 
 # Create your views here
-@login_required(login_url=('login'))
-# @is_unsubscribed
-
+@login_required(login_url='login')
 def branchDasboard(request):
-    branch = Branch.objects.all()
-    paginator = Paginator(Branch.objects.all(), 15)
+    # Assuming request.user is connected to an organization
+    organization = request.user.organization  # or however you're linking the user
+
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
     page = request.GET.get('page')
     branch_page = paginator.get_page(page)
-    nums = "a" *branch_page.paginator.num_pages
-    branch_contains_query = request.GET.get('branch')
+    nums = "a" * branch_page.paginator.num_pages
 
-    if branch_contains_query != '' and branch_contains_query is not None:
-        branch_page = branch.filter(branch_name__icontains=branch_contains_query)
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(branch_name__icontains=branch_contains_query)
 
     context = {
-        'branch':branch,
-        'branch_page':branch_page,
-        'nums':nums
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
     }
     return render(request, 'ims/branchdash.html', context)
 

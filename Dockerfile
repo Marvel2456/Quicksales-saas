@@ -16,5 +16,3 @@ EXPOSE 8000
 
 # Start the server
 CMD ["python", "manage.py", "runserver", "0.0.0:8000"]
-
-# CMD ["gunicorn", "imsv3.wsgi:application", "--bind", "0.0.0.0:8000"]

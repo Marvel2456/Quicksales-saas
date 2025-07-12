@@ -28,8 +28,16 @@ DEBUG = True
 
 
 # CSRF_TRUSTED_ORIGINS = ['https://*.quicksaless.up.railway.app','https://*.127.0.0.1'] #for railway setup
-ALLOWED_HOSTS = ["*"]
+# ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ['.lvh.me', '.127.0.0.1.nip.io', 'localhost']
 
+# ENV = config('ENV', default='development')  # 'production' or 'development'
+ENV = config('ENV', default='development')  # 'production' or 'development'
+
+if ENV == 'production':
+    DOMAIN = "yourdomain.com"
+else:
+    DOMAIN = "lvh.me:8000"
 
 # Application definition
 
@@ -41,10 +49,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     "procrastinate.contrib.django",
     'ims.apps.ImsConfig',
     'account.apps.AccountConfig',
     'subscriptions.apps.SubscriptionsConfig',
+    'pages.apps.PagesConfig',
     'simple_history',
 ]
 
@@ -55,6 +65,8 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    # subdomain middleware
+    'ImsV3.middleware.SubdomainOrganizationMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
@@ -111,9 +123,9 @@ DATABASES = {
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
+    # {
+    #     'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    # },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },
@@ -139,6 +151,20 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
+
+# For production, you can use SMTP settings like this:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.your-email-provider.com'
+# EMAIL_PORT = 587      # or 465 for SSL
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER')  # Your email address
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')  # Your email password
+
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
@@ -146,7 +172,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / "imsv3/static"]
 
-    
+
 
 # media files
 
@@ -160,3 +186,38 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # LOGIN_REDIRECT_URL = 'index'
 # LOGIN_URL = 'login'
+
+# Subdomain settings
+# DOMAIN = "yourdomain.com"
+
+
+
+# SUBDOMAIN_URLCONFS = {
+#     None: 'ImsV3.urls',  # Main domain
+#     'www': 'ImsV3.urls',  # www subdomain
+#     'ims': 'ims.urls',  # ims subdomain
+# }
+
+# Procrastinate logging settings
+LOGGING = {
+    "version": 1,
+    "formatters": {
+        "procrastinate": {
+            "format": "%(asctime)s %(levelname)-7s %(name)s %(message)s"
+        },
+    },
+    "handlers": {
+        "procrastinate": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "procrastinate",
+        },
+    },
+    "loggers": {
+        "procrastinate": {
+            "handlers": ["procrastinate"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}

@@ -1,0 +1,321 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Marvex Quicksales</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <!-- Animate.css CDN for extra animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        /* Custom keyframes for Tailwind */
+        @layer utilities {
+            .animate-fadeinup {
+                animation: fadeInUp 1s both;
+            }
+            .animate-fadeindown {
+                animation: fadeInDown 1s both;
+            }
+            .animate-bouncein {
+                animation: bounceIn 1s both;
+            }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(40px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-40px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3);}
+            50% { opacity: 1; transform: scale(1.05);}
+            70% { transform: scale(0.9);}
+            100% { transform: scale(1);}
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 w-full bg-white shadow z-50 animate__animated animate__fadeInDown">
+        <div class="container mx-auto flex items-center justify-between py-3 px-4">
+            <a href="#" class="font-bold text-2xl text-[#00004d] animate__animated animate__pulse animate__infinite"><img style="height:90px; width:85px;" src="{% static 'assets/images/mq_logo.png' %}"></a>
+            <div class="hidden md:flex space-x-6 items-center">
+                <a href="#why-mqs" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown">Why MQs?</a>
+                <a href="#plans" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-1s">Plans</a>
+                <a href="#features" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-2s">Features</a>
+                <a href="#newsletter" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-3s">Newsletter</a>
+                <a href="#contact" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-4s">Contact</a>
+                <div class="flex space-x-3 ml-4">
+                    <a href="https://twitter.com/" target="_blank" aria-label="Twitter" class="text-[#00004d] hover:text-blue-400 animate__animated animate__bounceIn"><i class="bi bi-twitter"></i></a>
+                    <a href="https://facebook.com/" target="_blank" aria-label="Facebook" class="text-[#00004d] hover:text-blue-600 animate__animated animate__bounceIn animate__delay-1s"><i class="bi bi-facebook"></i></a>
+                    <a href="https://linkedin.com/" target="_blank" aria-label="LinkedIn" class="text-[#00004d] hover:text-blue-700 animate__animated animate__bounceIn animate__delay-2s"><i class="bi bi-linkedin"></i></a>
+                    <a href="https://instagram.com/" target="_blank" aria-label="Instagram" class="text-[#00004d] hover:text-pink-500 animate__animated animate__bounceIn animate__delay-3s"><i class="bi bi-instagram"></i></a>
+                </div>
+            </div>
+            <button class="md:hidden text-[#00004d]" id="nav-toggle">
+                <i class="bi bi-list" style="font-size: 2.5rem; font-weight: bold;"></i>
+            </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div class="md:hidden hidden flex-col px-4 pb-4 bg-white" id="mobile-menu">
+            <a href="#why-mqs" class="block py-2 text-[#00004d] hover:text-blue-700">Why MQs?</a>
+            <a href="#plans" class="block py-2 text-[#00004d] hover:text-blue-700">Plans</a>
+            <a href="#features" class="block py-2 text-[#00004d] hover:text-blue-700">Features</a>
+            <a href="#newsletter" class="block py-2 text-[#00004d] hover:text-blue-700">Newsletter</a>
+            <a href="#contact" class="block py-2 text-[#00004d] hover:text-blue-700">Contact</a>   
+        </div>
+    </nav>
+
+<!-- Hero Section with background image and overlay -->
+    <section class="pt-40 pb-32 min-h-[70vh] relative text-center overflow-hidden" style="background-image: url('{% static "assets/images/hero1.jpg" %}'); background-size: cover; background-position: center;">
+        <div class="absolute inset-0 bg-[#00004d]/80"></div>
+        <div class="relative container mx-auto px-4 md:px-16 flex flex-col items-center justify-center z-10">
+            <div class="w-full text-white">
+                <h1 class="text-4xl md:text-6xl font-bold mb-6 animate-fadeinup">Grow Your Business with <span class="animate__animated animate__heartBeat animate__infinite text-blue-200">Marvex Quicksales</span></h1>
+                <p class="text-lg md:text-2xl mb-10 text-blue-100 animate-fadeinup delay-150">All-in-one sales management SaaS platform to help you track, manage, and boost your sales efficiently.</p>
+                <a href="{% url 'register' %}" class="inline-block bg-white text-[#00004d] px-10 py-4 rounded-full font-semibold shadow hover:bg-blue-900 hover:text-white transition animate-bouncein text-lg">Try it for free</a>
+            </div>
+        </div>
+        <!-- Decorative floating shapes -->
+        <div class="absolute top-10 left-10 w-24 h-24 bg-blue-300 rounded-full opacity-40 animate__animated animate__fadeInDown"></div>
+        <div class="absolute bottom-10 right-10 w-32 h-32 bg-blue-400 rounded-full opacity-30 animate__animated animate__fadeInUp"></div>
+    </section>
+
+    <!-- Why MQs Section -->
+    <section id="why-mqs" class="py-16" style="background: linear-gradient(135deg, #e0e7ff 60%, #f8fafc 100%);">
+        <div class="container mx-auto px-4 md:px-16">
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#00004d] animate__animated animate__fadeInDown">Why Choose Marvex Quicksales?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInLeft">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-lightbulb"></i></div>
+                    <h5 class="font-semibold mb-2">Innovative Tools</h5>
+                    <p class="text-gray-700">Stay ahead with cutting-edge features designed for modern sales teams.</p>
+                </div>
+                <div class="bg-white rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-1s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-graph-up-arrow"></i></div>
+                    <h5 class="font-semibold mb-2">Proven Results</h5>
+                    <p class="text-gray-700">Thousands of organizations have grown their revenue with MQs.</p>
+                </div>
+                <div class="bg-white rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInRight animate__delay-2s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-emoji-smile"></i></div>
+                    <h5 class="font-semibold mb-2">Delightful Experience</h5>
+                    <p class="text-gray-700">Enjoy a user-friendly interface and world-class support every step of the way.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section (darker slate background) -->
+    <section id="features" class="py-16 bg-slate-800">
+        <div class="container mx-auto px-4 md:px-16">
+            <h2 class="text-3xl font-bold text-center mb-10 text-white animate__animated animate__fadeInDown">Features</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-bar-chart"></i></div>
+                    <h5 class="font-semibold mb-2">Analytics Dashboard</h5>
+                    <p class="text-gray-700">Get real-time insights into your sales performance with our intuitive dashboard.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-1s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-people"></i></div>
+                    <h5 class="font-semibold mb-2">Customer Management</h5>
+                    <p class="text-gray-700">Manage all your customers in one place and keep track of every interaction.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-2s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-cloud-arrow-up"></i></div>
+                    <h5 class="font-semibold mb-2">Cloud-Based</h5>
+                    <p class="text-gray-700">Access your sales data securely from anywhere, anytime.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-3s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-shield-lock"></i></div>
+                    <h5 class="font-semibold mb-2">Secure Platform</h5>
+                    <p class="text-gray-700">Your data is protected with enterprise-grade security and encryption.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-4s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-lightning-charge"></i></div>
+                    <h5 class="font-semibold mb-2">Fast Performance</h5>
+                    <p class="text-gray-700">Enjoy lightning-fast load times and seamless user experience.</p>
+                </div>
+                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-5s">
+                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-headset"></i></div>
+                    <h5 class="font-semibold mb-2">24/7 Support</h5>
+                    <p class="text-gray-700">Our support team is always available to help you with any issues.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Plans Section (darker background) -->
+    <section id="plans" class="py-16 bg-blue-900/90">
+        <div class="container mx-auto px-4 md:px-16">
+            <h2 class="text-3xl font-bold text-center mb-10 text-white animate__animated animate__fadeInDown">Choose Your Plan</h2>
+            <div class="flex flex-col md:flex-row md:space-x-8 space-y-8 md:space-y-0 justify-center">
+                <!-- Basic -->
+                <div class="flex-1 max-w-sm mx-auto bg-white/90 rounded-xl shadow-lg border border-gray-200 p-8 text-center hover:shadow-2xl transition animate__animated animate__zoomIn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Basic Plan" class="w-16 h-16 mx-auto mb-3 animate__animated animate__bounceIn">
+                    <h3 class="text-xl font-semibold mb-2 text-[#00004d]">Basic</h3>
+                    <div class="text-4xl font-bold text-[#00004d] mb-2">$9<span class="text-base font-normal">/mo</span></div>
+                    <ul class="text-gray-700 mb-6 space-y-2">
+                        <li>✔ 1 User</li>
+                        <li>✔ 100 Customers</li>
+                        <li>✔ Basic Analytics</li>
+                        <li>✔ Email Support</li>
+                    </ul>
+                    <a href="#" class="inline-block border border-[#00004d] text-[#00004d] px-6 py-2 rounded-full font-medium hover:bg-[#00004d] hover:text-white transition">Get Started</a>
+                </div>
+                <!-- Pro -->
+                <div class="flex-1 max-w-sm mx-auto bg-white/90 rounded-xl shadow-lg border-2 border-[#00004d] p-8 text-center hover:shadow-2xl transition animate__animated animate__zoomIn animate__delay-1s">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135789.png" alt="Pro Plan" class="w-16 h-16 mx-auto mb-3 animate__animated animate__bounceIn animate__delay-1s">
+                    <h3 class="text-xl font-semibold mb-2 text-[#00004d]">Pro</h3>
+                    <div class="text-4xl font-bold text-[#00004d] mb-2">$29<span class="text-base font-normal">/mo</span></div>
+                    <ul class="text-gray-700 mb-6 space-y-2">
+                        <li>✔ 5 Users</li>
+                        <li>✔ 1,000 Customers</li>
+                        <li>✔ Advanced Analytics</li>
+                        <li>✔ Priority Email Support</li>
+                    </ul>
+                    <a href="#" class="inline-block bg-[#00004d] text-white px-6 py-2 rounded-full font-medium hover:bg-blue-900 transition">Start Free Trial</a>
+                </div>
+                <!-- Enterprise -->
+                <div class="flex-1 max-w-sm mx-auto bg-white/90 rounded-xl shadow-lg border border-gray-200 p-8 text-center hover:shadow-2xl transition animate__animated animate__zoomIn animate__delay-2s">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135768.png" alt="Enterprise Plan" class="w-16 h-16 mx-auto mb-3 animate__animated animate__bounceIn animate__delay-2s">
+                    <h3 class="text-xl font-semibold mb-2 text-[#00004d]">Enterprise</h3>
+                    <div class="text-4xl font-bold text-[#00004d] mb-2">$99<span class="text-base font-normal">/mo</span></div>
+                    <ul class="text-gray-700 mb-6 space-y-2">
+                        <li>✔ Unlimited Users</li>
+                        <li>✔ Unlimited Customers</li>
+                        <li>✔ Custom Analytics</li>
+                        <li>✔ 24/7 Support</li>
+                    </ul>
+                    <a href="#" class="inline-block border border-[#00004d] text-[#00004d] px-6 py-2 rounded-full font-medium hover:bg-[#00004d] hover:text-white transition">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section (centralized and padded) -->
+    <section class="py-16 bg-blue-100">
+        <div class="container mx-auto px-4 md:px-16">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div class="animate__animated animate__fadeInLeft">
+                    <div class="text-5xl font-bold text-[#00004d] mb-2"><i class="bi bi-building"></i></div>
+                    <h3 class="text-3xl font-bold text-[#00004d] mb-1">2,500+</h3>
+                    <p class="text-gray-700 text-lg">Organizations</p>
+                </div>
+                <div class="animate__animated animate__fadeInUp animate__delay-1s">
+                    <div class="text-5xl font-bold text-[#00004d] mb-2"><i class="bi bi-people-fill"></i></div>
+                    <h3 class="text-3xl font-bold text-[#00004d] mb-1">12,000+</h3>
+                    <p class="text-gray-700 text-lg">Staffs</p>
+                </div>
+                <div class="animate__animated animate__fadeInRight animate__delay-2s">
+                    <div class="text-5xl font-bold text-[#00004d] mb-2"><i class="bi bi-box-seam"></i></div>
+                    <h3 class="text-3xl font-bold text-[#00004d] mb-1">50,000+</h3>
+                    <p class="text-gray-700 text-lg">Products</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3D/Illustration Section -->
+    <section class="py-16 bg-gradient-to-r from-blue-50 to-white flex flex-col items-center justify-center">
+        <div class="w-full flex flex-col md:flex-row items-center justify-center gap-8 px-4 md:px-16">
+            <div id="lottie-animation" class="w-72 h-72 md:w-96 md:h-96"></div>
+            <div class="max-w-lg text-center md:text-left">
+                <h3 class="text-3xl font-bold text-[#00004d] mb-4 animate__animated animate__fadeInRight">Modern, Interactive &amp; Engaging</h3>
+                <p class="text-gray-700 text-lg animate__animated animate__fadeInRight animate__delay-1s">
+                    Our platform leverages the latest technology and design trends to deliver a delightful experience for your team and customers.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Newsletter Section -->
+    <section id="newsletter" class="py-16 bg-white">
+        <div class="container mx-auto px-4 md:px-16">
+            <h2 class="text-3xl font-bold text-center mb-6 text-[#00004d] animate__animated animate__fadeInDown">Subscribe to our Newsletter</h2>
+            <div class="max-w-xl mx-auto">
+                <form class="flex flex-col sm:flex-row items-center gap-3 animate__animated animate__fadeInUp">
+                    <input type="email" class="flex-1 px-5 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="Enter your email" required>
+                    <button type="submit" class="bg-[#00004d] text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-900 transition">Subscribe</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Contact + Footer Section -->
+    <section id="contact" class="py-16 bg-slate-800">
+        <div class="container mx-auto px-4 md:px-16">
+            {% comment %} <h2 class="text-3xl font-bold text-center mb-6 text-white animate__animated animate__fadeInDown">Contact Us</h2> {% endcomment %}
+            {% comment %} <div class="max-w-lg mx-auto animate__animated animate__fadeInUp animate__delay-1s">
+                <form class="space-y-4">
+                    <div class="animate__animated animate__fadeInLeft animate__delay-2s">
+                        <label for="name" class="block mb-1 font-medium text-[#00004d]">Name</label>
+                        <input type="text" id="name" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="Your Name">
+                    </div>
+                    <div class="animate__animated animate__fadeInRight animate__delay-3s">
+                        <label for="email" class="block mb-1 font-medium text-[#00004d]">Email</label>
+                        <input type="email" id="email" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="you@example.com">
+                    </div>
+                    <div class="animate__animated animate__fadeInUp animate__delay-4s">
+                        <label for="message" class="block mb-1 font-medium text-[#00004d]">Message</label>
+                        <textarea id="message" rows="4" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="Your message"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-[#00004d] text-white py-3 rounded-lg font-semibold hover:bg-blue-900 transition animate__animated animate__pulse animate__infinite">Send Message</button>
+                </form>
+            </div> {% endcomment %}
+            <!-- Footer content inside contact section -->
+            <div class="mt-16 text-center font-semibold text-white animate__animated animate__fadeInUp animate__delay-2s">
+                <!-- Logo in footer -->
+                <div class="flex justify-center mb-4">
+                    <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo" class="h-16 w-auto mx-auto animate__animated animate__fadeInDown">
+                </div>
+                <div class="flex justify-center space-x-4 mb-3 animate__animated animate__fadeInUp animate__delay-3s">
+                    <a href="https://twitter.com/" target="_blank" aria-label="Twitter" class="hover:text-blue-400 animate__animated animate__bounceIn"><i class="bi bi-twitter"></i></a>
+                    <a href="https://facebook.com/" target="_blank" aria-label="Facebook" class="hover:text-blue-600 animate__animated animate__bounceIn animate__delay-1s"><i class="bi bi-facebook"></i></a>
+                    <a href="https://linkedin.com/" target="_blank" aria-label="LinkedIn" class="hover:text-blue-700 animate__animated animate__bounceIn animate__delay-2s"><i class="bi bi-linkedin"></i></a>
+                    <a href="https://instagram.com/" target="_blank" aria-label="Instagram" class="hover:text-pink-500 animate__animated animate__bounceIn animate__delay-3s"><i class="bi bi-instagram"></i></a>
+                </div>
+                <p class="mb-2 animate__animated animate__fadeInUp animate__delay-4s">
+                    <strong>Contact:</strong>
+                    <a href="mailto:info@marvexquicksales.com" class="underline hover:text-blue-200 text-white">info@marvexquicksales.com</a>
+                    &nbsp;|&nbsp;
+                    <span>+2349013828344</span>
+                </p>
+                <p class="mb-0 animate__animated animate__fadeInUp animate__delay-5s">&copy; <span id="year"></span> Marvex Quicksales. All rights reserved.</p>
+            </div>
+        </div>
+    </section>
+    <!-- Remove the standalone footer below if present -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    <script>
+        // Mobile nav toggle
+        document.getElementById('nav-toggle').onclick = function() {
+            var menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        };
+        // Dynamic year for footer
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        // Lottie animation
+        const lottieDiv = document.getElementById('lottie-animation');
+        if (lottieDiv) {
+            const player = document.createElement('lottie-player');
+            player.setAttribute('src', 'https://assets10.lottiefiles.com/packages/lf20_4kx2q32n.json');
+            player.setAttribute('background', 'transparent');
+            player.setAttribute('speed', '1');
+            player.setAttribute('loop', '');
+            player.setAttribute('autoplay', '');
+            player.className = "w-72 h-72 md:w-96 md:h-96 mx-auto";
+            lottieDiv.replaceWith(player);
+        }
+    </script>
+</body>
+</html>
