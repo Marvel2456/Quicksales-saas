@@ -1,7 +1,9 @@
 from django.urls import path
 from . import views
 from ims.view.dashboard_views import branchDasboard, dashboard, staffDashboard
-from ims.view.category_views import category_list, category, edit_category, delete_category
+from ims.view.category_views import (
+    category_list, category, edit_category, delete_category, branch_category, AdminCategory
+)
 from ims.view.product_views import product_category, product, edit_product, delete_product
 from ims.view.inventory_views import (
     edit_inventory, inventory_list, branchInventory, delete_inventory, restock, adminRestock,
@@ -33,6 +35,8 @@ urlpatterns = [
     path('category/<str:pk>/', category, name='category'),
     path('edit_category/', edit_category, name='edit_category'),
     path('category_delete/', delete_category, name='category_delete'),
+    path('branch_category/', branch_category, name='branch_category'),
+    path('admin_category/<str:pk>/', AdminCategory, name='admin_category'),
 
 
 
@@ -71,7 +75,6 @@ urlpatterns = [
 
 
 
-
     # Sale URLs
     path('update_cart/', updateCart, name='update_cart'),
     path('update_quantity/', updateQuantity, name='update_quantity'),
@@ -102,8 +105,8 @@ urlpatterns = [
 
 
 
+
     # Other URLs
-    
     path('ticket/', views.errorTicket, name='ticket'),
     path('create_ticket/', views.createTicket, name='create_ticket'),
     path('tickets/<str:pk>', views.Ticket, name='tickets'),

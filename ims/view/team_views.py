@@ -59,7 +59,7 @@ def staff(request, pk):
         'staff':staff,
         'form':form
     }
-    return render(request, 'ims/staff_edit.html', context)
+    return render(request, 'modals/staff_edit.html', context)
 
 
 @role_required(roles=['owner'])

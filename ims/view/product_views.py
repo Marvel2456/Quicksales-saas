@@ -56,7 +56,7 @@ def product(request, pk):
     context = {
         'products':products
     } 
-    return render(request, 'ims/modal_edit_product.html', context)
+    return render(request, 'modals/modal_edit_product.html', context)
 
 
 @role_required(roles=['owner'])

@@ -17,6 +17,65 @@ from xhtml2pdf import pisa
 
 # Write your views here.
 
+
+@role_required(roles=['owner'])
+@login_required(login_url='login')
+def branch_category(request):
+    # Assuming request.user is connected to an organization
+    organization = request.user.organization
+
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+    return render(request, 'ims/branch_category.html', context)
+
+
+@role_required(roles=['owner'])
+@login_required
+def AdminCategory(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(id=pk, organization=organization)
+    category = Category.objects.filter(branch=branch).all()
+    paginator = Paginator(category, 15)
+    page = request.GET.get('page')
+    category_page = paginator.get_page(page)
+    nums = "a" * category_page.paginator.num_pages
+    category_contains = request.GET.get('category_name')
+    form = CategoryForm()
+    
+    if request.method == "POST":
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'successfully created')
+            return redirect('branch_category')
+
+    if category_contains != '' and category_contains is not None:
+        category_page = category.filter(category_name__icontains=category_contains)
+
+    context = {
+        'branch': branch,
+        'category': category,
+        'form': form,
+        'category_page': category_page,
+        'nums': nums
+    }
+    return render(request, 'ims/category.html', context)
+
+
 @role_required(roles=['owner', 'manager'])
 @login_required
 # @is_unsubscribed
@@ -56,7 +115,7 @@ def category(request, pk):
     context = {
         'category':category
     }
-    return render(request, 'ims/edit_category', context)
+    return render(request, 'modals/edit_category', context)
 
 
 @role_required(roles=['owner', 'manager'])

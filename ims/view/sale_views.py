@@ -266,7 +266,7 @@ def sale(request, pk):
     context = {
         'sale':sale
     }
-    return render(request, 'ims/sales_delete.html', context)
+    return render(request, 'modals/sales_delete.html', context)
 
 @role_required(roles=['owner'])
 @login_required

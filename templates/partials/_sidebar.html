@@ -23,7 +23,7 @@
                     </a><!--//nav-link-->
                 </li><!--//nav-item-->
                 <li class="nav-item has-submenu">
-                    <a {% if 'category_list' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'category_list' %}">
+                    <a {% if 'branch_category' in request.path %} class="nav-link active" {% else %} class="nav-link" {% endif %} href="{% url 'branch_category' %}">
                         <span class="nav-icon">
                             <svg width="16" height="16" fill="currentColor" class="bi bi-tags" viewBox="0 0 16 16">
                                 <path d="M3 2v4.586l7 7L14.586 9l-7-7H3zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2z"/>
