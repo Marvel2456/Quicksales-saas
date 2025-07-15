@@ -5,8 +5,18 @@ from ims.view.category_views import category_list, category, edit_category, dele
 from ims.view.product_views import product_category, product, edit_product, delete_product
 from ims.view.inventory_views import (
     edit_inventory, inventory_list, branchInventory, delete_inventory, restock, adminRestock,
-    inventoryView, inventoryAudit, export_audit_csv
+    inventoryView
 )
+from ims.view.audit_views import (
+    inventoryAudit, export_audit_csv, branchCount, countView, adminCountView, addCount, branchAudit
+)
+from ims.view.sale_views import (
+    sale_complete, checkout, reciept, branchStore, store, sales, sale_delete, sale_pdf,
+    updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData
+)
+from ims.view.team_views import staffs, staff, edit_staff, delete_staff, record
+
+
 
 
 urlpatterns = [
@@ -34,6 +44,7 @@ urlpatterns = [
 
 
 
+
     # Inventory URLs
     path('set_reorder/', edit_inventory, name='set_reorder'),
     path('inventorys/', inventory_list, name='inventorys'),
@@ -42,51 +53,65 @@ urlpatterns = [
     path('restock/', restock, name='restock'),
     path('adminrestock/', adminRestock, name='adminrestock'),
     path('productlist/<str:pk>/', inventoryView, name='productlist'),
+    
+
+
+
+
+    #  Audit URLs
     path('price_audit/<str:pk>/', inventoryAudit, name='price_audit'),
     path('export_audit/<str:pk>/', export_audit_csv, name= 'export_audit'),
+    path('branchcount/', branchCount, name='branchcount'),
+    path('count/', countView, name='count'),
+    path('admincount/<str:pk>/', adminCountView, name='admincount'),
+    path('addcount/', addCount, name='addcount'),
+    path('branchaudit/', branchAudit, name='branchaudit'),
+
+
+
+
+
+
+    # Sale URLs
+    path('update_cart/', updateCart, name='update_cart'),
+    path('update_quantity/', updateQuantity, name='update_quantity'),
+    path('cart/', cart, name='cart'),
+    path('completed/<int:pk>/', sale_complete, name='completed'),
+    path('checkout/', checkout, name='checkout'),
+    path('reciept/<str:pk>/', reciept, name='reciept'),
+    path('branchstore/', branchStore, name='branchstore'),
+    path('store/', store, name='store'),
+    path('sales/', sales, name='sales'),
+    path('sales<int:pk>/', sales, name='sales_single'),
+    path('sales_delete/', sale_delete, name='sales_delete'),
+    path('export_sales', export_sales_csv, name= 'export_sales'),
+    path('export_profit/<int:pk>/export/', export_profit_csv, name= 'export_profit'),
+    path('profitData/<str:pk>/', profitData, name='profitData'),
+    path('sale-pdf/', sale_pdf, name='sale-pdf'),
+    
+
+
+
+
+    #  Team URLs
+    path('staff/', staffs, name='staff'),
+    path('staff_detail/<str:pk>/', staff, name='staff_detail'),
+    path('edit_staff/', edit_staff, name='edit_staff'),
+    path('delete_staff/', delete_staff, name='delete_staff'),
+    path('records/', record, name='records'),
+
 
 
     # Other URLs
-
-    path('update_cart/', views.updateCart, name='update_cart'),
-    path('update_quantity/', views.updateQuantity, name='update_quantity'),
-    path('cart/', views.cart, name='cart'),
-    path('completed/<int:pk>/', views.sale_complete, name='completed'),
-    path('checkout/', views.checkout, name='checkout'),
-    
-    path('reciept/<str:pk>/', views.reciept, name='reciept'),
-    
-    path('branchstore/', views.branchStore, name='branchstore'),
-    path('store/', views.store, name='store'),
-    
-    path('sales/', views.sales, name='sales'),
-    path('sales<int:pk>/', views.sales, name='sales_single'),
-    path('sales_delete/', views.sale_delete, name='sales_delete'),
-    path('records/', views.record, name='records'),
-    
-   
-    path('staff/', views.staffs, name='staff'),
-    path('staff_detail/<str:pk>/', views.staff, name='staff_detail'),
-    path('edit_staff/', views.edit_staff, name='edit_staff'),
-    path('delete_staff/', views.delete_staff, name='delete_staff'),
-    
-    path('export_sales', views.export_sales_csv, name= 'export_sales'),
-    path('export_profit/<int:pk>/export/', views.export_profit_csv, name= 'export_profit'),
-    
-    path('profitData/<str:pk>/', views.profitData, name='profitData'),
-    path('branchaudit/', views.branchAudit, name='branchaudit'),
     
     path('ticket/', views.errorTicket, name='ticket'),
     path('create_ticket/', views.createTicket, name='create_ticket'),
     path('tickets/<str:pk>', views.Ticket, name='tickets'),
     path('branchrep/', views.branchReport, name='branchrep'),
     path('reports/<int:pk>/', views.report, name='reports'),
-    path('branchcount/', views.branchCount, name='branchcount'),
-    path('count/', views.countView, name='count'),
-    path('admincount/<str:pk>/', views.adminCountView, name='admincount'),
-    path('addcount/', views.addCount, name='addcount'),
     
-    path('sale-pdf/', views.sale_pdf, name='sale-pdf'),
+    
+    
 ]
 # watch out if the value of the variance changes or it is stamped to each date
 # what happens when users logs in to another POS and makes sale note: should not be possible
