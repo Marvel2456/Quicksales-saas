@@ -5,7 +5,7 @@
             <h6 class="modal-title" id="editBranchModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Edit Branch{% endblock modal-title %}</h6>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <!--Forms begins-->
+            
             <form {% block Action %} action="{% url 'editbranch' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
             {% csrf_token %}
     
@@ -17,19 +17,19 @@
                     </div>
                     {% endblock Value-id %}
 
-                    {% block Value-branch_name %}
+                    {% block Value-name %}
                     <div class="mb-3">
-                        <label for="branch_name" class="form-label">Name</label>
-                        <input type="text" class="form-control" id="branch_name" name="branch_name"  value="{{branch.branch_name}}">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name"  value="{{branch.name}}">
                     </div>
-                    {% endblock Value-branch_name %}
+                    {% endblock Value-name %}
 
-                    {% block Value-branch_address %}
+                    {% block Value-address %}
                     <div class="mb-3">
                         <label for="branch_address" class="form-label">Address</label>
-                        <input type="text" class="form-control" id="branch_address" name="branch_address"  value="{{branch.branch_address}}">
+                        <input type="text" class="form-control" id="address" name="address"  value="{{branch.address}}">
                     </div>
-                    {% endblock Value-branch_address %}
+                    {% endblock Value-address %}
 
 
                     <div class="mt-4 text-center" style="width:100%;">
@@ -43,4 +43,5 @@
         </div>
     </div>
 </div>
+
 

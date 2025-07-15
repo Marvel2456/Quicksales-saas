@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
 from django.utils import timezone
 from django.views import View
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from .models import CustomUser, ActivityLog, Branch, Organization
@@ -10,7 +10,7 @@ from subscriptions.models import Subscription, Plan
 from .forms import *
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
-from .decorators import for_admin, for_sub_admin
+from .decorators import role_required
 from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 from django.conf import settings
@@ -20,7 +20,7 @@ from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
 from .tasks import deactivate_subscription
 from django.utils.timezone import make_aware
-from procrastinate.contrib.django import app
+
 # Create your views here.
 
 
@@ -181,8 +181,14 @@ def logoutUser(request):
     
     return redirect('login')
 
+@login_required(login_url='login')
 def createBranch(request):
-    branch = Branch.objects.all()
+    organization = request.user.organization
+    if not organization:
+        messages.error(request, 'You do not belong to any organization.')
+        return redirect('login')
+    
+    branch = Branch.objects.filter(organization=organization).all()
     form = CreateBranchForm()
 
     if request.method == 'POST':
@@ -199,6 +205,7 @@ def createBranch(request):
 
     return render(request, 'account/branch.html', context)
 
+@login_required(login_url='login')
 def editBranch(request):
     if request.method == 'POST':
         branch = Branch.objects.get(id = request.POST.get('id'))
@@ -208,7 +215,25 @@ def editBranch(request):
                 form.save()
                 messages.success(request, 'Successfully Updated')
                 return redirect('branch')
+            
 
+# def edit_branch(request, pk):
+#     organization = request.user.organization
+#     branch = get_object_or_404(Branch, id=pk, organization=organization)
+
+#     if request.method == 'POST':
+#         form = CreateBranchForm(request.POST, instance=branch)
+#         if form.is_valid():
+#             form.save()
+#             return HttpResponse(
+#                 f'<div class="alert alert-success">Branch <strong>{branch.name}</strong> updated!</div>'
+#             )
+#     else:
+#         form = CreateBranchForm(instance=branch)
+
+#     return render(request, 'account/editbranch.html', {'form': form, 'branch': branch})
+
+@login_required(login_url='login')
 def deleteBranch(request):
     if request.method == 'POST':
         branch = Branch.objects.get(id = request.POST.get('id'))
@@ -217,15 +242,14 @@ def deleteBranch(request):
             messages.success(request, 'Successfully Deleted')
             return redirect('branch')
 
-def branchView(request, pk):
-    branch = Branch.objects.get(id=pk)
-    # pos = Pos.objects.filter(branch_id = pk)
-
-    context = {
-        'branch':branch,
-        # 'pos':pos,
-    }
-    return render(request, 'account/branch_list.html', context)
+# @login_required(login_url='login')
+# def branchView(request, pk):
+#     branch = Branch.objects.get(id=pk)
+    
+#     context = {
+#         'branch':branch,
+#     }
+#     return render(request, 'account/branch_list.html', context)
 
 
 # def staffPosView(request, pk):

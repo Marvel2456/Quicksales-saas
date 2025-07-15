@@ -4,7 +4,7 @@
 {% block content %}
 
 <div class="app-content pt-3 p-md-3 p-lg-4">
-    {% if user.is_admin %}
+    {% if user.role == 'owner' %}
     <div class="container-xl">
         <div class="row g-3 mb-4 align-items-center justify-content-between">
             <div class="col-auto">
@@ -15,9 +15,9 @@
                     <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
                         <div class="col-auto">
                             <form class="docs-search-form row gx-1 align-items-center" method="GET" action=".">
-                                <div class="col-auto">
+                                {% comment %} <div class="col-auto">
                                     <input type="text" id="search-docs" name="branch" class="form-control search-docs" placeholder="Branch Name">
-                                </div>
+                                </div> {% endcomment %}
                                 <div class="col-auto">
                                     <input type="text" id="search-docs" name="product" class="form-control search-docs" placeholder="Product Name">
                                 </div>

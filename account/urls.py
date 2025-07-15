@@ -8,7 +8,8 @@ urlpatterns = [
     path('branch/', views.createBranch, name='branch'),
     path('editbranch/', views.editBranch, name='editbranch'),
     path('deletebranch/', views.deleteBranch, name='deletebranch'),
-    path('branchview/<str:pk>/', views.branchView, name='branchview'),
+    # path('branchview/<str:pk>/', views.branchView, name='branchview'),
+    # path('editbranch/<uuid:pk>/', views.edit_branch, name='edit_branch'),
     path('register/', OwnerRegisterView.as_view(), name='register'),
     path('verify-email/<uidb64>/<token>/', views.verifyEmail, name='verify_email')
 
