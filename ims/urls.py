@@ -2,9 +2,9 @@ from django.urls import path
 from . import views
 from ims.view.dashboard_views import branchDasboard, dashboard, staffDashboard
 from ims.view.category_views import (
-    category_list, category, edit_category, delete_category, branch_category, AdminCategory
+    category_list, category, edit_category, delete_category, branch_category
 )
-from ims.view.product_views import product_category, product, edit_product, delete_product
+from ims.view.product_views import product_category, product, edit_product, delete_product, branch_product
 from ims.view.inventory_views import (
     edit_inventory, inventory_list, branchInventory, delete_inventory, restock, adminRestock,
     inventoryView
@@ -31,20 +31,21 @@ urlpatterns = [
 
 
     # Category URLs
-    path('category_list/', category_list, name='category_list'),
+    path('category_list/<str:pk>/', category_list, name='category_list'),
     path('category/<str:pk>/', category, name='category'),
-    path('edit_category/', edit_category, name='edit_category'),
-    path('category_delete/', delete_category, name='category_delete'),
+    path('edit_category/<uuid:pk>/', edit_category, name='edit_category'),
+    path('category_delete/<uuid:pk>/', delete_category, name='category_delete'),
     path('branch_category/', branch_category, name='branch_category'),
-    path('admin_category/<str:pk>/', AdminCategory, name='admin_category'),
+    # path('admin_category/<str:pk>/', AdminCategory, name='admin_category'),
 
 
 
     # Product URLs
-    path('products/', product_category, name='products'),
+    path('products/<str:pk>/', product_category, name='products'),
     path('product/<str:pk>/', product, name='product'),
-    path('edit_product/', edit_product, name='edit_product'),
+    path('edit_product/<uuid:pk>/', edit_product, name='edit_product'),
     path('delete_product/', delete_product, name='delete_product'),
+    path('branch_product/', branch_product, name='branch_product'),
 
 
 

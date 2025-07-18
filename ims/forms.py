@@ -59,19 +59,27 @@ class ProductForm(ModelForm):
                 'The product you tried to create already exists'])
 
         return self.cleaned_data   
+    
 
-class EditProductForm(ModelForm):
+class EditProductForm(forms.ModelForm):
+    category = forms.ModelChoiceField(queryset=Category.objects.all(), label="Category")
+
     class Meta:
         model = Product
-        fields = ('product_name', 'category', 'brand', 'unit', 'batch_no',)
+        fields = ['product_name', 'brand', 'category', 'unit', 'batch_no']
 
-        def __init__(self, *args, **kwargs):
-           super(ProductForm, self).__init__(*args, **kwargs)
-           self.fields['product_name'].widget.attrs['class'] = 'input'
-           self.fields['category'].widget.attrs['class'] = 'select'
-           self.fields['brand'].widget.attrs['class'] = 'input'
-           self.fields['unit'].widget.attrs['class'] = 'input'
-           self.fields['batch_no'].widget.attrs['class'] = 'input'
+# class EditProductForm(ModelForm):
+#     class Meta:
+#         model = Product
+#         fields = ('product_name', 'category', 'brand', 'unit', 'batch_no',)
+
+#         def __init__(self, *args, **kwargs):
+#            super(ProductForm, self).__init__(*args, **kwargs)
+#            self.fields['product_name'].widget.attrs['class'] = 'input'
+#            self.fields['category'].widget.attrs['class'] = 'select'
+#            self.fields['brand'].widget.attrs['class'] = 'input'
+#            self.fields['unit'].widget.attrs['class'] = 'input'
+#            self.fields['batch_no'].widget.attrs['class'] = 'input'
 
         
 

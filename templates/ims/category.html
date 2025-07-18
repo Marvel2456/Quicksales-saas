@@ -48,13 +48,14 @@
                                         <th class="cell"></th>
                                     </tr>
                                 </thead>
-                                {% if user.is_admin %}
+                                {% if user.role == 'owner' %}
                                 <div class="m-2 py-2">
                                     <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                                         <i class="fas fa-plus"></i>
                                         Add Category
                                     </a>
                                 </div> 
+                                {% include 'modals/add_category.html' %}
                                 {% else %}
                                 <div class="m-2 py-2" style="display:None">
                                     <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addCategoryModal">
@@ -68,7 +69,7 @@
                                     <tr>
                                         <td class="cell">{{category.category_name}}</td>
                                         <td class="cell"><span class="note">{{category.last_updated}}</span></td>
-                                        {% if user.is_admin %}
+                                        {% if user.role == 'owner' %}
                                         <td class="cell">
                                             <a class="btn-sm app-btn-secondary" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#editCategoryModal{{category.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
                                             <a class="btn-sm app-btn-secondary" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#deleteCategoryModal{{category.pk}}"><i class="fa-solid fa-trash-can"></i></a>

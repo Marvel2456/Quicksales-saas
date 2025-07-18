@@ -43,44 +43,14 @@ def branch_category(request):
     return render(request, 'ims/branch_category.html', context)
 
 
-@role_required(roles=['owner'])
-@login_required
-def AdminCategory(request, pk):
-    organization = request.user.organization
-    branch = Branch.objects.get(id=pk, organization=organization)
-    category = Category.objects.filter(branch=branch).all()
-    paginator = Paginator(category, 15)
-    page = request.GET.get('page')
-    category_page = paginator.get_page(page)
-    nums = "a" * category_page.paginator.num_pages
-    category_contains = request.GET.get('category_name')
-    form = CategoryForm()
-    
-    if request.method == "POST":
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'successfully created')
-            return redirect('branch_category')
-
-    if category_contains != '' and category_contains is not None:
-        category_page = category.filter(category_name__icontains=category_contains)
-
-    context = {
-        'branch': branch,
-        'category': category,
-        'form': form,
-        'category_page': category_page,
-        'nums': nums
-    }
-    return render(request, 'ims/category.html', context)
-
 
 @role_required(roles=['owner', 'manager'])
 @login_required
 # @is_unsubscribed
-def category_list(request):
-    category = Category.objects.all()
+def category_list(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    category = Category.objects.filter(branch=branch).all()
     paginator = Paginator(Category.objects.all(), 3)
     page = request.GET.get('page')
     category_page = paginator.get_page(page)
@@ -90,9 +60,12 @@ def category_list(request):
     if request.method == "POST":
         form = CategoryForm(request.POST)
         if form.is_valid():
-            form.save()
+            category_instance = form.save(commit=False)
+            category_instance.branch = branch
+            category_instance.organization = organization
+            category_instance.save()
             messages.success(request, 'successfully created')
-            return redirect('category_list')
+            return redirect('category_list', pk=branch.id)
             
     if category_contains != '' and category_contains is not None:
         category_page = category.filter(category_name__icontains=category_contains)
@@ -101,7 +74,8 @@ def category_list(request):
         'category':category,
         'form':form,
         'category_page':category_page,
-        'nums':nums
+        'nums':nums,
+        'branch':branch
     }
     return render(request, 'ims/category.html', context)
 
@@ -118,23 +92,36 @@ def category(request, pk):
     return render(request, 'modals/edit_category', context)
 
 
+
 @role_required(roles=['owner', 'manager'])
-def edit_category(request):
+@login_required
+def edit_category(request, pk):
+    organization = request.user.organization
+    category = get_object_or_404(Category, id=pk, organization=organization)
+
     if request.method == 'POST':
-        category = Category.objects.get(id = request.POST.get('id'))
-        if category != None:
-            form = EditCategoryForm(request.POST, instance=category)
-            if form.is_valid():
-                form.save()
-                messages.success(request, 'successfully updated')
-                return redirect('category_list')
+        form = EditCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            updated_category = form.save()
+            messages.success(request, 'Successfully updated')
+            return redirect('category_list', pk=updated_category.branch.id)
+    else:
+        form = EditCategoryForm(instance=category)
+
+    context = {
+        'form': form,
+        'category': category,
+    }
+    return render(request, 'modals/edit_category_modal.html', context)
 
 
 @role_required(roles=['owner'])
-def delete_category(request):
+def delete_category(request, pk):
+    organization = request.user.organization
+    
     if request.method == 'POST':
-        category = Category.objects.get(id = request.POST.get('id'))
-        if category != None:
-            category.delete()
-            messages.success(request, "Succesfully deleted")
-            return redirect('category_list')
+        category = get_object_or_404(Category, id=pk, organization=organization)
+        branch_id = category.branch.id  # ✅ Save this before deletion
+        category.delete()
+        messages.success(request, "Successfully deleted")
+        return redirect('category_list', pk=branch_id)
