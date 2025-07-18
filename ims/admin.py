@@ -7,8 +7,8 @@ from .models import Product, Sale, SalesItem, Category, Inventory, Supplier, Err
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('product_name', 'category')
-    search_fields = ('product_name',)
+    list_display = ('organization', 'branch', 'product_name', 'category')
+    search_fields = ('organization', 'branch', 'product_name')
     list_filter = ('category',)
     ordering = ('-created_at',)
     date_hierarchy = 'created_at'
@@ -20,8 +20,8 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('category_name', 'last_updated', 'date_created')
-    search_fields = ('category_name',)
+    list_display = ('organization', 'branch', 'category_name', 'last_updated', 'date_created')
+    search_fields = ('organization', 'branch','category_name',)
     ordering = ('-date_created',)
     date_hierarchy = 'date_created'
     list_per_page = 10
@@ -51,8 +51,8 @@ class SalesItemInline(admin.TabularInline):
 
 @admin.register(Inventory)
 class InventoryAdmin(admin.ModelAdmin):
-    list_display = ['product', 'branch', 'quantity', 'quantity_available', 'status', 'store_quantity', 'quantity_sold', 'last_updated']
-    search_fields = ['product__product_name', 'branch__name']
+    list_display = ['organization', 'branch', 'product', 'quantity', 'quantity_available', 'status', 'store_quantity', 'quantity_sold', 'last_updated']
+    search_fields = ['organization', 'product__product_name', 'branch__name']
     list_filter = ['status', 'branch', 'product']
     readonly_fields = ['store_quantity', 'quantity_sold', 'last_updated', 'date_created']
     autocomplete_fields = ['organization', 'branch', 'product']

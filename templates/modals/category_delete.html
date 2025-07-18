@@ -7,7 +7,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <!--Forms begins-->
-            <form {% block Action %} action="{% url 'category_delete' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+            <form {% block Action %} action="{% url 'category_delete' category.id %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
             {% csrf_token %}
     
                 <div class="modal-body">

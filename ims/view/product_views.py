@@ -17,12 +17,36 @@ from xhtml2pdf import pisa
 
 # Write your views here.
 
+@role_required(roles=['owner'])
+@login_required
+def branch_product(request):
+    organization = request.user.organization
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+    return render(request, 'ims/branch_product.html', context)
+
 @role_required(roles=['owner', 'manager'])
 @login_required
 # @is_unsubscribed
-def product_category(request):
-    products = Product.objects.all().order_by('-date_created')
-    category = Category.objects.filter().all()
+def product_category(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    product = Product.objects.filter(branch=branch).all().order_by('-created_at')
+    category = Category.objects.filter(branch=branch).all()
     paginator = Paginator(Product.objects.all(), 15)
     page = request.GET.get('page')
     products_page = paginator.get_page(page)
@@ -32,19 +56,23 @@ def product_category(request):
     if request.method == "POST":
         form = ProductForm(request.POST)
         if form.is_valid():
-            form.save()
+            product_instance = form.save(commit=False)
+            product_instance.branch = branch
+            product_instance.organization = organization
+            product_instance.save()
             messages.success(request, 'successfully created')
-            return redirect('products')
+            return redirect('products', pk=branch.id)
 
     if product_contains != '' and product_contains is not None:
-        products_page = products.filter(product_name__icontains=product_contains)
+        products_page = product.filter(product_name__icontains=product_contains)
         
     context = {
         'category':category,
         'form':form,
-        'products':products,
+        'product':product,
         'products_page':products_page,
-        'nums':nums
+        'nums':nums,
+        'branch':branch
     }
     return render(request, 'ims/products.html', context)
 
@@ -60,15 +88,29 @@ def product(request, pk):
 
 
 @role_required(roles=['owner'])
-def edit_product(request):
+def edit_product(request, pk):
+    organization = request.user.organization
+    product = get_object_or_404(Product, id=pk, organization=organization)
+
     if request.method == 'POST':
-        product = Product.objects.get(id = request.POST.get('id'))
-        if product != None:
-            form = EditProductForm(request.POST, instance=product)
-            if form.is_valid():
-                form.save()
-                messages.success(request, 'successfully updated')
-                return redirect('products')
+        form = EditProductForm(request.POST, instance=product)
+        if form.is_valid():
+            updated_product = form.save()
+            messages.success(request, 'Successfully updated')
+            return redirect('products', pk=updated_product.branch.id)
+    else:
+        form = EditProductForm(instance=product)
+
+    # ✅ Pass all categories for the <select>
+    categories = Category.objects.filter(organization=organization)
+
+    context = {
+        'form': form,
+        'product': product,
+        'categories': categories,  # ✅ this is what your modal uses
+    }
+    return render(request, 'modals/modal_edit_product.html', context)
+
 
 
 @role_required(roles=['owner'])
