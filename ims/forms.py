@@ -62,11 +62,16 @@ class ProductForm(ModelForm):
     
 
 class EditProductForm(forms.ModelForm):
-    category = forms.ModelChoiceField(queryset=Category.objects.all(), label="Category")
+    def __init__(self, *args, **kwargs):
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields['category'].queryset = Category.objects.filter(organization=organization)
 
     class Meta:
         model = Product
         fields = ['product_name', 'brand', 'category', 'unit', 'batch_no']
+
 
 # class EditProductForm(ModelForm):
 #     class Meta:

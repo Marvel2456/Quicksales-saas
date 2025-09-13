@@ -6,9 +6,12 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <!--Forms begins-->
-            <form {% block Action %} action="{% url 'restock' %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+            <form {% if inventory and inventory.id %}
+                        action="{% url 'restock' inventory.id %}"
+                    {% else %}
+                        action="#"
+                    {% endif %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
             {% csrf_token %}
-    
                 <div class="modal-body">
                     {% block Value-id %}
                     <div class="input-group mb-3">
@@ -20,7 +23,7 @@
                     {% block Value-quantity_restocked %}
                     <div class="mb-3">
                         <label for="quantity_restocked" class="form-label">Quantity</label>
-                        <input type="text" class="form-control" id="quantity_restocked" name="quantity_restocked"  value="{{inventory.quantity_restocked}}">
+                        <input type="text" class="form-control" id="quantity_restocked" name="quantity_restocked"  value="">
                     </div>
                     {% endblock Value-quantity_restocked %}
 

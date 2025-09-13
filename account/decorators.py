@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import user_passes_test
 from .models import Branch, CustomUser
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+from functools import wraps
+from django.contrib.auth.views import redirect_to_login
 
 
 def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login'):
@@ -14,6 +16,18 @@ def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='log
         )
         return actual_decorator(function)
     return decorator
+
+
+# def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login'):
+#     def decorator(view_func):
+#         @wraps(view_func)
+#         def _wrapped_view(request, *args, **kwargs):
+#             user = request.user
+#             if user.is_authenticated and user.is_active and user.role in roles:
+#                 return view_func(request, *args, **kwargs)
+#             return redirect_to_login(request.get_full_path(), login_url, redirect_field_name)
+#         return _wrapped_view
+#     return decorator
 
 
 

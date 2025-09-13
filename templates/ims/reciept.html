@@ -42,17 +42,19 @@
                         </table>
                     </div>
                     
-                    <a class="btn btn-secondary hidden-print" id="btnPrint" href="{% url 'store' %}">Print</a>
+                    <button class="btn btn-secondary hidden-print" id="btnPrint">Print</button>
+                    <a class="btn btn-secondary hidden-print" href="{% url 'store' branch.id %}">Back to Store</a>
+
                 </div>
             </div>
         </div>
         
         <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.min.js' %}"></script>  
         <script >
-            let btnPrint = document.querySelector("#btnPrint");
-            btnPrint.addEventListener("click", () => {
+            let btnPrint = document.querySelector("#btnPrint").addEventListener("click", () => {
                 window.print();
             });
+
         </script>
     </body>
 </html>

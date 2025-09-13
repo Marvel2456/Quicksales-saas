@@ -21,7 +21,7 @@
                                     </th>
 
                                     <th class="cell">
-                                        <a class="btn app-btn-secondary" href="{% url 'checkout' %}">Checkout</a>
+                                        <a class="btn app-btn-secondary" href="{% url 'checkout' branch.id %}">Checkout</a>
                                     </th>
                                 </tr>
                             </table>
@@ -53,7 +53,15 @@
                                         <div style="flex: 1;"><h6>{{item.inventory.sale_price}}</h6></div>
                                         <div style="flex: 2;">
                                             <h6 class="quantity">
-                                                <input type="number" class="Qty" data-inventory="{{item.inventory.id}}" value="{{item.quantity}}" name="quantity" min="0" max="100" style="width: 80%;">
+                                                <input type="number"
+                                                class="Qty"
+                                                data-inventory="{{ item.inventory.id }}"
+                                                data-url="{% url 'update_quantity' branch.id %}"
+                                                value="{{ item.quantity }}"
+                                                name="quantity"
+                                                min="0" max="100"
+                                                style="width: 80%;">
+
                                             </h6>
                                         </div>
                                         <div style="flex: 1;"><h6 id="sub_total">{{item.get_total}}</h6></div>

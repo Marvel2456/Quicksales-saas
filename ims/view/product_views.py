@@ -101,24 +101,35 @@ def edit_product(request, pk):
     else:
         form = EditProductForm(instance=product)
 
-    # ✅ Pass all categories for the <select>
     categories = Category.objects.filter(organization=organization)
 
     context = {
         'form': form,
         'product': product,
-        'categories': categories,  # ✅ this is what your modal uses
+        'categories': categories,
     }
-    return render(request, 'modals/modal_edit_product.html', context)
+    return render(request, context)
 
 
+
+# @role_required(roles=['owner'])
+# def delete_product(request):
+#     if request.method == 'POST':
+#         product = Product.objects.get(id = request.POST.get('id'))
+#         if product != None:
+#             product.delete()
+#             messages.success(request, "Succesfully deleted")
+#             return redirect('products')
+        
 
 @role_required(roles=['owner'])
-def delete_product(request):
+def delete_product(request, pk):
+    organization = request.user.organization
+    
     if request.method == 'POST':
-        product = Product.objects.get(id = request.POST.get('id'))
-        if product != None:
-            product.delete()
-            messages.success(request, "Succesfully deleted")
-            return redirect('products')
+        product = get_object_or_404(Product, id=pk, organization=organization)
+        branch_id = product.branch.id 
+        product.delete()
+        messages.success(request, "Successfully deleted")
+        return redirect('products', pk=branch_id)
 

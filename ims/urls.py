@@ -6,15 +6,15 @@ from ims.view.category_views import (
 )
 from ims.view.product_views import product_category, product, edit_product, delete_product, branch_product
 from ims.view.inventory_views import (
-    edit_inventory, inventory_list, branchInventory, delete_inventory, restock, adminRestock,
-    inventoryView
+    edit_inventory, inventory_list, delete_inventory, restock,
+    inventoryView, branch_inventory, inventory
 )
 from ims.view.audit_views import (
     inventoryAudit, export_audit_csv, branchCount, countView, adminCountView, addCount, branchAudit
 )
 from ims.view.sale_views import (
-    sale_complete, checkout, reciept, branchStore, store, sales, sale_delete, sale_pdf,
-    updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData
+    sale_complete, checkout, reciept, branchStore, store, sales, sale_pdf, branchSales,
+    updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData 
 )
 from ims.view.team_views import staffs, staff, edit_staff, delete_staff, record
 
@@ -44,19 +44,21 @@ urlpatterns = [
     path('products/<str:pk>/', product_category, name='products'),
     path('product/<str:pk>/', product, name='product'),
     path('edit_product/<uuid:pk>/', edit_product, name='edit_product'),
-    path('delete_product/', delete_product, name='delete_product'),
+    path('delete_product/<str:pk>/', delete_product, name='delete_product'),
     path('branch_product/', branch_product, name='branch_product'),
 
 
 
 
     # Inventory URLs
-    path('set_reorder/', edit_inventory, name='set_reorder'),
-    path('inventorys/', inventory_list, name='inventorys'),
-    path('branchinv/', branchInventory, name='branchinv'),
+    path('set_reorder/<uuid:pk>/', edit_inventory, name='set_reorder'),
+    path('inventorys/<str:pk>/', inventory_list, name='inventorys'),
+    path('inventory/<str:pk>/', inventory, name='inventory'),
+    # path('edit_inventory', edit_inventory, name='edit_inventory'),
+    path('branch_inventory', branch_inventory, name='branch_inventory'),
     path('delete_inventory/', delete_inventory, name='delete_inventory'),
-    path('restock/', restock, name='restock'),
-    path('adminrestock/', adminRestock, name='adminrestock'),
+    path('restock/<uuid:pk>/', restock, name='restock'),
+    # path('adminrestock/', adminRestock, name='adminrestock'),
     path('productlist/<str:pk>/', inventoryView, name='productlist'),
     
 
@@ -77,21 +79,22 @@ urlpatterns = [
 
 
     # Sale URLs
-    path('update_cart/', updateCart, name='update_cart'),
-    path('update_quantity/', updateQuantity, name='update_quantity'),
-    path('cart/', cart, name='cart'),
-    path('completed/<int:pk>/', sale_complete, name='completed'),
-    path('checkout/', checkout, name='checkout'),
-    path('reciept/<str:pk>/', reciept, name='reciept'),
+    path('update_cart/<uuid:pk>/', updateCart, name='update_cart'),
+    path('update_quantity/<uuid:pk>/', updateQuantity, name='update_quantity'),
+    path('cart/<uuid:pk>/', cart, name='cart'),
+    path('completed/<uuid:pk>/', sale_complete, name='completed'),
+    path('checkout/<uuid:pk>/', checkout, name='checkout'),
+    path('reciept/<uuid:pk>/', reciept, name='reciept'),
     path('branchstore/', branchStore, name='branchstore'),
-    path('store/', store, name='store'),
-    path('sales/', sales, name='sales'),
-    path('sales<int:pk>/', sales, name='sales_single'),
-    path('sales_delete/', sale_delete, name='sales_delete'),
-    path('export_sales', export_sales_csv, name= 'export_sales'),
+    path('store/<uuid:pk>/', store, name='store'),
+    path('branchsales/', branchSales, name='branchsales'),
+    path('sales/<uuid:pk>/', sales, name='sales'),
+    path('sale<int:pk>/', sales, name='sales_single'),
+    # path('sales_delete/', sale_delete, name='sales_delete'),
+    path('export_sales/<uuid:pk>/', export_sales_csv, name= 'export_sales'),
     path('export_profit/<int:pk>/export/', export_profit_csv, name= 'export_profit'),
     path('profitData/<str:pk>/', profitData, name='profitData'),
-    path('sale-pdf/', sale_pdf, name='sale-pdf'),
+    path('sale-pdf/<uuid:pk>/', sale_pdf, name='sale-pdf'),
     
 
 

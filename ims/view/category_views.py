@@ -121,7 +121,7 @@ def delete_category(request, pk):
     
     if request.method == 'POST':
         category = get_object_or_404(Category, id=pk, organization=organization)
-        branch_id = category.branch.id  # ✅ Save this before deletion
+        branch_id = category.branch.id 
         category.delete()
         messages.success(request, "Successfully deleted")
         return redirect('category_list', pk=branch_id)

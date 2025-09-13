@@ -74,9 +74,9 @@ class InventoryAdmin(admin.ModelAdmin):
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
-    list_display = ['transaction_id', 'branch', 'staff', 'get_cart_total', 'get_cart_items', 'get_total_profit', 'completed', 'date_added']
-    search_fields = ['transaction_id', 'branch__name', 'staff__username']
-    list_filter = ['completed', 'method', 'branch']
+    list_display = ['transaction_id', 'organization', 'branch', 'staff', 'get_cart_total', 'get_cart_items', 'get_total_profit', 'completed', 'date_added']
+    search_fields = ['transaction_id', 'organization', 'branch__name', 'staff__username']
+    list_filter = ['completed', 'organization', 'method', 'branch']
     readonly_fields = ['get_cart_total', 'get_cart_items', 'get_total_profit', 'get_total_cost_price', 'date_added', 'date_updated']
     inlines = [SalesItemInline]
     autocomplete_fields = ['organization', 'branch', 'staff']
