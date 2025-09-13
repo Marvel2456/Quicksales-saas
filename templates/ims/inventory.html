@@ -61,7 +61,6 @@
                                         </a>
                                     </div>    
                                     {% for inventory in inventory_page %}
-                                    {% if inventory.branch == user.branch %}
                                     <tr>
                                         <td class="cell"><span class="truncate">{{inventory.product.product_name}}</span></td>
                                         <td class="cell">{{inventory.product.category}}</td>
@@ -78,10 +77,9 @@
                                             <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#reorderModal{{inventory.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
                                         </td>
                                     </tr>
-                                    {% include 'ims/delete_inventory.html' %}
-                                    {% include 'ims/set_reorder.html' %}
-                                    {% include 'ims/restock.html' %}
-                                    {% endif %}
+                                    {% include 'modals/delete_inventory.html' %}
+                                    {% include 'modals/set_reorder.html' %}
+                                    {% include 'modals/restock.html' with inventory=inventory %}
                                     {% endfor %}
                                     
                                 </tbody>

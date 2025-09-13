@@ -18,40 +18,38 @@ from xhtml2pdf import pisa
 
 # Write your views here.
 
+
 @role_required(roles=['owner'])
-@login_required(login_url=('login'))
-# @is_unsubscribed
+@login_required
 def branchStore(request):
     organization = request.user.organization
-    inventory = Inventory.objects.filter(organization=organization).all().order_by('branch')
-    paginator = Paginator(inventory, 15)
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
     page = request.GET.get('page')
-    inventory_page = paginator.get_page(page)
-    nums = "a" *inventory_page.paginator.num_pages
-    product_contains_query = request.GET.get('product')
-    staff_contains_query = request.GET.get('branch')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
 
-    if product_contains_query != '' and product_contains_query is not None:
-        inventory_page = inventory.filter(product__product_name__icontains=product_contains_query)
-
-    if staff_contains_query != '' and staff_contains_query is not None:
-        inventory_page = inventory.filter(branch__branch_name__icontains=staff_contains_query)
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
 
     context = {
-        'inventory':inventory,
-        'inventory_page':inventory_page,
-        'nums':nums
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
     }
     return render(request, 'ims/branchstore.html', context)
+
 
 
 @role_required(roles=['owner', 'sales'])
 @login_required
 # @is_unsubscribed
-def store(request):
-    # branch = Branch.objects.get(id=pk)
-    branch = request.user.branch
-    inventory = Inventory.objects.filter(branch_id = branch).all()
+def store(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    inventory = Inventory.objects.filter(branch=branch).all().order_by('-last_updated')
     paginator = Paginator(Inventory.objects.all(), 15)
     page = request.GET.get('page')
     inventory_page = paginator.get_page(page)
@@ -75,15 +73,18 @@ def store(request):
 @role_required(roles=['owner', 'sales'])
 @login_required
 # @is_unsubscribed
-def cart(request):
-    # branch = Branch.objects.get(id=pk)
-    
+def cart(request, pk):
+    organization = request.user.organization
     
     if request.user.is_authenticated:
         staff = request.user
-        branch = request.user.branch
-        inventory = Inventory.objects.filter(branch_id = branch).all()
-        sale , created = Sale.objects.filter(branch_id = branch).get_or_create(staff=staff, branch=branch, completed=False)
+        branch = Branch.objects.get(organization=organization, id=pk)
+        inventory = Inventory.objects.filter(branch=branch)
+
+        sale, _ = Sale.objects.get_or_create(
+            staff=staff, branch=branch, organization=organization, completed=False
+        )
+
         items = sale.salesitem_set.all()
         
     context = {
@@ -98,14 +99,18 @@ def cart(request):
 @role_required(roles=['owner', 'sales'])
 @login_required
 # @is_unsubscribed
-def checkout(request):
-    # branch = Branch.objects.get(id=pk)
+def checkout(request, pk):
+    organization = request.user.organization
        
     if request.user.is_authenticated:
         staff = request.user
-        branch = request.user.branch
-        inventory = Inventory.objects.filter(branch_id = branch).all()
-        sale , created = Sale.objects.filter(branch_id = branch).get_or_create(staff=staff, branch=branch, completed=False)
+        branch = Branch.objects.get(organization=organization, id=pk)
+        inventory = Inventory.objects.filter(branch=branch)
+
+        sale, _ = Sale.objects.get_or_create(
+            staff=staff, branch=branch, organization=organization, completed=False
+        )
+
         items = sale.salesitem_set.all()
         form = PaymentForm()
         if request.method == 'POST':
@@ -124,18 +129,25 @@ def checkout(request):
     return render(request, 'ims/checkout.html', context)
 
 
-def updateCart(request):
+def updateCart(request, pk):
     data = json.loads(request.body)
     inventoryId = data['inventoryId']
     action = data['action']
     print('inventory:', inventoryId)
     print('Action:', action)
    
+    organization = request.user.organization
     staff = request.user
-    branch = request.user.branch.id
+    branch = Branch.objects.get(organization=organization, id=pk)
     inventory = Inventory.objects.filter(branch_id = branch).get(id=inventoryId)
-    sale, created = Sale.objects.filter(branch_id = branch).get_or_create(staff=staff, branch_id=branch, completed=False)
-    saleItem, created = SalesItem.objects.filter(branch_id = branch).get_or_create(sale=sale, branch_id=branch, inventory=inventory)
+    sale, _ = Sale.objects.get_or_create(
+        staff=staff, branch=branch, organization=organization, completed=False
+    )
+
+
+    saleItem, created = SalesItem.objects.get_or_create(
+        sale=sale, branch=branch, inventory=inventory
+    )
 
     if action == 'add':
         saleItem.quantity = (saleItem.quantity + 1)
@@ -145,23 +157,34 @@ def updateCart(request):
         saleItem.delete()
 
     context = {
-        'branch':branch,
+        'branch': str(branch.id),
         'qty': sale.get_cart_items,
     }
 
     return JsonResponse(context, safe=False)
 
 
-def updateQuantity(request):
+
+def updateQuantity(request, pk):
     data = json.loads(request.body)
     input_value = int(data['val'])
     inventory_Id = data['invent_id']
     
+    organization = request.user.organization
     staff = request.user
-    branch = request.user.branch.id
-    inventory = Inventory.objects.filter(branch_id = branch).get(id=inventory_Id)
-    sale, created = Sale.objects.filter(branch_id = branch).get_or_create(staff=staff, branch=branch, completed=False)
-    saleItem, created = SalesItem.objects.filter(branch_id = branch).get_or_create(sale=sale, branch=branch, inventory=inventory)
+    try:
+        branch = Branch.objects.get(organization=organization, id=pk)
+    except Branch.DoesNotExist:
+        return JsonResponse({'error': 'Branch not found'}, status=404)
+
+    try:
+        inventory = Inventory.objects.get(branch=branch, id=inventory_Id)
+    except Inventory.DoesNotExist:
+        return JsonResponse({'error': 'Inventory not found'}, status=404)
+
+    sale, _ = Sale.objects.get_or_create(staff=staff, organization=organization, branch=branch, completed=False)
+    saleItem, _ = SalesItem.objects.get_or_create(sale=sale, branch=branch, inventory=inventory)
+
     saleItem.quantity = input_value
     saleItem.save()
 
@@ -169,7 +192,7 @@ def updateQuantity(request):
         saleItem.delete()
 
     context = {
-        'branch':branch,
+        'branch':str(branch.id),
         'sub_total':saleItem.get_total,
         'final_total':sale.get_cart_total,
         'total_quantity':sale.get_cart_items,
@@ -178,41 +201,78 @@ def updateQuantity(request):
     return JsonResponse(context, safe=False)
 
 
+
 def sale_complete(request, pk):
-    branch = Branch.objects.get(id=pk)
     transaction_id = datetime.now().timestamp()
     data = json.loads(request.body)
-   
+
+    organization = request.user.organization
     staff = request.user
-    branch = request.user.branch.id
-    sale, created = Sale.objects.filter(branch_id = pk).get_or_create(staff=staff, branch=branch, completed=False)
+
+    try:
+        branch = Branch.objects.get(organization=organization, id=pk)
+    except Branch.DoesNotExist:
+        return JsonResponse({'error': 'Branch not found'}, status=404)
+
+    try:
+        sale = Sale.objects.get(
+            staff=staff, branch=branch, organization=organization, completed=False
+        )
+    except Sale.DoesNotExist:
+        return JsonResponse({'error': 'No open sale found'}, status=404)
+
     sale.transaction_id = transaction_id
     total = float(data['payment']['total_cart'])
     sale.final_total_price = sale.get_cart_total
     sale.total_profit = sale.get_total_profit
 
-
     if total == sale.get_cart_total:
         sale.completed = True
-    sale.save()
 
+    sale.save()
 
     messages.success(request, 'sale completed')
 
-    context = {
-        'branch':branch
-    }
+    return JsonResponse({
+        'branch': str(branch.id),
+        'completed': sale.completed,
+        'sale_id': str(sale.id),
+        'transaction_id': sale.transaction_id,
+        'final_total': sale.final_total_price,
+    })
 
-#   need to add shop in other to manage multiple shops and staffs per shop
-    return JsonResponse(context, safe=False)
+
+@role_required(roles=['owner'])
+@login_required
+def branchSales(request):
+    organization = request.user.organization
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+    return render(request, 'ims/branchsales.html', context)
 
 
 @role_required(roles=['owner']) 
 @login_required
 # @is_unsubscribed
-def sales(request):
-    sale = Sale.objects.all().order_by('-date_updated')
-    paginator = Paginator(Sale.objects.all().order_by('-date_updated'), 10)
+def sales(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    sale = Sale.objects.filter(branch=branch).order_by('-date_updated')
+    paginator = Paginator(Sale.objects.filter(branch=branch).order_by('-date_updated'), 10)
     page = request.GET.get('page')
     sale_page = paginator.get_page(page)
     nums = "a" *sale_page.paginator.num_pages
@@ -230,6 +290,7 @@ def sales(request):
         sale_page = sale.filter(branch__branch_name__icontains=branch_contains_query)
 
     context = {
+        'branch':branch,
         'sale':sale,
         'sale_page':sale_page,
         'nums':nums
@@ -237,8 +298,10 @@ def sales(request):
     return render(request, 'ims/sales.html', context)
 
 
-def sale_pdf(request):
-    sale = Sale.objects.all()
+def sale_pdf(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    sale = Sale.objects.filter(branch=branch)
 
     template_path = 'ims/salepdf.html'
     context = {'sale': sale}
@@ -258,35 +321,19 @@ def sale_pdf(request):
     return response
 
 
-@role_required(roles=['owner'])
-@login_required
-def sale(request, pk):
-    sale = Sale.objects.get(id=pk)
 
-    context = {
-        'sale':sale
-    }
-    return render(request, 'modals/sales_delete.html', context)
 
 @role_required(roles=['owner'])
 @login_required
-def sale_delete(request):
-    if request.method == 'POST':
-        sale = Sale.objects.get(id = request.POST.get('id'))
-        if sale != None:
-            sale.delete()
-            messages.success(request, "Succesfully deleted")
-            return redirect('sales')
-
-@role_required(roles=['owner'])
-@login_required
-def export_sales_csv(request):
+def export_sales_csv(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
     response = HttpResponse(content_type = 'text/csv')
     response['Content-Disposition']='attachment; filename = Sales History'+str(datetime.now())+'.csv'
     writer = csv.writer(response)
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
-    sale = Sale.objects.all()
+    sale = Sale.objects.filter(branch=branch)
     
     for sale in sale:
         writer.writerow([sale.staff, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
@@ -295,7 +342,8 @@ def export_sales_csv(request):
 
 @role_required(roles=['owner'])
 def export_profit_csv(request, pk):
-    branch = Branch.objects.get(id=pk)
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
 
@@ -325,16 +373,37 @@ def export_profit_csv(request, pk):
     return response
     
 
+# @role_required(roles=['owner', 'sales'])
+# @login_required
+# # @is_unsubscribed
+# def reciept(request, pk):
+#     organization = request.user.organization
+#     branch = Branch.objects.get(organization=organization, id=request.user.branch.id)
+#     sale = Sale.objects.get(branch=branch, id=pk)
+#     salesitem = SalesItem.objects.filter(sale_id=sale).all()
+    
+#     context = {
+#         'salesitem':salesitem,
+#         'sale':sale
+#     }
+#     return render(request, 'ims/reciept.html', context)
+
+
 @role_required(roles=['owner', 'sales'])
 @login_required
-# @is_unsubscribed
 def reciept(request, pk):
-    sale = Sale.objects.get(id = pk)
-    salesitem = SalesItem.objects.filter(sale_id=sale).all()
+    organization = request.user.organization
+    try:
+        sale = Sale.objects.get(id=pk, branch__organization=organization)
+    except Sale.DoesNotExist:
+        return redirect('store')  # you might need a branch id here too
+
+    salesitem = sale.salesitem_set.all()
     
     context = {
-        'salesitem':salesitem,
-        'sale':sale
+        'salesitem': salesitem,
+        'sale': sale,
+        'branch': sale.branch,   # ✅ pass branch to template
     }
     return render(request, 'ims/reciept.html', context)
 

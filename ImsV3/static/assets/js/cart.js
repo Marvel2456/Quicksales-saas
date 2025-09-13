@@ -1,23 +1,19 @@
 let updateCart = document.getElementsByClassName('add-cart')
 
-for (let i = 0; i< updateCart.length; i++){
+for (let i = 0; i < updateCart.length; i++) {
     updateCart[i].addEventListener('click', function(){
         let inventoryId = this.dataset.inventory
         let action = this.dataset.action
-        console.log('inventoryId:', inventoryId, 'action:', action)
+        let url = this.dataset.url   // ✅ use url from HTML
+
+        console.log('inventoryId:', inventoryId, 'action:', action, 'url:', url)
         
-        if(shop){
-            UpdateUserCart(inventoryId, action)
-        }
+        UpdateUserCart(inventoryId, action, url)
     })
 }
 
-
-
-function UpdateUserCart(inventoryId, action){
-    console.log('Sending data')
-
-    let url = 'update_cart/'
+function UpdateUserCart(inventoryId, action, url){
+    console.log('Sending data to', url)
 
     fetch(url, {
         method:'POST',
@@ -34,6 +30,7 @@ function UpdateUserCart(inventoryId, action){
     })
 }
 
+
 let inputfields = document.getElementsByClassName('Qty')
 for(i = 0; i < inputfields.length; i++){
     inputfields[i].addEventListener('change', updateQuantity)   
@@ -43,9 +40,9 @@ for(i = 0; i < inputfields.length; i++){
 function updateQuantity(e){
     let inputvalue = e.target.value
     let inventoryId = e.target.dataset.inventory
+    let url = e.target.dataset.url   // ✅ correct endpoint with branch ID
 
     const data = {invent_id: inventoryId, val: inputvalue};
-    let url = '/update_quantity/'
 
     fetch(url, {
         method:'POST',
@@ -56,7 +53,6 @@ function updateQuantity(e){
         body:JSON.stringify(data)
     })
     .then(res => res.json())
-
     .then((data) =>{
         console.log('Success:', data);
         document.getElementById('sub_total').innerHTML = `${data.sub_total.toFixed(1)}`

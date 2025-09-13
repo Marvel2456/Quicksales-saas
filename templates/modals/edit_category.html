@@ -25,28 +25,3 @@
 
 
 
-{% comment %} <form 
-  method="POST" 
-  hx-post="{% url 'edit_category' category.id %}" 
-  hx-target="#category-row-{{ category.id }}" 
-  hx-swap="outerHTML">
-  {% csrf_token %}
-  
-  <div class="modal-header">
-    <h5 class="modal-title">Edit Category</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-  </div>
-
-    <div class="modal-body">
-        <div class="mb-3">
-            <label for="category_name" class="form-label">Product</label>
-            <input name="category_name" type="text" class="form-control" placeholder="Product Name" required {% block Value-category_name %} {% endblock Value-category_name %}>
-            <div class="m-3" style="color:red;">{{form.product_name.errors}}</div>
-        </div>
-    </div>
-
-  <div class="modal-footer">
-    <button type="submit" class="btn btn-success">Save</button>
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-  </div>
-</form> {% endcomment %}

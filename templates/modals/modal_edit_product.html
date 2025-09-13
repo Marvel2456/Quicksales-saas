@@ -26,13 +26,12 @@
 
             <div class="mb-3">
                 <label for="category{{ product.pk }}" class="form-label">Category</label>
-                <select class="form-control" id="category{{ product.pk }}" name="category">
-                    {% for category in categories %}
-                    <option value="{{ category.id }}" {% if product.category.id == category.id %}selected{% endif %}>
-                        {{ category.category_name }}
+                <select name="category">
+                {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category.id == product.category.id %}selected{% endif %}>
+                    {{ category.category_name }}
                     </option>
-
-                    {% endfor %}
+                {% endfor %}
                 </select>
             </div>
 

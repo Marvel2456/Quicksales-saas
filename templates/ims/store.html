@@ -4,7 +4,7 @@
 {% block content %}
 
 <div class="app-content pt-3 p-md-3 p-lg-4">
-    {% if user.branch == branch or user.is_admin %}
+    {% comment %} {% if user.branch == branch %} {% endcomment %}
     <div class="container-xl">
         <div class="row g-3 mb-4 align-items-center justify-content-between">
             <div class="col-auto">
@@ -31,15 +31,21 @@
         
         <div class="row g-4">
             {% for inventory in inventory_page %}
-            {% if inventory.branch == user.branch %}
+            {% comment %} {% if inventory.branch == user.branch %} {% endcomment %}
             <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
                 <div class="app-card app-card-doc shadow-sm  h-100">
                     <div class="app-card-thumb-holder p-3">
-                        <a class="btn add-cart" data-inventory="{{inventory.id}}" data-action="add">
-                            <span class="icon-holder">
-                                <i class="fa-solid fa-cart-plus"></i>
-                            </span>
+                        <a class="btn add-cart"
+                            data-inventory="{{ inventory.id }}"
+                            data-action="add"
+                            data-branch="{{ branch.id }}"
+                            data-url="{% url 'update_cart' branch.id %}">
+                        <span class="icon-holder">
+                            <i class="fa-solid fa-cart-plus"></i>
+                        </span>
                         </a>
+
+
                     </div>
                     <div class="app-card-body p-3 has-card-actions">
                         
@@ -56,32 +62,8 @@
                 </div><!--//app-card-->
                
             </div><!--//col-->
-            {% elif user.is_admin %}
-            <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
-                <div class="app-card app-card-doc shadow-sm  h-100">
-                    <div class="app-card-thumb-holder p-3">
-                        <a class="btn add-cart" data-inventory="{{inventory.id}}" data-action="add">
-                            <span class="icon-holder">
-                                <i class="fa-solid fa-cart-plus"></i>
-                            </span>
-                        </a>
-                    </div>
-                    <div class="app-card-body p-3 has-card-actions">
-                        
-                        <h4 class="app-doc-title truncate mb-0"><a href="">{{ inventory.product.product_name }}</a></h4>
-                        <div class="app-doc-meta">
-                            <ul class="list-unstyled mb-0">
-                                <li><span class="text-muted">Category:</span> {{inventory.product.category}}</li>
-                                <li><span class="text-muted">Price:</span> {{inventory.sale_price}}</li>
-                            </ul>
-                        </div><!--//app-doc-meta-->
-
-                    </div><!--//app-card-body-->
-
-                </div><!--//app-card-->
-               
-            </div><!--//col-->
-            {% endif %}
+            
+            {% comment %} {% endif %} {% endcomment %}
             {% endfor %}
             <div class="pagination">
                 <span class="step-links">
@@ -106,9 +88,9 @@
                 </span>
             </div>
     </div><!--//container-fluid-->
-    {% else %}
+    {% comment %} {% else %}
     This is not your branch
-    {% endif %}
+    {% endif %} {% endcomment %}
 </div>
 
 {% endblock content %}

@@ -45,8 +45,8 @@
         </div><!--//row-->
         
         <div class="col-auto pb-2">
-            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' %}">Export to Csv</a>
-            <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' %}">Export to Pdf </a>
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' branch.id %}">Export to Csv</a>
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' branch.id %}">Export to Pdf </a>
         </div>  
         {% comment %} <div class="col-auto pb-2">
            
@@ -61,7 +61,6 @@
                                     <tr>
                                         <th class="cell">Sales Rep</th>
                                         <th class="cell">Trans Id</th>
-                                        <th class="cell">Branch</th>
                                         <th class="cell">Method</th>
                                         <th class="cell">Date</th>
                                         <th class="cell">Quantity</th>
@@ -74,9 +73,8 @@
                                 <tbody>
                                     {% for sale in sale_page %}
                                     <tr>
-                                        <td class="cell">{{sale.staff}}</td>
+                                        <td class="cell">{{sale.staff.first_name}}</td>
                                         <td class="cell"><span class="truncate">{{sale.transaction_id}}</span></td>
-                                        <td class="cell"><span>{{sale.branch}}</span></td>
                                         <td class="cell"><span>{{sale.method}}</span></td>
                                         <td class="cell"><span>{{sale.date_updated}}</span></td>
                                         <td class="cell"><span class="badge bg-success">{{sale.get_cart_items}}</span></td>
@@ -84,10 +82,9 @@
                                         <td class="cell">{{sale.total_profit}}</td>
                                         <td class="cell">
                                             <a class="btn-sm app-btn-secondary" href="{% url 'reciept' sale.id %}"><i class="fa-solid fa-receipt"></i></a>&nbsp;
-                                            <a class="btn-sm app-btn-secondary" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#deleteSaleModal{{sale.pk}}"><i class="fa-solid fa-trash-can"></i></a>
+                                            {% comment %} <a class="btn-sm app-btn-secondary" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#deleteSaleModal{{sale.pk}}"><i class="fa-solid fa-trash-can"></i></a> {% endcomment %}
                                         </td>
                                     </tr>
-                                    {% include 'ims/sales_delete.html' %}
                                     {% endfor %}
                                     
                                 </tbody>
