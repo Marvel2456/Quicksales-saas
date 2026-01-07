@@ -1,6 +1,7 @@
 from django.db import models
 from account.models import Organization
 import uuid
+from django.db.models import Q, UniqueConstraint
 from django.utils import timezone
 
 
@@ -44,7 +45,13 @@ class Subscription(models.Model):
         return f"{self.organization} - {self.plan}"
     
     class Meta:
-        unique_together = ('organization', 'is_active')
+        constraints = [
+            UniqueConstraint(
+                fields=['organization'],
+                condition=Q(is_active=True),
+                name="unique_active_subscription_per_org"
+            )
+        ]
     
     def save(self, *args, **kwargs):
         if self.is_active:

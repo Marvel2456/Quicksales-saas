@@ -60,15 +60,12 @@
                             {% csrf_token %}
                             <label for="method" class="form-check-label mb-2" for="inlineCheckbox1"><strong>Payment Method</strong></label>
                             <select id="method" name="method" class="form-select">
-                                <option value="{{sale.method}}">{{sale.method}}</option>
-                                <option>Cash</option>
-                                <option>Transfer</option>
-                                <option>POS</option>
+                                <option value="" disabled selected>Select Method</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="POS">POS</option>
                             </select>
-                            <br>
-                            <button type="submit" class="btn btn-secondary" id="pmd">
-                                <i class="fas fa-plus"></i>&nbsp;&nbsp; Add
-                            </button>
+                            
                         </form>
                     </div><!--//col-->
                 </div><!--//row-->   
@@ -95,9 +92,15 @@
 
     function submitPayment(){
         console.log('paymrnt')
+        let method = document.getElementById('method').value
+        if (!method) {
+            alert("Please select a payment method")
+            return
+        }
         let paymentData = {
             
-            'total_cart':total_cart
+            'total_cart':total_cart,
+            'method': method
         }
 
         let url = "{% url 'completed' branch.id %}"

@@ -13,15 +13,27 @@ from account.decorators import role_required
 
 @role_required(roles=['owner'])
 @login_required
-# @is_unsubscribed
 def branchReport(request):
     organization = request.user.organization
-    branch = Branch.objects.filter(organization=organization).all()
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
 
     context = {
-        'branch':branch
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
     }
     return render(request, 'ims/branchrep.html', context)
+
+
 
 @role_required(roles=['owner'])
 @login_required

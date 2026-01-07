@@ -11,6 +11,13 @@ urlpatterns = [
     # path('branchview/<str:pk>/', views.branchView, name='branchview'),
     # path('editbranch/<uuid:pk>/', views.edit_branch, name='edit_branch'),
     path('register/', OwnerRegisterView.as_view(), name='register'),
-    path('verify-email/<uidb64>/<token>/', views.verifyEmail, name='verify_email')
+    path('verify-email/<uidb64>/<token>/', views.verifyEmail, name='verify_email'),
+    path('account/', views.accountView, name='account'),
+    # Notifications
+    path('notifications/', views.notifications_view, name='notifications'),
+    path('notifications/<uuid:pk>/delete/', views.delete_notification, name='notification_delete'),
+    # path('settings/', views.settingsView, name='settings'),
+    # path("settings/edit_organization/<uuid:pk>/", views.editOrganization, name="edit_organization"),
+    # path('plan/', views.planView, name='plan'),
 
 ]

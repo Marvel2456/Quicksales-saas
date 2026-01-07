@@ -1,7 +1,19 @@
 {% if messages %}
-    {% for message in messages  %}
-        <div class="alert alert-{{message.tags}} m-2" id="msg" role="alert">
-            {{message}}
-        </div>
-    {% endfor %}
+    <div class="alert-container" style="position: fixed; top: 80px; right: 20px; z-index: 1000; max-width: 400px;">
+        {% for message in messages %}
+            <div class="alert alert-{{message.tags}} alert-dismissible fade show mb-2" id="msg-{{forloop.counter}}" role="alert" style="min-width: 300px;">
+                <i class="fas fa-check-circle me-2"></i>{{message}}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    </div>
+    <script>
+        // Auto-dismiss alerts after 3 seconds
+        document.querySelectorAll('[id^="msg-"]').forEach(function(alert, index) {
+            setTimeout(function() {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 3000 + (index * 300)); // Stagger multiple alerts
+        });
+    </script>
 {% endif %}

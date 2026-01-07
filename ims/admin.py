@@ -1,12 +1,13 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 from unfold.decorators import display
+from unfold.admin import ModelAdmin
 from .models import Product, Sale, SalesItem, Category, Inventory, Supplier, ErrorTicket
 
 # Register your models here.
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(ModelAdmin):
     list_display = ('organization', 'branch', 'product_name', 'category')
     search_fields = ('organization', 'branch', 'product_name')
     list_filter = ('category',)
@@ -19,7 +20,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(ModelAdmin):
     list_display = ('organization', 'branch', 'category_name', 'last_updated', 'date_created')
     search_fields = ('organization', 'branch','category_name',)
     ordering = ('-date_created',)
@@ -50,7 +51,7 @@ class SalesItemInline(admin.TabularInline):
 
 
 @admin.register(Inventory)
-class InventoryAdmin(admin.ModelAdmin):
+class InventoryAdmin(ModelAdmin):
     list_display = ['organization', 'branch', 'product', 'quantity', 'quantity_available', 'status', 'store_quantity', 'quantity_sold', 'last_updated']
     search_fields = ['organization', 'product__product_name', 'branch__name']
     list_filter = ['status', 'branch', 'product']
@@ -73,7 +74,7 @@ class InventoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Sale)
-class SaleAdmin(admin.ModelAdmin):
+class SaleAdmin(ModelAdmin):
     list_display = ['transaction_id', 'organization', 'branch', 'staff', 'get_cart_total', 'get_cart_items', 'get_total_profit', 'completed', 'date_added']
     search_fields = ['transaction_id', 'organization', 'branch__name', 'staff__username']
     list_filter = ['completed', 'organization', 'method', 'branch']
@@ -95,7 +96,7 @@ class SaleAdmin(admin.ModelAdmin):
 
 
 @admin.register(SalesItem)
-class SalesItemAdmin(admin.ModelAdmin):
+class SalesItemAdmin(ModelAdmin):
     list_display = ['inventory', 'sale', 'quantity', 'get_total', 'get_cost_total', 'get_profit', 'last_updated']
     search_fields = ['inventory__product__product_name', 'sale__transaction_id']
     autocomplete_fields = ['organization', 'branch', 'inventory', 'sale']

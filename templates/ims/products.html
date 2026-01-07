@@ -52,9 +52,13 @@
                                 </thead>
                                 {% if request.user.role == 'owner' %}
                                 <div class="m-2 py-2">
-                                    <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addProductModal">
+                                    <a class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                         <i class="fas fa-plus"></i>
                                         Add Product
+                                    </a>
+                                    <a class="btn app-btn-primary ms-2" href="{% url 'product_upload' %}">
+                                        <i class="fas fa-upload"></i>
+                                        Upload Product
                                     </a>
                                 </div> 
                                 {% include 'modals/add_product.html' %}

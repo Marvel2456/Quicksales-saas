@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block title %} Upload Product {% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+  <div class="container-xl">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+      <div class="col-auto">
+        <h1 class="app-page-title mb-0">Upload Product / Update Inventory</h1>
+      </div>
+      <div class="col-auto">
+        <a href="#" onclick="downloadSample()" class="btn btn-outline-primary">
+          <i class="fas fa-download"></i> Download Sample CSV
+        </a>
+      </div>
+    </div>
+
+    <!-- Display Form Errors -->
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>Form Error:</strong>
+        {% for error in form.non_field_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endif %}
+
+    <!-- Combined Form Section -->
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <!-- File Upload Section -->
+      <div class="app-card app-card-settings shadow-sm p-4 mb-4">
+        <div class="app-card-body">
+          <h5 class="mb-3">Bulk Upload from File</h5>
+          <p class="text-muted">Upload a CSV or Excel file with multiple products. The file should have these columns: product_name, category, brand, unit, batch_no, cost_price, sale_price, quantity, reorder_level</p>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Upload File (CSV or Excel)</label>
+              {{ form.upload_file }}
+              {% if form.upload_file.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.upload_file.errors %}
+                    <div>{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              {% if form.upload_file.help_text %}
+                <div class="form-text">{{ form.upload_file.help_text }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button type="submit" name="upload_type" value="file" class="btn app-btn-primary">
+                <i class="fas fa-upload"></i> Upload File
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Entry Section -->
+      <div class="app-card app-card-settings shadow-sm p-4">
+        <div class="app-card-body">
+          <h5 class="mb-3">Manual Product Entry</h5>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Product Name</label>
+              {{ form.product_name }}
+              {% if form.product_name.errors %}
+                <div class="text-danger small">{{ form.product_name.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              {{ form.category }}
+              {% if form.category.errors %}
+                <div class="text-danger small">{{ form.category.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Brand</label>
+              {{ form.brand }}
+              {% if form.brand.errors %}
+                <div class="text-danger small">{{ form.brand.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Unit</label>
+              {{ form.unit }}
+              {% if form.unit.errors %}
+                <div class="text-danger small">{{ form.unit.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Batch No</label>
+              {{ form.batch_no }}
+              {% if form.batch_no.errors %}
+                <div class="text-danger small">{{ form.batch_no.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Cost Price</label>
+              {{ form.cost_price }}
+              {% if form.cost_price.errors %}
+                <div class="text-danger small">{{ form.cost_price.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Sale Price</label>
+              {{ form.sale_price }}
+              {% if form.sale_price.errors %}
+                <div class="text-danger small">{{ form.sale_price.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Quantity</label>
+              {{ form.quantity }}
+              {% if form.quantity.errors %}
+                <div class="text-danger small">{{ form.quantity.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Reorder Level</label>
+              {{ form.reorder_level }}
+              {% if form.reorder_level.errors %}
+                <div class="text-danger small">{{ form.reorder_level.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="mt-4">
+            <button type="submit" name="upload_type" value="manual" class="btn app-btn-primary">Save Product</button>
+            <a href="{% url 'products' branch.id %}" class="btn btn-outline-secondary">Back to Products</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function downloadSample() {
+  // Create sample CSV content
+  const csvContent = `product_name,category,brand,unit,batch_no,cost_price,sale_price,quantity,reorder_level
+Sample Product 1,Electronics,Brand A,Piece,BATCH001,100.00,150.00,50,10
+Sample Product 2,Groceries,Brand B,Kg,BATCH002,50.00,75.00,100,20`;
+  
+  // Create blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'product_upload_sample.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock content %}

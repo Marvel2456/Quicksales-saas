@@ -5,17 +5,26 @@ from account.models import CustomUser
 from . models import *
 from account.models import Branch
 
-class UserCreateForm(UserCreationForm):
+
+
+class StaffCreateForm(forms.ModelForm):
     class Meta:
         model = CustomUser
-        fields = (
-            'email', 'password1', 'password2', 'organization', 'branch',
-            )
+        fields = ('first_name', 'last_name', 'phone_number', 'email', 'role')
 
         widgets = {
-            'branch' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'branch'}),
-            'organization' : forms.Select(attrs={'class':'form-select form-control', 'placeholder':'organization'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email'}),
+            'role': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if CustomUser.objects.filter(email=email).exists():
+            raise ValidationError("Email already exists")
+        return email
 
 
 class UserEditForm(ModelForm):
@@ -61,16 +70,41 @@ class ProductForm(ModelForm):
         return self.cleaned_data   
     
 
+
 class EditProductForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
+
         if organization:
-            self.fields['category'].queryset = Category.objects.filter(organization=organization)
+            # Ensure the product’s current category is always available in queryset
+            qs = Category.objects.filter(organization=organization)
+
+            if self.instance and self.instance.category_id:
+                qs = qs | Category.objects.filter(id=self.instance.category_id)
+
+            self.fields['category'].queryset = qs.distinct()
+
+        # Show label for empty choice
+        self.fields['category'].empty_label = "Select a category"
 
     class Meta:
         model = Product
         fields = ['product_name', 'brand', 'category', 'unit', 'batch_no']
+
+
+
+# class EditProductForm(forms.ModelForm):
+#     def __init__(self, *args, **kwargs):
+#         organization = kwargs.pop('organization', None)
+#         super().__init__(*args, **kwargs)
+#         if organization:
+#             self.fields['category'].queryset = Category.objects.filter(organization=organization) | Category.objects.filter(id=self.instance.category_id)
+
+
+#     class Meta:
+#         model = Product
+#         fields = ['product_name', 'brand', 'category', 'unit', 'batch_no']
 
 
 # class EditProductForm(ModelForm):
@@ -189,5 +223,51 @@ class AddCountForm(ModelForm):
     class Meta:
         model = Inventory
         fields = ('count',)
+
+
+class UploadProductForm(forms.Form):
+    upload_file = forms.FileField(
+        required=False,
+        help_text='Upload CSV or Excel file with columns: product_name, category, brand, unit, batch_no, cost_price, sale_price, quantity, reorder_level',
+        widget=forms.FileInput(attrs={'accept': '.csv,.xlsx,.xls'})
+    )
+    product_name = forms.CharField(max_length=150, required=False)
+    category = forms.ModelChoiceField(queryset=Category.objects.none(), required=False)
+    brand = forms.CharField(max_length=150, required=False)
+    unit = forms.CharField(max_length=50, required=False)
+    batch_no = forms.CharField(max_length=20, required=False)
+    cost_price = forms.FloatField(required=False)
+    sale_price = forms.FloatField(required=False)
+    quantity = forms.IntegerField(min_value=0, required=False)
+    reorder_level = forms.IntegerField(min_value=0, required=False)
+
+    def __init__(self, *args, **kwargs):
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields['category'].queryset = Category.objects.filter(organization=organization)
+        for field in self.fields.values():
+            css = 'form-control'
+            if isinstance(field.widget, forms.Select):
+                css = 'form-select'
+            field.widget.attrs.setdefault('class', css)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        upload_file = cleaned_data.get('upload_file')
+        product_name = cleaned_data.get('product_name')
+        
+        # Either file upload or manual entry required, not both
+        if not upload_file and not product_name:
+            raise forms.ValidationError('Please either upload a file or enter product name for manual entry.')
+        
+        # If manual entry (product_name provided but no file), validate required fields
+        if product_name and not upload_file:
+            required_fields = {'category': 'Category', 'cost_price': 'Cost Price', 'sale_price': 'Sale Price', 'quantity': 'Quantity'}
+            for field_name, field_label in required_fields.items():
+                if not cleaned_data.get(field_name):
+                    raise forms.ValidationError(f'{field_label} is required when using manual entry.')
+        
+        return cleaned_data
 
 

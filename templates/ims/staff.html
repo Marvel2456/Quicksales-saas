@@ -43,11 +43,10 @@
                             <table class="table app-table-hover mb-0 text-left" id="example">
                                 <thead>
                                     <tr>
-                                        <th class="cell">Username</th>
+                                        <th class="cell">Email</th>
                                         <th class="cell">Name</th>
                                         <th class="cell">Phone Number</th>
-                                        <th class="cell">Branch</th>
-                                        <th class="cell">Pos</th>
+                                        <th class="cell">Role</th>
                                         <th class="cell"></th>
                                         <th class="cell"></th>
                                     </tr>
@@ -61,11 +60,10 @@
                                     </div>    
                                     {% for staff in staff_page %}
                                     <tr>
-                                        <td class="cell"><span class="truncate"><a href="{% url 'staff_detail' staff.id %}">{{staff.username}}</a></span></td>
+                                        <td class="cell"><span class="truncate"><a href="{% url 'staff_detail' staff.id %}">{{staff.email}}</a></span></td>
                                         <td class="cell">{{staff.first_name}} {{staff.last_name}}</td>
                                         <td class="cell"><span class="note">{{staff.phone_number}}</span></td>
-                                        <td class="cell"><span class="note">{{staff.branch}}</span></td>
-                                        <td class="cell"><span class="note">{{staff.pos}}</span></td>
+                                        <td class="cell"><span class="note">{{staff.role}}</span></td>
                                         <td class="cell">
                                             <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editStaffModal{{staff.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
                                             <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteStaffModal{{staff.pk}}"><i class="fa-solid fa-trash-can"></i></a>

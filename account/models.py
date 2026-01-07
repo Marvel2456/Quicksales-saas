@@ -130,6 +130,29 @@ class ActivityLog(models.Model):
     class Meta:
         verbose_name_plural = "activity logs"
         ordering = ['-timestamp']
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('success', 'Success'),
+        ('error', 'Error'),
+        ('warning', 'Warning'),
+        ('info', 'Info'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notifications')
+    message = models.CharField(max_length=500)
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.notification_type}: {self.message}"
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = "Notifications"
         
 
 
