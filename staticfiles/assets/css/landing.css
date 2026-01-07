@@ -1,0 +1,179 @@
+:root {
+            --primary-color: #00004d;
+        }
+        body {
+            padding-top: 70px;
+        }
+        .navbar {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1030;
+        }
+        .navbar,
+        .navbar .navbar-brand,
+        .navbar .nav-link.active,
+        .navbar .nav-link:focus,
+        .navbar .nav-link:hover {
+            background: #fff;
+            color: var(--primary-color) !important;
+        }
+        .navbar .nav-link {
+            color: var(--primary-color) !important;
+        }
+        .navbar .navbar-brand {
+            color: var(--primary-color) !important;
+        }
+        .navbar .social-icons a {
+            color: var(--primary-color);
+            margin-left: 12px;
+            font-size: 1.25rem;
+            transition: color 0.2s;
+        }
+        .navbar .social-icons a:hover {
+            color: #007bff;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #f8f9fa 60%, #e3f0ff 100%);
+            padding: 100px 0 60px 0;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .hero-title {
+            font-size: 2.8rem;
+            font-weight: 700;
+            opacity: 0;
+            color: var(--primary-color);
+            transform: translateY(40px);
+            animation: fadeInUp 1s 0.2s forwards;
+        }
+        .hero-desc {
+            font-size: 1.25rem;
+            margin-bottom: 30px;
+            opacity: 0;
+            color: #222;
+            transform: translateY(40px);
+            animation: fadeInUp 1s 0.5s forwards;
+        }
+        .hero-btn {
+            opacity: 0;
+            transform: translateY(40px);
+            animation: fadeInUp 1s 0.8s forwards;
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .hero-btn:hover {
+            background: #222;
+            border-color: #222;
+        }
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .plans-section {
+            background: #fff;
+            padding: 60px 0;
+        }
+        .plan-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 32px 24px;
+            margin-bottom: 24px;
+            transition: box-shadow 0.2s;
+            background: #fff;
+        }
+        .plan-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+            border-color: var(--primary-color);
+        }
+        .plan-price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0 0 0;
+        }
+        .plan-features li {
+            margin-bottom: 10px;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        .feature-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 32px 20px;
+            margin-bottom: 24px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            transition: box-shadow 0.2s;
+            text-align: center;
+            height: 100%;
+        }
+        .feature-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+            border-color: var(--primary-color);
+        }
+        .feature-icon {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+        .newsletter-section {
+            background: #f8f9fa;
+            padding: 50px 0;
+        }
+        .newsletter-form input[type="email"] {
+            border-radius: 30px 0 0 30px;
+            border-right: none;
+        }
+        .newsletter-form button {
+            border-radius: 0 30px 30px 0;
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .newsletter-form button:hover {
+            background: #222;
+            border-color: #222;
+        }
+        .footer {
+        background: transparent;
+        color: #fff;
+        padding: 40px 0 24px 0;
+        text-align: center;
+        font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+        font-size: 1.08rem;
+        letter-spacing: 0.01em;
+        }
+        .footer .footer-social a {
+            color: #fff;
+            margin: 0 10px;
+            font-size: 1.4rem;
+            transition: color 0.2s;
+            vertical-align: middle;
+        }
+        .footer .footer-social a:hover {
+            color: #ffd700;
+        }
+        @media (max-width: 767px) {
+            .hero-section {
+                padding: 60px 0 30px 0;
+            }
+            .plans-section {
+                padding: 30px 0;
+            }
+            .feature-card {
+                padding: 24px 10px;
+            }
+            .navbar .social-icons {
+                margin-top: 10px;
+            }
+        }

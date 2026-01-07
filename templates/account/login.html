@@ -18,6 +18,42 @@
     
     <!-- App CSS -->  
     <link id="theme-style" rel="stylesheet" href="{% static 'assets/css/portal.css' %}">
+    
+    <style>
+        /* Password Toggle Button */
+        .password-input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .password-input-group .form-control {
+            padding-right: 38px;
+        }
+        
+        .toggle-password-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 16px;
+            padding: 6px 8px;
+            z-index: 100;
+            line-height: 1;
+            transition: color 0.2s ease;
+        }
+        
+        .toggle-password-btn:hover {
+            color: #495057;
+        }
+        
+        .toggle-password-btn:focus {
+            outline: none;
+            box-shadow: none;
+        }
+    </style>
 
 </head> 
 
@@ -38,7 +74,12 @@
 							</div><!--//form-group-->
 							<div class="password mb-3">
 								<label class="sr-only" for="signin-password">Password</label>
+							<div class="password-input-group">
 								<input id="signin-password" name="password" type="password" class="form-control signin-password" placeholder="Password" required="required">
+								<button type="button" class="toggle-password-btn" id="togglePassword" title="Show/Hide password" aria-label="Toggle password visibility">
+									<i class="fas fa-eye"></i>
+								</button>
+							</div>
 								<div class="extra mt-3 row justify-content-between">
 								</div><!--//extra-->
 							</div><!--//form-group-->
@@ -67,6 +108,26 @@
             }
         }, 4000)
     </script>
+	
+	<script>
+		// Password Toggle Functionality
+		document.addEventListener('DOMContentLoaded', function() {
+			const toggleBtn = document.getElementById('togglePassword');
+			const passwordInput = document.getElementById('signin-password');
+			
+			if (toggleBtn && passwordInput) {
+				toggleBtn.addEventListener('click', function(e) {
+					e.preventDefault();
+					const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+					passwordInput.setAttribute('type', type);
+					const icon = toggleBtn.querySelector('i');
+					icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+				});
+			}
+		});
+		
+        // Dark mode deliberately omitted on login screen
+	</script>
 
 </body>
 </html> 

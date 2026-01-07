@@ -5,7 +5,7 @@ from django.views import View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from .models import CustomUser, ActivityLog, Branch, Organization
+from .models import CustomUser, ActivityLog, Branch, Organization, Notification
 from subscriptions.models import Subscription, Plan
 from .forms import *
 from django.db import transaction
@@ -66,11 +66,10 @@ class OwnerRegisterView(View):
                     is_active=True
                 )
 
-                # Schedule deactivation at trial_end
-                deactivate_subscription.configure(
-                    schedule_at=trial_end
-                ).defer(
-                    subscription_id=str(subscription.id)
+                # Schedule deactivation at trial_end (Celery)
+                deactivate_subscription.apply_async(
+                    args=[str(subscription.id)],
+                    eta=trial_end
                 )
 
 
@@ -283,6 +282,72 @@ def deleteBranch(request):
 #         'total_profits':total_profits
 #     }
 #     return render(request, 'account/pos_sale.html', context)
+
+
+
+def accountView(request):
+    organization = request.user.organization
+    subscription = Subscription.objects.filter(organization=organization).order_by('-end_date').first()
+    plan = subscription.plan if subscription else None
+
+    context = {
+        'organization': organization,
+        'subscription': subscription,
+        'plan': plan,
+    }
+    return render(request, 'account/account.html', context)
+
+
+@login_required(login_url='login')
+def notifications_view(request):
+    qs = request.user.notifications.all().order_by('-created_at')
+    paginator = Paginator(qs, 20)
+    page = request.GET.get('page')
+    notifications = paginator.get_page(page)
+
+    context = {
+        'notifications': notifications
+    }
+    return render(request, 'account/notifications.html', context)
+
+
+@login_required(login_url='login')
+def delete_notification(request, pk):
+    notification = get_object_or_404(Notification, id=pk, user=request.user)
+    if request.method == 'POST':
+        notification.delete()
+        messages.success(request, 'Notification deleted')
+    return redirect('notifications')
+
+
+
+
+
+
+# @role_required(roles=['owner'])
+# @login_required
+# def planView(request):
+#     organization = request.user.organization
+    
+#     # Only fetch active subscription
+#     subscription = (
+#     Subscription.objects
+#     .filter(organization=organization, is_active=True, end_date__gte=timezone.now())
+#     .order_by('-end_date')
+#     .first()
+#     )
+
+    
+#     plan = subscription.plan if subscription else None
+#     plans = Plan.objects.all()
+
+#     context = {
+#         'organization': organization,
+#         'subscription': subscription,
+#         'plan': plan,
+#         'plans': plans,
+#     }
+#     return render(request, 'account/settings.html', context)
 
 
 

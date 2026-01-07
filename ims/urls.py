@@ -4,7 +4,7 @@ from ims.view.dashboard_views import branchDasboard, dashboard, staffDashboard
 from ims.view.category_views import (
     category_list, category, edit_category, delete_category, branch_category
 )
-from ims.view.product_views import product_category, product, edit_product, delete_product, branch_product
+from ims.view.product_views import product_category, product, edit_product, delete_product, branch_product, upload_product
 from ims.view.inventory_views import (
     edit_inventory, inventory_list, delete_inventory, restock,
     inventoryView, branch_inventory, inventory
@@ -16,7 +16,8 @@ from ims.view.sale_views import (
     sale_complete, checkout, reciept, branchStore, store, sales, sale_pdf, branchSales,
     updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData 
 )
-from ims.view.team_views import staffs, staff, edit_staff, delete_staff, record
+from ims.view.team_views import (staffs, staff, edit_staff, delete_staff, record, 
+                                 branchTeam, branchRecord)
 
 
 
@@ -31,8 +32,8 @@ urlpatterns = [
 
 
     # Category URLs
-    path('category_list/<str:pk>/', category_list, name='category_list'),
-    path('category/<str:pk>/', category, name='category'),
+    path('category_list/<uuid:pk>/', category_list, name='category_list'),
+    path('category/<uuid:pk>/', category, name='category'),
     path('edit_category/<uuid:pk>/', edit_category, name='edit_category'),
     path('category_delete/<uuid:pk>/', delete_category, name='category_delete'),
     path('branch_category/', branch_category, name='branch_category'),
@@ -46,6 +47,7 @@ urlpatterns = [
     path('edit_product/<uuid:pk>/', edit_product, name='edit_product'),
     path('delete_product/<str:pk>/', delete_product, name='delete_product'),
     path('branch_product/', branch_product, name='branch_product'),
+    path('product-upload/', upload_product, name='product_upload'),
 
 
 
@@ -92,7 +94,7 @@ urlpatterns = [
     path('sale<int:pk>/', sales, name='sales_single'),
     # path('sales_delete/', sale_delete, name='sales_delete'),
     path('export_sales/<uuid:pk>/', export_sales_csv, name= 'export_sales'),
-    path('export_profit/<int:pk>/export/', export_profit_csv, name= 'export_profit'),
+    path('export_profit/<uuid:pk>/export/', export_profit_csv, name= 'export_profit'),
     path('profitData/<str:pk>/', profitData, name='profitData'),
     path('sale-pdf/<uuid:pk>/', sale_pdf, name='sale-pdf'),
     
@@ -101,11 +103,13 @@ urlpatterns = [
 
 
     #  Team URLs
-    path('staff/', staffs, name='staff'),
+    path('branchteam/', branchTeam, name='branchteam'),
+    path('staff/<uuid:pk>/', staffs, name='staff'),
     path('staff_detail/<str:pk>/', staff, name='staff_detail'),
     path('edit_staff/', edit_staff, name='edit_staff'),
     path('delete_staff/', delete_staff, name='delete_staff'),
-    path('records/', record, name='records'),
+    path('branchrecord/', branchRecord, name='branchrecord'),
+    path('records/<uuid:pk>/', record, name='records'),
 
 
 
@@ -115,7 +119,7 @@ urlpatterns = [
     path('create_ticket/', views.createTicket, name='create_ticket'),
     path('tickets/<str:pk>', views.Ticket, name='tickets'),
     path('branchrep/', views.branchReport, name='branchrep'),
-    path('reports/<int:pk>/', views.report, name='reports'),
+    path('reports/<uuid:pk>/', views.report, name='reports'),
     
     
     

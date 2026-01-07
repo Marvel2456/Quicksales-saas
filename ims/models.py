@@ -10,12 +10,15 @@ class Category(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
-    category_name = models.CharField(max_length=200, unique=True)
+    category_name = models.CharField(max_length=200)
     last_updated = models.DateField(auto_now=True,)
     date_created = models.DateTimeField(auto_now_add=True,)
 
     class Meta:
         verbose_name_plural = "categories"
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "category_name"], name="unique_category_per_org"),
+        ]
     
     def __str__(self):
         return self.category_name
@@ -24,7 +27,7 @@ class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
-    product_name = models.CharField(max_length=150, blank=True, null=True, unique=True)
+    product_name = models.CharField(max_length=150, blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     brand = models.CharField(max_length=150, blank=True, null=True)
     product_code = models.CharField(max_length=100)
@@ -36,6 +39,11 @@ class Product(models.Model):
     
     def __str__(self):
         return self.product_name
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "product_name"], name="unique_product_per_org"),
+        ]
 
 class Inventory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
@@ -61,10 +69,9 @@ class Inventory(models.Model):
     last_updated = models.DateField(auto_now=True,)
     date_created = models.DateTimeField(auto_now_add=True,)
     history = HistoricalRecords()
-    
+
     class Meta:
         verbose_name_plural = "inventories"
-        
 
     def __str__(self):
         return self.product.product_name

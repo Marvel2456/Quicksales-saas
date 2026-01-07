@@ -1,0 +1,45 @@
+<div class="modal fade" id="editOrganizationModal" tabindex="-1" aria-labelledby="editOrganizationLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form {% if organization and organization.id %}
+                action="{% url 'edit_organization' organization.id %}"
+            {% else %}
+                action="#"
+            {% endif %} method="POST" action="">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="editOrganizationLabel">
+            <i class="fas fa-edit"></i> Edit Organization
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="orgName" class="form-label">Business Name</label>
+            <input type="text" class="form-control" id="orgName" name="name" value="{{ organization.name }}">
+          </div>
+
+          <div class="mb-3">
+            <label for="orgType" class="form-label">Business Type</label>
+            <select class="form-control" id="orgType" name="business_type">
+              {% for code, label in organization.BUSINESS_CHOICES %}
+                <option value="{{ code }}" {% if organization.business_type == code %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="orgCountry" class="form-label">Country</label>
+            <input type="text" class="form-control" id="orgCountry" name="country" value="{{ organization.country }}">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary text-white">Save Changes</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

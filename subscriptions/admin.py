@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import Plan, Subscription, Payment
 
 
@@ -7,18 +8,30 @@ from .models import Plan, Subscription, Payment
 
 
 @admin.register(Plan)
-class PlanAdmin(admin.ModelAdmin):
+class PlanAdmin(ModelAdmin):
     list_display = ('name', 'price', 'max_users', 'max_branches', 'max_products', 'created_at')
     search_fields = ('name',)
     list_filter = ('name',)
     ordering = ('-created_at',)
     date_hierarchy = 'created_at'
     list_per_page = 10
-    list_display_links = ('name',)    
+    list_display_links = ('name',)  
+
+    fields = (
+        'name',
+        'price',
+        'duration_in_days',
+        'description',
+        'max_users',
+        'max_branches',
+        'max_products',
+    )
+
+    readonly_fields = ('created_at', 'updated_at')  
 
 
 @admin.register(Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
+class SubscriptionAdmin(ModelAdmin):
     list_display = ('organization', 'plan', 'start_date', 'end_date', 'is_active')
     search_fields = ('organization__name', 'plan__name')
     list_filter = ('is_active',)
@@ -31,7 +44,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 
 @admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
+class PaymentAdmin(ModelAdmin):
     list_display = ('subscription', 'amount', 'payment_method', 'payment_status')
     search_fields = ('subscription__organization__name', 'subscription__plan__name')
     list_filter = ('payment_status',)

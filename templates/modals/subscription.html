@@ -1,0 +1,68 @@
+<!-- Upgrade / Renew Plan Modal -->
+<div class="modal fade" id="upgradePlanModal" tabindex="-1" aria-labelledby="upgradePlanModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="upgradePlanModalLabel">
+          {% if subscription %}Upgrade or Renew Plan{% else %}Choose a Plan{% endif %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          {% for p in plans %}
+            <div class="col-md-6 mb-3">
+              <div class="card shadow-sm p-3 h-100">
+                <h5>{{ p.name }}</h5>
+                <p>{{ p.description }}</p>
+                <p><strong>₦{{ p.price }}</strong> / {{ p.duration_in_days }} days</p>
+                <button 
+                  class="btn app-btn-primary w-100"
+                  onclick="payWithPaystack('{{ p.id }}', '{{ p.price }}')">
+                  Select {{ p.name }}
+                </button>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+function payWithPaystack(planId, amount) {
+    var handler = PaystackPop.setup({
+        key: '{{ PAYSTACK_PUBLIC_KEY }}',
+        email: '{{ request.user.email }}',
+        amount: amount * 100,  // kobo
+        currency: "NGN",
+        ref: ''+Math.floor((Math.random() * 1000000000) + 1),
+        callback: function(response){
+            // After Paystack returns reference, create the Payment in Django
+            fetch("{% url 'create_payment' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}",
+                },
+                body: JSON.stringify({
+                    reference: response.reference,
+                    plan_id: planId,
+                    amount: amount
+                }),
+            })
+            .then(res => res.json())
+            .then(data => {
+                window.location.href = "{% url 'verify_payment' %}?reference=" + response.reference;
+            });
+        },   // ✅ comma added here
+
+        onClose: function(){
+            alert('Payment window closed.');
+        }
+    });
+    handler.openIframe();
+}
+</script>

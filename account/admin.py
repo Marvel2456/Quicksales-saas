@@ -49,7 +49,7 @@ class CustomUserAdmin(BaseUserAdmin, ModelAdmin):
 
 
 @admin.register(Branch)
-class BranchAdmin(admin.ModelAdmin):
+class BranchAdmin(ModelAdmin):
     list_display = ("name", "address", "created_at")
     search_fields = ("name", "address")
     list_filter = ("created_at",)
@@ -62,7 +62,7 @@ class BranchAdmin(admin.ModelAdmin):
 
 
 @admin.register(Organization)
-class OrganizationAdmin(admin.ModelAdmin):
+class OrganizationAdmin(ModelAdmin):
     list_display = ("name", "created_at")
     search_fields = ("name",)
     list_filter = ("created_at",)
@@ -73,7 +73,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 @admin.register(ActivityLog)
-class ActivityLogAdmin(admin.ModelAdmin):
+class ActivityLogAdmin(ModelAdmin):
     list_display = ("staff", "activity", "timestamp")
     search_fields = ("staff__email", "activity")
     list_filter = ("activity", "timestamp")

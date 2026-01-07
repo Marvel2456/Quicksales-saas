@@ -226,6 +226,10 @@ def sale_complete(request, pk):
     sale.final_total_price = sale.get_cart_total
     sale.total_profit = sale.get_total_profit
 
+    method = data['payment'].get('method')
+    if method:
+        sale.method = method
+
     if total == sale.get_cart_total:
         sale.completed = True
 
@@ -239,6 +243,7 @@ def sale_complete(request, pk):
         'sale_id': str(sale.id),
         'transaction_id': sale.transaction_id,
         'final_total': sale.final_total_price,
+        'method': sale.method,
     })
 
 
@@ -278,7 +283,7 @@ def sales(request, pk):
     nums = "a" *sale_page.paginator.num_pages
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
-    branch_contains_query = request.GET.get('branch')
+    rep_contains_query = request.GET.get('rep')
 
     if start_date_contains != '' and start_date_contains is not None:
         sale_page = sale.filter(date_updated__gte=start_date_contains)
@@ -286,8 +291,8 @@ def sales(request, pk):
     if end_date_contains != '' and end_date_contains is not None:
         sale_page = sale.filter(date_updated__lt=end_date_contains)
 
-    if branch_contains_query != '' and branch_contains_query is not None:
-        sale_page = sale.filter(branch__branch_name__icontains=branch_contains_query)
+    if rep_contains_query != '' and rep_contains_query is not None:
+        sale_page = sale.filter(staff__first_name__icontains=rep_contains_query)
 
     context = {
         'branch':branch,
@@ -353,7 +358,7 @@ def export_profit_csv(request, pk):
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
     
-    sale = Sale.objects.filter(branch_id = pk)
+    sale = Sale.objects.filter(branch = branch)
 
     if start_date_contains:
         sale = sale.filter(date_updated__gte=start_date_contains)
@@ -373,20 +378,7 @@ def export_profit_csv(request, pk):
     return response
     
 
-# @role_required(roles=['owner', 'sales'])
-# @login_required
-# # @is_unsubscribed
-# def reciept(request, pk):
-#     organization = request.user.organization
-#     branch = Branch.objects.get(organization=organization, id=request.user.branch.id)
-#     sale = Sale.objects.get(branch=branch, id=pk)
-#     salesitem = SalesItem.objects.filter(sale_id=sale).all()
-    
-#     context = {
-#         'salesitem':salesitem,
-#         'sale':sale
-#     }
-#     return render(request, 'ims/reciept.html', context)
+
 
 
 @role_required(roles=['owner', 'sales'])
@@ -396,14 +388,14 @@ def reciept(request, pk):
     try:
         sale = Sale.objects.get(id=pk, branch__organization=organization)
     except Sale.DoesNotExist:
-        return redirect('store')  # you might need a branch id here too
+        return redirect('store')  
 
     salesitem = sale.salesitem_set.all()
     
     context = {
         'salesitem': salesitem,
         'sale': sale,
-        'branch': sale.branch,   # ✅ pass branch to template
+        'branch': sale.branch,
     }
     return render(request, 'ims/reciept.html', context)
 

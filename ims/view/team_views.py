@@ -10,40 +10,82 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 import csv
 import json
+import secrets, string
+from django.contrib.auth.hashers import make_password
+from django.utils.crypto import get_random_string
 from account.decorators import role_required
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+from account.emails import send_staff_welcome_email
 
 
 
 # Write your views here.
+@role_required(roles=['owner'])
+@login_required
+def branchTeam(request):
+    organization = request.user.organization
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+    return render(request, 'ims/branchteam.html', context)
+
 
 @role_required(roles=['owner'])
 @login_required
-# @is_unsubscribed
-def staffs(request): 
-    staff = CustomUser.objects.all()
-    paginator = Paginator(CustomUser.objects.all(), 15)
+def staffs(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    staff = CustomUser.objects.filter(branch=branch)
+
+    paginator = Paginator(staff, 15)
     page = request.GET.get('page')
     staff_page = paginator.get_page(page)
-    nums = "a" *staff_page.paginator.num_pages
-    staff_contains = request.GET.get('username')
-    form = UserCreateForm()
-    if request.method == 'POST':
-        form = UserCreateForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            username = form.cleaned_data.get('username')
-            messages.success(request, 'Account successfully created for ' + username)
+    nums = "a" * staff_page.paginator.num_pages
 
-    if staff_contains != '' and staff_contains is not None:
-        staff_page = staff.filter(username__icontains=staff_contains)
-   
+    form = StaffCreateForm()
+
+    if request.method == 'POST':
+        form = StaffCreateForm(request.POST)
+        if form.is_valid():
+            staff_user = form.save(commit=False)
+            staff_user.organization = organization
+            staff_user.branch = branch
+            staff_user.role = form.cleaned_data['role']
+
+            # Generate random password
+            raw_password = get_random_string(length=8)
+            staff_user.set_password(raw_password)
+            staff_user.save()
+
+            # Send welcome email with password and login link
+            send_staff_welcome_email(staff_user, raw_password)
+
+            messages.success(request, f"Staff account created for {staff_user.get_full_name()} ({staff_user.email})")
+            return redirect('staff', pk=branch.id)
+
+    staff_contains = request.GET.get('username')
+    if staff_contains:
+        staff_page = staff.filter(email__icontains=staff_contains)
+
     context = {
-        'staff':staff,
-        'staff_page':staff_page,
-        'nums':nums,
-        'form':form
+        'staff': staff,
+        'staff_page': staff_page,
+        'nums': nums,
+        'form': form
     }
     return render(request, 'ims/staff.html', context)
 
@@ -88,11 +130,39 @@ def delete_staff(request):
 
 
 
+
+@role_required(roles=['owner'])
+@login_required
+def branchRecord(request):
+    organization = request.user.organization
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+    return render(request, 'ims/branchrecord.html', context)
+
+
+
+
 @role_required(roles=['owner'])
 @login_required
 # @is_unsubscribed
-def record(request):
-    login_trail = ActivityLog.objects.all().order_by('-timestamp')
+def record(request, pk):
+    organization = request.user.organization
+    branch = Branch.objects.get(organization=organization, id=pk)
+    login_trail = ActivityLog.objects.filter(branch=branch).order_by('-timestamp')
     paginator = Paginator(ActivityLog.objects.all(), 15)
     page = request.GET.get('page')
     login_trail_page = paginator.get_page(page)
@@ -105,6 +175,7 @@ def record(request):
     context = {
         'login_trail':login_trail,
         'login_trail_page':login_trail_page,
+        'branch':branch,
         'nums':nums
     }
     return render(request, 'ims/records.html', context)

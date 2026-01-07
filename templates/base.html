@@ -52,6 +52,8 @@
         {% include 'modals/admin_restock.html' %}
         {% include 'account/addpos.html' %}
         {% include 'account/addbranch.html' %}
+        {% include 'modals/edit_organization.html' %}
+        {% include 'modals/subscription.html' %}
         
         {% include 'partials/_footer.html' %}
     </div>
@@ -70,13 +72,10 @@
     <script src="{% static 'assets/plugins/chart.js/chart.min.js' %}"></script> 
     <script src="{% static 'assets/js/index-charts.js' %}"></script> 
     <script src="{% static 'assets/js/zingchart/zingchart.min.js' %}"></script>
-    <script>
-        setTimeout(function(){
-            if ($('#msg').length > 0 ){
-                $('#msg').remove();
-            }
-        }, 4000)
-    </script>
+    <style>
+        /* Alert positioning */
+        .alert-container { position: fixed; top: 80px; right: 20px; z-index: 1000; max-width: 400px; }
+    </style>
     <script>
         const ctx = document.getElementById('myChart').getContext('2d');
         const myChart = new Chart(ctx, {

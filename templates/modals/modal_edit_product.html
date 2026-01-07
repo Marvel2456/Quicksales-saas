@@ -24,16 +24,26 @@
             <input type="text" class="form-control" id="brand{{ product.pk }}" name="brand" value="{{ product.brand }}">
           </div>
 
-            <div class="mb-3">
-                <label for="category{{ product.pk }}" class="form-label">Category</label>
-                <select name="category">
-                {% for category in categories %}
-                    <option value="{{ category.id }}" {% if category.id == product.category.id %}selected{% endif %}>
-                    {{ category.category_name }}
-                    </option>
-                {% endfor %}
-                </select>
-            </div>
+          {% comment %} <div class="mb-3">
+            <label for="category{{ product.pk }}" class="form-label">Category</label>
+            <select class="form-select" id="category{{ product.pk }}" name="category" required>
+              <option value="" disabled>Select Category</option>
+              {% for category in categories %}
+                <option value="{{ category.id }}" {% if product.category and category.id == product.category.id %}selected{% endif %}>
+                  {{ category.category_name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div> {% endcomment %}
+
+          <div class="mb-3">
+            <label for="category{{ product.pk }}" class="form-label">Category</label>
+            {{ form.category }}
+          </div>
+
+
+
+
 
           <div class="mb-3">
             <label for="unit{{ product.pk }}" class="form-label">Unit</label>
