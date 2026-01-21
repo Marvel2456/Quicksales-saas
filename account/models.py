@@ -47,6 +47,8 @@ class Organization(models.Model):
         ('others', 'Others'),
     ]
     business_type = models.CharField(max_length=50, choices=BUSINESS_CHOICES, blank=True, null=True)
+    logo = models.ImageField(upload_to='organization_logos/', blank=True, null=True)
+    brand_color = models.CharField(max_length=7, default='#007bff', blank=True, null=True, help_text='Hex color code (e.g., #007bff)')
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     trial_start = models.DateTimeField(blank=True, null=True)
@@ -105,6 +107,8 @@ class CustomUser(AbstractUser):
     first_name = models.CharField(max_length=100, blank=True, null=True)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length = 100, blank=True, null=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
+    must_change_password = models.BooleanField(default=False, help_text='If True, user must change password on next login')
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = 'email'

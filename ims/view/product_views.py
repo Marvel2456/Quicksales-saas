@@ -11,7 +11,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 import csv
 import json
-from account.decorators import role_required
+from account.decorators import role_required, check_product_limit
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 
@@ -52,7 +52,7 @@ def branch_product(request):
 
 @role_required(roles=['owner', 'manager'])
 @login_required
-# @is_unsubscribed
+@check_product_limit
 def product_category(request, pk):
     organization = request.user.organization
     branch = Branch.objects.get(organization=organization, id=pk)
@@ -247,21 +247,24 @@ def upload_product(request):
                                 error_count += 1
                                 continue
                             
+                            added_qty = max(quantity, 0)
                             inventory, inv_created = Inventory.objects.get_or_create(
                                 organization=organization,
                                 branch=branch,
                                 product=product,
                                 defaults={
-                                    'quantity': max(quantity, 0),
+                                    'quantity': added_qty,
                                     'cost_price': cost_price,
                                     'sale_price': sale_price,
                                     'reorder_level': reorder_level,
-                                    'status': 'Available' if quantity > 0 else 'Restocking'
+                                    'status': 'Available' if added_qty > 0 else 'Restocking',
+                                    'quantity_restocked': added_qty,
                                 }
                             )
                             
                             if not inv_created:
-                                inventory.quantity = (inventory.quantity or 0) + max(quantity, 0)
+                                inventory.quantity_restocked = added_qty
+                                inventory.quantity = (inventory.quantity or 0) + added_qty
                                 inventory.cost_price = cost_price
                                 inventory.sale_price = sale_price
                                 inventory.reorder_level = reorder_level
@@ -345,22 +348,25 @@ def upload_product(request):
                     product.save()
 
                 # Inventory per branch + product
+                added_qty = max(qty, 0)
                 inventory, inv_created = Inventory.objects.get_or_create(
                     organization=organization,
                     branch=branch,
                     product=product,
                     defaults={
-                        'quantity': max(qty, 0),
+                        'quantity': added_qty,
                         'cost_price': cost_price,
                         'sale_price': sale_price,
                         'reorder_level': reorder_level,
-                        'status': 'Available' if qty > 0 else 'Restocking'
+                        'status': 'Available' if added_qty > 0 else 'Restocking',
+                        'quantity_restocked': added_qty,
                     }
                 )
 
                 if not inv_created:
                     # Increment quantity and update prices/levels
-                    inventory.quantity = (inventory.quantity or 0) + max(qty, 0)
+                    inventory.quantity_restocked = added_qty
+                    inventory.quantity = (inventory.quantity or 0) + added_qty
                     inventory.cost_price = cost_price
                     inventory.sale_price = sale_price
                     inventory.reorder_level = reorder_level

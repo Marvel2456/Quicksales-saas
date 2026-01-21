@@ -30,10 +30,16 @@
                             <div class="row justify-content-between align-items-center">
                                 <div class="col-auto">
                                     <div class="item-label mb-2"><strong>Photo</strong></div>
-                                    <div class="item-data"><img class="profile-image" src="assets/images/user.png" alt=""></div>
+                                    <div class="item-data">
+                                        {% if request.user.profile_picture %}
+                                            <img class="profile-image" src="{{ request.user.profile_picture.url }}" alt="{{ request.user.get_full_name }}" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                                        {% else %}
+                                            <img class="profile-image" src="{% static 'assets/images/user.png' %}" alt="{{ request.user.get_full_name }}" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                                        {% endif %}
+                                    </div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
+                                    <button type="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProfileModal">Change</button>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -41,10 +47,10 @@
                             <div class="row justify-content-between align-items-center">
                                 <div class="col-auto">
                                     <div class="item-label"><strong>Name</strong></div>
-                                    <div class="item-data">James Doe</div>
+                                    <div class="item-data">{{ request.user.get_full_name|default:"Not set" }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
+                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -52,42 +58,38 @@
                             <div class="row justify-content-between align-items-center">
                                 <div class="col-auto">
                                     <div class="item-label"><strong>Email</strong></div>
-                                    <div class="item-data">james.doe@website.com</div>
+                                    <div class="item-data">{{ request.user.email }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
+                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
                         <div class="item border-bottom py-3">
                             <div class="row justify-content-between align-items-center">
                                 <div class="col-auto">
-                                    <div class="item-label"><strong>Website</strong></div>
-                                    <div class="item-data">
-                                        https://johndoewebsite.com
-                                    </div>
+                                    <div class="item-label"><strong>Organization</strong></div>
+                                    <div class="item-data">{{ organization.name }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
+                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
                         <div class="item border-bottom py-3">
                             <div class="row justify-content-between align-items-center">
                                 <div class="col-auto">
-                                    <div class="item-label"><strong>Location</strong></div>
-                                    <div class="item-data">
-                                        New York
-                                    </div>
+                                    <div class="item-label"><strong>Role</strong></div>
+                                    <div class="item-data">{{ request.user.get_role_display }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
+                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
                     </div><!--//app-card-body-->
                     <div class="app-card-footer p-4 mt-auto">
-                        <a class="btn app-btn-secondary" href="#">Manage Profile</a>
+                        <button type="button" class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProfileModal">Manage Profile</button>
                     </div><!--//app-card-footer-->
                     
                 </div><!--//app-card-->
@@ -200,7 +202,7 @@
                                     <div class="item-data">••••••••</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
+                                    <button type="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">Change</button>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->

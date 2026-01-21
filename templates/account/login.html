@@ -16,8 +16,12 @@
     <!-- FontAwesome JS-->
     <script defer src="{% static 'assets/plugins/fontawesome/js/all.min.js' %}"></script>
     
-    <!-- App CSS -->  
-    <link id="theme-style" rel="stylesheet" href="{% static 'assets/css/portal.css' %}">
+	<!-- App CSS -->  
+	<link id="theme-style" rel="stylesheet" href="{% static 'assets/css/portal.css' %}">
+    <!-- Bootstrap Icons for robust toggle icon switching -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+	<!-- htmx for lightweight interactivity -->
+	<script src="{% static 'assets/js/htmx.min.js' %}"></script>
     
     <style>
         /* Password Toggle Button */
@@ -76,8 +80,9 @@
 								<label class="sr-only" for="signin-password">Password</label>
 							<div class="password-input-group">
 								<input id="signin-password" name="password" type="password" class="form-control signin-password" placeholder="Password" required="required">
-								<button type="button" class="toggle-password-btn" id="togglePassword" title="Show/Hide password" aria-label="Toggle password visibility">
-									<i class="fas fa-eye"></i>
+                                <button type="button" class="toggle-password-btn" id="togglePassword" title="Show/Hide password" aria-label="Toggle password visibility"
+                                    hx-on:click="event.preventDefault(); const input = document.getElementById('signin-password'); const icon = this.querySelector('i'); if (input.type === 'password') { input.type = 'text'; icon.classList.remove('bi-eye-slash'); icon.classList.add('bi-eye'); } else { input.type = 'password'; icon.classList.remove('bi-eye'); icon.classList.add('bi-eye-slash'); }">
+                                    <i class="bi bi-eye-slash"></i>
 								</button>
 							</div>
 								<div class="extra mt-3 row justify-content-between">
@@ -108,26 +113,8 @@
             }
         }, 4000)
     </script>
-	
-	<script>
-		// Password Toggle Functionality
-		document.addEventListener('DOMContentLoaded', function() {
-			const toggleBtn = document.getElementById('togglePassword');
-			const passwordInput = document.getElementById('signin-password');
-			
-			if (toggleBtn && passwordInput) {
-				toggleBtn.addEventListener('click', function(e) {
-					e.preventDefault();
-					const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-					passwordInput.setAttribute('type', type);
-					const icon = toggleBtn.querySelector('i');
-					icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
-				});
-			}
-		});
-		
-        // Dark mode deliberately omitted on login screen
-	</script>
+    
+	<!-- Password toggle handled via htmx hx-on above -->
 
 </body>
 </html> 

@@ -13,10 +13,11 @@ import json
 import secrets, string
 from django.contrib.auth.hashers import make_password
 from django.utils.crypto import get_random_string
-from account.decorators import role_required
+from account.decorators import role_required, check_user_limit
 from django.template.loader import get_template
 from xhtml2pdf import pisa
-from account.emails import send_staff_welcome_email
+from account.emails import send_staff_invitation_email
+from django.conf import settings
 
 
 
@@ -46,6 +47,7 @@ def branchTeam(request):
 
 @role_required(roles=['owner'])
 @login_required
+@check_user_limit
 def staffs(request, pk):
     organization = request.user.organization
     branch = Branch.objects.get(organization=organization, id=pk)
@@ -67,14 +69,35 @@ def staffs(request, pk):
             staff_user.role = form.cleaned_data['role']
 
             # Generate random password
-            raw_password = get_random_string(length=8)
+            raw_password = get_random_string(length=12)
             staff_user.set_password(raw_password)
+            # Force password change on first login
+            staff_user.must_change_password = True
             staff_user.save()
 
-            # Send welcome email with password and login link
-            send_staff_welcome_email(staff_user, raw_password)
+            # Build login URL
+            login_url = f"http://{organization.slug}.{settings.DOMAIN}/account/login/"
 
-            messages.success(request, f"Staff account created for {staff_user.get_full_name()} ({staff_user.email})")
+            # Send invitation email with password and login link
+            try:
+                send_staff_invitation_email(
+                    user=staff_user,
+                    organization=organization,
+                    branch=branch,
+                    password=raw_password,
+                    login_url=login_url
+                )
+                messages.success(
+                    request, 
+                    f"Staff account created for {staff_user.get_full_name()} ({staff_user.email}). "
+                    f"An invitation email has been sent with login credentials."
+                )
+            except Exception as e:
+                messages.warning(
+                    request,
+                    f"Staff account created but email failed to send. Please provide credentials manually. Error: {str(e)}"
+                )
+            
             return redirect('staff', pk=branch.id)
 
     staff_contains = request.GET.get('username')
@@ -85,7 +108,8 @@ def staffs(request, pk):
         'staff': staff,
         'staff_page': staff_page,
         'nums': nums,
-        'form': form
+        'form': form,
+        'branch': branch
     }
     return render(request, 'ims/staff.html', context)
 
@@ -106,16 +130,38 @@ def staff(request, pk):
 
 @role_required(roles=['owner'])
 @login_required
-# @is_unsubscribed
 def edit_staff(request):
     if request.method == 'POST':
-        staff = CustomUser.objects.get(id=request.POST.get('id'))
-        if staff != None:
+        staff_id = request.POST.get('id')
+        branch_id = request.POST.get('branch_id')  # Get the branch from hidden input
+        try:
+            staff = CustomUser.objects.get(id=staff_id, organization=request.user.organization)
+            original_branch = staff.branch  # Save original branch for redirect
             form = UserForm(request.POST, instance=staff)
             if form.is_valid():
-                form.save()
-                messages.success(request, 'successfully updated')
-                return redirect('staff')
+                # Don't let the form clear the branch
+                staff = form.save(commit=False)
+                if not staff.branch:  # If form clears branch, restore it
+                    staff.branch_id = branch_id or original_branch.id if original_branch else None
+                staff.save()
+                messages.success(request, 'Staff member updated successfully')
+                # Redirect back to the branch staff list
+                if staff.branch:
+                    return redirect('staff', pk=staff.branch.id)
+                return redirect('branchteam')
+            else:
+                # Log form errors for debugging
+                error_msg = ', '.join([f"{field}: {', '.join(errors)}" for field, errors in form.errors.items()])
+                messages.error(request, f'Error updating staff: {error_msg}')
+                if original_branch:
+                    return redirect('staff', pk=original_branch.id)
+                return redirect('branchteam')
+        except CustomUser.DoesNotExist:
+            messages.error(request, 'Staff member not found')
+            return redirect('branchteam')
+    
+    messages.error(request, 'Invalid request method')
+    return redirect('branchteam')
 
 
 
@@ -155,27 +201,32 @@ def branchRecord(request):
 
 
 
-
-@role_required(roles=['owner'])
 @login_required
 # @is_unsubscribed
 def record(request, pk):
     organization = request.user.organization
-    branch = Branch.objects.get(organization=organization, id=pk)
-    login_trail = ActivityLog.objects.filter(branch=branch).order_by('-timestamp')
-    paginator = Paginator(ActivityLog.objects.all(), 15)
-    page = request.GET.get('page')
-    login_trail_page = paginator.get_page(page)
-    nums = "a" *login_trail_page.paginator.num_pages
-    staff_contains = request.GET.get('staff')
+    branch = get_object_or_404(Branch, id=pk, organization=organization)
+    now = datetime.now()
+    start_date_contains = request.GET.get('start_date')
+    end_date_contains = request.GET.get('end_date')
+    logs = ActivityLog.objects.filter(branch=branch, organization=organization, activity__icontains='login')
 
-    if staff_contains != '' and staff_contains is not None:
-        login_trail_page = login_trail.filter(staff__icontains=staff_contains)
+    if start_date_contains:
+        logs = logs.filter(timestamp__date__gte=start_date_contains)
+    if end_date_contains:
+        logs = logs.filter(timestamp__date__lte=end_date_contains)
+
+    logs = logs.order_by('-timestamp')
+
+    paginator = Paginator(logs, 25)
+    page_number = request.GET.get('page')
+    logs_page = paginator.get_page(page_number)
 
     context = {
-        'login_trail':login_trail,
-        'login_trail_page':login_trail_page,
         'branch':branch,
-        'nums':nums
+        'logs_page': logs_page,
+        'now':now,
+        'start_date': start_date_contains,
+        'end_date': end_date_contains,
     }
-    return render(request, 'ims/records.html', context)
+    return render(request, 'ims/record.html', context)

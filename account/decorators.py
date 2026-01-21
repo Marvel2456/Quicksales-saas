@@ -5,6 +5,8 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from functools import wraps
 from django.contrib.auth.views import redirect_to_login
+from django.contrib import messages
+from django.urls import reverse
 
 
 def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login'):
@@ -61,6 +63,115 @@ def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='log
 #         return actual_decorator(function)
 #     return actual_decorator
 
+
+def subscription_required(function=None, redirect_url='settings'):
+    """
+    Decorator to check if the user's organization has an active subscription.
+    Redirects to subscription page if no active subscription found.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect_to_login(request.get_full_path(), 'login')
+            
+            from subscriptions.utils import has_active_subscription
+            
+            if not hasattr(request.user, 'organization') or not request.user.organization:
+                messages.error(request, 'You must be part of an organization to access this feature.')
+                return redirect('settings')
+            
+            if not has_active_subscription(request.user.organization):
+                messages.warning(request, 'Your subscription has expired. Please renew to continue using this feature.')
+                return redirect(redirect_url)
+            
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    
+    if function:
+        return decorator(function)
+    return decorator
+
+
+def check_user_limit(function):
+    """
+    Decorator to check if organization has reached max_users limit.
+    Used on user/staff creation views.
+    """
+    @wraps(function)
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'POST':
+            from subscriptions.utils import can_create_user, get_plan_limits
+            
+            organization = request.user.organization
+            can_create, current, limit = can_create_user(organization)
+            
+            if not can_create:
+                limits = get_plan_limits(organization)
+                messages.error(
+                    request,
+                    f'You have reached the maximum number of users ({limit}) for your {limits["plan_name"]} plan. '
+                    f'Please upgrade your subscription to add more users.'
+                )
+                return redirect('settings')
+        
+        return function(request, *args, **kwargs)
+    return wrapper
+
+
+def check_branch_limit(function):
+    """
+    Decorator to check if organization has reached max_branches limit.
+    Used on branch creation views.
+    """
+    @wraps(function)
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'POST':
+            from subscriptions.utils import can_create_branch, get_plan_limits
+            
+            organization = request.user.organization
+            can_create, current, limit = can_create_branch(organization)
+            
+            if not can_create:
+                limits = get_plan_limits(organization)
+                messages.error(
+                    request,
+                    f'You have reached the maximum number of branches ({limit}) for your {limits["plan_name"]} plan. '
+                    f'Please upgrade your subscription to add more branches.'
+                )
+                return redirect('settings')
+        
+        return function(request, *args, **kwargs)
+    return wrapper
+
+
+def check_product_limit(function):
+    """
+    Decorator to check if organization has reached max_products limit.
+    Used on product creation views.
+    """
+    @wraps(function)
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'POST':
+            from subscriptions.utils import can_create_product, get_plan_limits
+            
+            organization = request.user.organization
+            can_create, current, limit = can_create_product(organization)
+            
+            if not can_create:
+                limits = get_plan_limits(organization)
+                messages.error(
+                    request,
+                    f'You have reached the maximum number of products ({limit}) for your {limits["plan_name"]} plan. '
+                    f'Please upgrade your subscription to add more products.'
+                )
+                return redirect('settings')
+        
+        return function(request, *args, **kwargs)
+    return wrapper
+
+
+# Old commented out decorators below
 # def is_unsubscribed(function=None, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login'):
 #     actual_decorator = user_passes_test(
 #         lambda u: u.is_active and u.is_subscribed==True,

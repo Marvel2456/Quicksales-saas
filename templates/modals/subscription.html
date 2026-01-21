@@ -16,10 +16,27 @@
                 <h5>{{ p.name }}</h5>
                 <p>{{ p.description }}</p>
                 <p><strong>₦{{ p.price }}</strong> / {{ p.duration_in_days }} days</p>
+                
+                  <!-- Coupon Input -->
+                  <div class="mb-3">
+                    <input type="text" class="form-control coupon-input" placeholder="Coupon code (optional)" data-plan-id="{{ p.id }}" data-plan-price="{{ p.price }}">
+                    <small class="text-muted d-block mt-1">
+                      <span class="original-price">Original price: ₦{{ p.price }}</span>
+                      <span class="discount-info" style="display: none; color: #4CAF50;">
+                        Discount: ₦<span class="discount-amount">0</span> | Final price: ₦<span class="final-price">{{ p.price }}</span>
+                      </span>
+                      <span class="coupon-status" style="display: none; color: #6c757d;">Checking coupon…</span>
+                      <span class="coupon-error" style="display: none; color: #dc3545;"></span>
+                    </small>
+                  </div>
+                
                 <button 
-                  class="btn app-btn-primary w-100"
-                  onclick="payWithPaystack('{{ p.id }}', '{{ p.price }}')">
-                  Select {{ p.name }}
+                  class="btn app-btn-primary w-100 select-plan-btn"
+                    onclick="payWithPaystack('{{ p.id }}', '{{ p.price }}', this)">
+                  <span class="btn-text">Select {{ p.name }}</span>
+                  <span class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
+                    <span class="visually-hidden">Loading...</span>
+                  </span>
                 </button>
               </div>
             </div>
@@ -31,12 +48,205 @@
 </div>
 
 <script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+    .select-plan-btn:disabled {
+        opacity: 0.8;
+        cursor: not-allowed;
+    }
+    .select-plan-btn .spinner-border {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.25em;
+    }
+</style>
 <script>
-function payWithPaystack(planId, amount) {
+// Debounced, race-safe coupon validation on input
+const validateTimers = new WeakMap();
+const abortControllers = new WeakMap();
+const MIN_COUPON_LEN = 3; // don't validate super-short partials
+const DEBOUNCE_MS = 500;
+
+document.addEventListener('input', function(e) {
+  if (!e.target.classList.contains('coupon-input')) return;
+
+  const inputEl = e.target;
+  const couponCodeRaw = inputEl.value;
+  const couponCode = couponCodeRaw.trim();
+  const planId = inputEl.dataset.planId;
+  const planPrice = parseFloat(inputEl.dataset.planPrice);
+  const card = inputEl.closest('.card');
+  const discountInfo = card.querySelector('.discount-info');
+  const couponError = card.querySelector('.coupon-error');
+  const couponStatus = card.querySelector('.coupon-status');
+  const originalPrice = card.querySelector('.original-price');
+
+  // Clear any pending timer
+  const prevTimer = validateTimers.get(inputEl);
+  if (prevTimer) clearTimeout(prevTimer);
+
+  // If empty or too short: reset UI and skip validation
+  if (!couponCode || couponCode.length < MIN_COUPON_LEN) {
+    // Abort in-flight request for this input (if any)
+    const prevController = abortControllers.get(inputEl);
+    if (prevController) prevController.abort();
+    couponStatus.style.display = 'none';
+    discountInfo.style.display = 'none';
+    couponError.style.display = 'none';
+    originalPrice.style.display = 'block';
+    inputEl.dataset.couponCode = '';
+    inputEl.dataset.finalAmount = planPrice;
+    inputEl.dataset.couponType = '';
+    inputEl.dataset.currentRequest = '';
+    return;
+  }
+
+  // Show neutral checking state while debounced
+  couponError.style.display = 'none';
+  discountInfo.style.display = 'none';
+  originalPrice.style.display = 'block';
+  couponStatus.textContent = 'Checking coupon…';
+  couponStatus.style.display = 'inline';
+
+  // Remember what we're validating to guard against races
+  inputEl.dataset.currentRequest = couponCode;
+
+  const timer = setTimeout(() => {
+    // Abort previous in-flight request for this input (if any)
+    const prevController = abortControllers.get(inputEl);
+    if (prevController) prevController.abort();
+
+    const controller = new AbortController();
+    abortControllers.set(inputEl, controller);
+
+    fetch("{% url 'validate_coupon_api' %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({
+        coupon_code: couponCode,
+        plan_id: planId
+      }),
+      signal: controller.signal
+    })
+    .then(res => res.json())
+    .then(data => {
+      // Ignore stale responses if user changed input since request started
+      if ((inputEl.dataset.currentRequest || '') !== couponCode) return;
+
+      couponStatus.style.display = 'none';
+
+      if (data.success) {
+        originalPrice.style.display = 'none';
+        couponError.style.display = 'none';
+        discountInfo.style.display = 'block';
+        card.querySelector('.discount-amount').textContent = Number(data.discount).toFixed(2);
+        card.querySelector('.final-price').textContent = Number(data.final_amount).toFixed(2);
+        inputEl.dataset.couponCode = couponCode;
+        inputEl.dataset.finalAmount = data.final_amount;
+        inputEl.dataset.couponType = data.coupon_type || '';
+      } else {
+        // Keep original price visible; show clear error message
+        originalPrice.style.display = 'block';
+        discountInfo.style.display = 'none';
+        couponError.style.display = 'block';
+        couponError.style.color = '#dc3545';
+        couponError.textContent = data.message || 'Invalid coupon code';
+        inputEl.dataset.couponCode = '';
+        inputEl.dataset.finalAmount = planPrice;
+        inputEl.dataset.couponType = '';
+      }
+    })
+    .catch(err => {
+      if (err && err.name === 'AbortError') return; // aborted due to new input
+      if ((inputEl.dataset.currentRequest || '') !== couponCode) return;
+      couponStatus.style.display = 'none';
+      originalPrice.style.display = 'block';
+      discountInfo.style.display = 'none';
+      couponError.style.display = 'block';
+      couponError.style.color = '#dc3545';
+      couponError.textContent = 'Error validating coupon';
+      inputEl.dataset.couponCode = '';
+      inputEl.dataset.finalAmount = planPrice;
+      inputEl.dataset.couponType = '';
+    });
+  }, DEBOUNCE_MS);
+
+  validateTimers.set(inputEl, timer);
+});
+
+function payWithPaystack(planId, amount, buttonElement) {
+  // Show spinner and disable button
+  buttonElement.disabled = true;
+  const spinner = buttonElement.querySelector('.spinner-border');
+  if (spinner) spinner.style.display = 'inline-block';
+  
+  const card = buttonElement.closest('.card');
+  const couponInput = card.querySelector('.coupon-input');
+  const couponCode = couponInput.dataset.couponCode || '';
+  const couponType = couponInput.dataset.couponType || '';
+  const finalAmount = parseFloat(couponInput.dataset.finalAmount || amount);
+    
+  // If it's a free month coupon, skip Paystack
+  if (couponType === 'free_month' && finalAmount === 0) {
+    // Create subscription directly without payment
+    fetch("{% url 'create_payment' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+      body: JSON.stringify({
+        plan_id: planId,
+        amount: finalAmount,
+        coupon_code: couponCode,
+        is_free: true
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        // Rely on Django messages to render a toast on the settings page
+        window.location.href = "{% url 'settings' %}";
+      } else {
+        // Show inline error near coupon field instead of alert
+        const card = buttonElement.closest('.card');
+        const couponError = card.querySelector('.coupon-error');
+        const discountInfo = card.querySelector('.discount-info');
+        const originalPrice = card.querySelector('.original-price');
+        originalPrice.style.display = 'block';
+        discountInfo.style.display = 'none';
+        couponError.style.display = 'block';
+        couponError.textContent = (data && data.error) ? data.error : 'Could not activate subscription';
+        // Hide spinner and re-enable button on error
+        buttonElement.disabled = false;
+        const spinner = buttonElement.querySelector('.spinner-border');
+        if (spinner) spinner.style.display = 'none';
+      }
+    })
+    .catch(err => {
+      const card = buttonElement.closest('.card');
+      const couponError = card.querySelector('.coupon-error');
+      const discountInfo = card.querySelector('.discount-info');
+      const originalPrice = card.querySelector('.original-price');
+      originalPrice.style.display = 'block';
+      discountInfo.style.display = 'none';
+      couponError.style.display = 'block';
+      couponError.textContent = 'Error activating subscription';
+      // Hide spinner and re-enable button on error
+      buttonElement.disabled = false;
+      const spinner = buttonElement.querySelector('.spinner-border');
+      if (spinner) spinner.style.display = 'none';
+    });
+    return;
+  }
+    
+  // For paid plans, use Paystack
     var handler = PaystackPop.setup({
         key: '{{ PAYSTACK_PUBLIC_KEY }}',
         email: '{{ request.user.email }}',
-        amount: amount * 100,  // kobo
+    amount: finalAmount * 100,  // kobo - use final amount after discount
         currency: "NGN",
         ref: ''+Math.floor((Math.random() * 1000000000) + 1),
         callback: function(response){
@@ -50,17 +260,28 @@ function payWithPaystack(planId, amount) {
                 body: JSON.stringify({
                     reference: response.reference,
                     plan_id: planId,
-                    amount: amount
+          amount: finalAmount,
+          coupon_code: couponCode
                 }),
             })
             .then(res => res.json())
             .then(data => {
+                // Keep button disabled during Paystack flow
                 window.location.href = "{% url 'verify_payment' %}?reference=" + response.reference;
+            })
+            .catch(err => {
+              // Hide spinner and re-enable button on error
+              buttonElement.disabled = false;
+              const spinner = buttonElement.querySelector('.spinner-border');
+              if (spinner) spinner.style.display = 'none';
             });
         },   // ✅ comma added here
 
         onClose: function(){
-            alert('Payment window closed.');
+            // Hide spinner and re-enable button if user closes Paystack modal
+            buttonElement.disabled = false;
+            const spinner = buttonElement.querySelector('.spinner-border');
+            if (spinner) spinner.style.display = 'none';
         }
     });
     handler.openIframe();

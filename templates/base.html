@@ -54,6 +54,10 @@
         {% include 'account/addbranch.html' %}
         {% include 'modals/edit_organization.html' %}
         {% include 'modals/subscription.html' %}
+        {% include 'modals/cancel_subscription.html' %}
+        {% include 'modals/change_password.html' %}
+        {% include 'modals/edit_profile.html' %}
+        {% include 'modals/edit_organization_branding.html' %}
         
         {% include 'partials/_footer.html' %}
     </div>
@@ -77,122 +81,172 @@
         .alert-container { position: fixed; top: 80px; right: 20px; z-index: 1000; max-width: 400px; }
     </style>
     <script>
-        const ctx = document.getElementById('myChart').getContext('2d');
-        const myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: [{% for item in item %}'{{ item.inventory.product}}', {% endfor %}],
-                datasets: [{
-                    label: 'largest recent sales',
-                    data: [{% for item in item %}'{{ item.quantity }}', {% endfor %}],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)',
-                        'rgba(255, 206, 86, 0.2)',
-                        'rgba(75, 192, 192, 0.2)',
-                        'rgba(153, 102, 255, 0.2)',
-                        'rgba(255, 159, 64, 0.2)'
-                    ],
-                    borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 159, 64, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                title: {
-                  display:true,
-                  text: 'Product sale summary'
+        // Bar Chart - Recent Top Sales
+        const barCtx = document.getElementById('myChart');
+        if (barCtx) {
+            const myChart = new Chart(barCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: [{% for item in item %}'{{ item.inventory.product|truncatechars:15 }}', {% endfor %}],
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: [{% for item in item %}{{ item.quantity }}, {% endfor %}],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(201, 203, 207, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(201, 203, 207, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
                 },
-            }
-        });
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Top 7 Recent Sales by Quantity'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Line Chart - Monthly Sales
+        const lineCtx = document.getElementById('lineChart');
+        if (lineCtx) {
+            const lineChart = new Chart(lineCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: {{ month_labels|safe }},
+                    datasets: [{
+                        label: 'Monthly Sales ($)',
+                        data: {{ month_values|safe }},
+                        fill: true,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Sales Trend (Current Year)'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Pie Chart - Top Selling Products
+        const pieCtx = document.getElementById('pieChart');
+        if (pieCtx) {
+            const pieChart = new Chart(pieCtx.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: [{% for product in top_products %}'{{ product.inventory__product__product_name|truncatechars:20 }}', {% endfor %}],
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: [{% for product in top_products %}{{ product.total_quantity }}, {% endfor %}],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Top 5 Selling Products (All Time)'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed + ' units';
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
       
       </script>
       
     </div>
 </div>
 </div>
-</script>
-
-
-    <!--Zing Chart-->
-    <script>
-        let saleID =   "{{sale.id}}"
-
-
-        let dataURL= `/profitData/${saleID}/`
-
-        $.ajax({
-            method:'GET',
-            url:dataURL,
-            success:function(response){
-                console.log('RESPONSE:', response)
-            }
-        })
-
-
-        let chartData = {
-            type:'bar',
-            title: {
-                text: 'Data Basics',
-                fontSize: 24,
-              },
-              legend: {
-                draggable: true,
-              },
-              scaleX: {
-                // Set scale label
-                label: { text: 'Days' },
-                // Convert text on scale indices
-                labels: [ 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun' ]
-              },
-              scaleY: {
-                // Scale label with unicode character
-                label: { text: 'Temperature (°F)' }
-              },
-              plot: {
-                // Animation docs here:
-                // https://www.zingchart.com/docs/tutorials/styling/animation#effect
-                animation: {
-                  effect: 'ANIMATION_EXPAND_BOTTOM',
-                  method: 'ANIMATION_STRONG_EASE_OUT',
-                  sequence: 'ANIMATION_BY_NODE',
-                  speed: 275,
-                }
-              },
-              series: [
-                {
-                  // plot 1 values, linear data
-                  values: [23,20,27,29,25,17,15],
-                  text: 'Week 1',
-                },
-                {
-                  // plot 2 values, linear data
-                  values: [35,42,33,49,35,47,35],
-                  text: 'Week 2'
-                },
-                {
-                  // plot 2 values, linear data
-                  values: [15,22,13,33,44,27,31],
-                  text: 'Week 3'
-                }
-              ]
-        }
-
-
-        zingchart.render({
-            id:'zChart',
-            data:chartData,
-        });
-
-
-    </script>
-    <!--Zing Chart End-->
     
     <!-- Page Specific JS -->
     <script src="{% static 'assets/js/htmx.min.js' %}"></script>

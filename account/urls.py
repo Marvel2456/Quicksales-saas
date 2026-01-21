@@ -13,6 +13,10 @@ urlpatterns = [
     path('register/', OwnerRegisterView.as_view(), name='register'),
     path('verify-email/<uidb64>/<token>/', views.verifyEmail, name='verify_email'),
     path('account/', views.accountView, name='account'),
+    path('account/update-profile/', views.update_profile, name='update_profile'),
+    path('account/change-password/', views.change_password, name='change_password'),
+    path('account/force-password-change/', views.force_password_change, name='force_password_change'),
+    path('settings/update-branding/', views.update_organization_branding, name='update_organization_branding'),
     # Notifications
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/<uuid:pk>/delete/', views.delete_notification, name='notification_delete'),

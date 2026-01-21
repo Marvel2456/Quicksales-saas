@@ -4,6 +4,9 @@
 {% block content %}
 <div class="app-content pt-3 p-md-3 p-lg-4">
   <div class="container-xl">
+    <div class="mb-3">
+      <a href="{% url 'products' branch.id %}" class="btn app-btn-secondary">&larr; Back to Products</a>
+    </div>
     <div class="row g-3 mb-4 align-items-center justify-content-between">
       <div class="col-auto">
         <h1 class="app-page-title mb-0">Upload Product / Update Inventory</h1>
@@ -132,7 +135,6 @@
           </div>
           <div class="mt-4">
             <button type="submit" name="upload_type" value="manual" class="btn app-btn-primary">Save Product</button>
-            <a href="{% url 'products' branch.id %}" class="btn btn-outline-secondary">Back to Products</a>
           </div>
         </div>
       </div>

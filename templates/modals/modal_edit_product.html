@@ -24,21 +24,23 @@
             <input type="text" class="form-control" id="brand{{ product.pk }}" name="brand" value="{{ product.brand }}">
           </div>
 
-          {% comment %} <div class="mb-3">
+          <div class="mb-3">
             <label for="category{{ product.pk }}" class="form-label">Category</label>
             <select class="form-select" id="category{{ product.pk }}" name="category" required>
-              <option value="" disabled>Select Category</option>
-              {% for category in categories %}
+              {% if not product.category %}
+                <option value="" selected disabled>Select Category</option>
+              {% else %}
+                <option value="" disabled>Select Category</option>
+              {% endif %}
+              {# Support both 'categories' and 'category' context keys #}
+              {% for category in categories|default:category %}
                 <option value="{{ category.id }}" {% if product.category and category.id == product.category.id %}selected{% endif %}>
                   {{ category.category_name }}
                 </option>
+              {% empty %}
+                {# No categories available #}
               {% endfor %}
             </select>
-          </div> {% endcomment %}
-
-          <div class="mb-3">
-            <label for="category{{ product.pk }}" class="form-label">Category</label>
-            {{ form.category }}
           </div>
 
 

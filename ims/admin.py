@@ -110,3 +110,11 @@ class SalesItemAdmin(ModelAdmin):
             "fields": ("get_total", "get_cost_total", "get_profit", "last_updated")
         }),
     )
+
+
+@admin.register(ErrorTicket)
+class ErrorTicketAdmin(ModelAdmin):
+    list_display = ['organization', 'branch', 'staff', 'title', 'status', 'date_added', 'date_updated']
+    search_fields = ['title', 'staff__email', 'branch__name']
+    list_filter = ['status', 'branch', 'organization']
+    autocomplete_fields = ['organization', 'branch', 'staff']

@@ -1,0 +1,50 @@
+{% load static %}
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editProfileModalLabel">Edit Profile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'update_profile' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="profile_picture" class="form-label">Profile Picture</label>
+            <div class="mb-2">
+              {% if request.user.profile_picture %}
+                <img src="{{ request.user.profile_picture.url }}" alt="Profile" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+              {% else %}
+                <img src="{% static 'assets/images/user.png' %}" alt="Profile" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+              {% endif %}
+            </div>
+            <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*">
+            <div class="form-text">Upload a profile picture (JPG, PNG, GIF)</div>
+          </div>
+          <div class="mb-3">
+            <label for="first_name" class="form-label">First Name</label>
+            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ request.user.first_name }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="last_name" class="form-label">Last Name</label>
+            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ request.user.last_name }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ request.user.email }}" disabled>
+            <div class="form-text">Email cannot be changed. Contact support if you need to update it.</div>
+          </div>
+          <div class="mb-3">
+            <label for="phone_number" class="form-label">Phone Number</label>
+            <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ request.user.phone_number }}" placeholder="Optional">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn app-btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

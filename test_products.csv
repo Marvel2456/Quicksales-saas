@@ -1,0 +1,18 @@
+product_name,category,brand,unit,batch_no,cost_price,sale_price,quantity,reorder_level
+Wireless Mouse,Electronics,Logitech,Piece,ELEC001,25.50,45.99,150,20
+USB-C Cable,Electronics,Anker,Piece,ELEC002,5.00,12.99,500,100
+Desk Lamp,Electronics,Philips,Piece,ELEC003,35.00,65.00,75,10
+Office Chair,Furniture,IKEA,Piece,FURN001,120.00,249.99,30,5
+Wooden Table,Furniture,Oak Design,Piece,FURN002,250.00,599.99,15,2
+Notebook A4,Stationery,Binder,Pack,STAT001,3.50,8.50,1000,200
+Pen Set,Stationery,Ballpoint,Box,STAT002,2.00,5.99,500,100
+Highlighters,Stationery,Marker,Pack,STAT003,4.00,9.99,300,50
+Organic Tea,Groceries,Green Valley,Box,GROC001,8.00,15.99,200,30
+Coffee Beans,Groceries,Mountain Peak,Kg,GROC002,12.00,24.99,50,10
+Rice 5kg,Groceries,Pure Grains,Bag,GROC003,15.00,25.00,100,20
+Cotton T-Shirt,Clothing,ComfortWear,Piece,CLOTH001,10.00,24.99,200,30
+Jeans,Clothing,DenimPro,Piece,CLOTH002,35.00,89.99,100,15
+Winter Jacket,Clothing,Warmth,Piece,CLOTH003,80.00,199.99,40,5
+Smartphone Case,Accessories,Tech Shield,Piece,ACC001,5.00,14.99,300,50
+Screen Protector,Accessories,Crystal Clear,Pack,ACC002,3.00,7.99,500,100
+Phone Charger,Accessories,FastCharge,Piece,ACC003,15.00,34.99,200,30

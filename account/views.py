@@ -10,7 +10,7 @@ from subscriptions.models import Subscription, Plan
 from .forms import *
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
-from .decorators import role_required
+from .decorators import role_required, check_branch_limit
 from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 from django.conf import settings
@@ -30,7 +30,7 @@ class OwnerRegisterView(View):
         return render(request, 'account/register.html', {'form': form})
 
     def post(self, request):
-        form = OwnerRegisterForm(request.POST)
+        form = OwnerRegisterForm(request.POST, request.FILES)
 
         if not form.is_valid():
             print(form.errors)
@@ -44,6 +44,8 @@ class OwnerRegisterView(View):
                     name=form.cleaned_data['organization_name'],
                     business_type = form.cleaned_data['business_type'],
                     country=form.cleaned_data['organization_country'],
+                    logo=form.cleaned_data.get('organization_logo'),
+                    brand_color=form.cleaned_data.get('brand_color', '#007bff'),
                     trial_start=trial_start,
                     trial_end=trial_end,
                     is_active=True
@@ -181,6 +183,7 @@ def logoutUser(request):
     return redirect('login')
 
 @login_required(login_url='login')
+@check_branch_limit
 def createBranch(request):
     organization = request.user.organization
     if not organization:
@@ -309,6 +312,150 @@ def notifications_view(request):
         'notifications': notifications
     }
     return render(request, 'account/notifications.html', context)
+
+
+@login_required(login_url='login')
+def change_password(request):
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        # Verify current password
+        if not request.user.check_password(current_password):
+            messages.error(request, "Current password is incorrect.")
+            return redirect('account')
+        
+        # Check if new passwords match
+        if new_password != confirm_password:
+            messages.error(request, "New passwords do not match.")
+            return redirect('account')
+        
+        # Check password length
+        if len(new_password) < 8:
+            messages.error(request, "Password must be at least 8 characters long.")
+            return redirect('account')
+        
+        # Set the new password
+        request.user.set_password(new_password)
+        # Clear must_change_password flag if set
+        if request.user.must_change_password:
+            request.user.must_change_password = False
+        request.user.save()
+        
+        # Important: Update the session to prevent logout
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, request.user)
+        
+        messages.success(request, "Your password has been changed successfully.")
+        return redirect('account')
+    
+    return redirect('account')
+
+
+@login_required(login_url='login')
+def force_password_change(request):
+    """
+    Force users to change their password on first login.
+    This view is accessible even when must_change_password is True.
+    """
+    # If user doesn't need to change password, redirect to dashboard
+    if not request.user.must_change_password:
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        new_password1 = request.POST.get('new_password1')
+        new_password2 = request.POST.get('new_password2')
+        
+        # Check if passwords match
+        if new_password1 != new_password2:
+            messages.error(request, "Passwords do not match.")
+            return render(request, 'account/force_password_change.html')
+        
+        # Check password length
+        if len(new_password1) < 8:
+            messages.error(request, "Password must be at least 8 characters long.")
+            return render(request, 'account/force_password_change.html')
+        
+        # Set the new password
+        request.user.set_password(new_password1)
+        request.user.must_change_password = False
+        request.user.save()
+        
+        # Important: Update the session to prevent logout
+        from django.contrib.auth import update_session_auth_hash
+        update_session_auth_hash(request, request.user)
+        
+        # Log the activity
+        ActivityLog.objects.create(
+            staff=request.user,
+            organization=request.user.organization,
+            branch=request.user.branch,
+            activity='Password changed on first login'
+        )
+        
+        messages.success(request, "Your password has been changed successfully. Welcome to Quicksales!")
+        return redirect('dashboard')
+    
+    return render(request, 'account/force_password_change.html')
+
+
+@login_required(login_url='login')
+def update_profile(request):
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('account')
+
+    user = request.user
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    phone_number = request.POST.get('phone_number', '').strip()
+
+    user.first_name = first_name or user.first_name
+    user.last_name = last_name or user.last_name
+    user.phone_number = phone_number or None
+
+    # Handle profile picture upload
+    if 'profile_picture' in request.FILES:
+        profile_picture = request.FILES['profile_picture']
+        # Delete old picture if exists
+        if user.profile_picture:
+            user.profile_picture.delete(save=False)
+        user.profile_picture = profile_picture
+
+    user.save()
+    messages.success(request, "Profile updated successfully.")
+    return redirect('account')
+
+
+@role_required(roles=['owner'])
+@login_required(login_url='login')
+def update_organization_branding(request):
+    if request.method != 'POST':
+        messages.error(request, "Invalid request method.")
+        return redirect('settings')
+
+    organization = request.user.organization
+    if not organization:
+        messages.error(request, "Organization not found.")
+        return redirect('settings')
+
+    # Handle logo upload
+    if 'logo' in request.FILES:
+        logo = request.FILES['logo']
+        # Delete old logo if exists
+        if organization.logo:
+            organization.logo.delete(save=False)
+        organization.logo = logo
+
+    # Handle brand color
+    brand_color = request.POST.get('brand_color', '').strip()
+    if brand_color and brand_color.startswith('#'):
+        organization.brand_color = brand_color
+
+    organization.save()
+    messages.success(request, "Organization branding updated successfully.")
+    return redirect('settings')
 
 
 @login_required(login_url='login')

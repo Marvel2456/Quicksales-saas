@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, HttpResponse
 from account.models import Organization
-from .models import Subscription, Plan, Payment
+from .models import Subscription, Plan, Payment, Coupon, CouponRedemption
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from account.decorators import role_required
@@ -16,15 +16,79 @@ from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from account.tasks import deactivate_subscription
 from account.emails import send_subscription_success_email
+from decimal import Decimal
+
+
+def apply_coupon(coupon_code, organization, plan):
+    """
+    Apply a coupon to a plan and return adjusted amount.
+    Returns: (success: bool, amount: Decimal, message: str, coupon: Coupon or None)
+    """
+    try:
+        coupon = Coupon.objects.get(code__iexact=coupon_code)
+    except Coupon.DoesNotExist:
+        return False, Decimal('0.00'), "Invalid coupon code", None
+
+    if not coupon.is_valid():
+        return False, Decimal('0.00'), "Coupon is no longer valid", coupon
+
+    if coupon.uses >= coupon.max_uses:
+        return False, Decimal('0.00'), "Coupon has reached max uses", coupon
+
+    # Check if organization already used this coupon
+    if CouponRedemption.objects.filter(coupon=coupon, organization=organization).exists():
+        return False, Decimal('0.00'), "You have already used this coupon", coupon
+
+    # Calculate discount
+    original_amount = Decimal(str(plan.price))
+
+    if coupon.type == 'percent':
+        discount = (original_amount * coupon.value) / Decimal('100')
+        final_amount = original_amount - discount
+    elif coupon.type == 'fixed':
+        discount = coupon.value
+        final_amount = max(original_amount - discount, Decimal('0.00'))
+    elif coupon.type == 'free_month':
+        # Free month means they don't pay this month
+        final_amount = Decimal('0.00')
+    else:
+        return False, Decimal('0.00'), "Invalid coupon type", coupon
+
+    return True, final_amount, "Coupon applied successfully", coupon
+
+
+def validate_coupon(coupon_code):
+    """Validate coupon without applying discount - for frontend checks."""
+    try:
+        coupon = Coupon.objects.get(code__iexact=coupon_code)
+    except Coupon.DoesNotExist:
+        return False, "Invalid coupon code"
+
+    if not coupon.is_valid():
+        return False, "Coupon is no longer valid"
+
+    if coupon.uses >= coupon.max_uses:
+        return False, "Coupon has reached max uses"
+
+    return True, "Valid coupon"
 
 
 # Create your views here.
 
 
 
-@role_required(roles=['owner'])
 @login_required
 def settingsView(request):
+    # Check if user has owner role
+    if request.user.role != 'owner':
+        messages.error(request, "Only organization owners can access settings.")
+        return redirect('dashboard')
+    
+    # Check if user has an organization
+    if not hasattr(request.user, 'organization') or request.user.organization is None:
+        messages.error(request, "You must be part of an organization to access settings.")
+        return redirect('dashboard')
+    
     organization = request.user.organization
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
     plans = Plan.objects.all().exclude(name='Free').order_by('price')
@@ -56,14 +120,30 @@ def editOrganization(request, pk):
 
 @login_required
 def cancel_plan(request, subscription_id):
-    subscription = get_object_or_404(
-        Subscription,
-        id=subscription_id,
-        organization=request.user.organization,
-        is_active=True
-    )
+    # Only allow POST requests
+    if request.method != "POST":
+        messages.error(request, "Invalid request method.")
+        return redirect("settings")
+    
+    # Check if user has owner role
+    if request.user.role != 'owner':
+        messages.error(request, "Only organization owners can cancel subscriptions.")
+        return redirect("settings")
+    
+    # Get the subscription
+    try:
+        subscription = Subscription.objects.get(
+            id=subscription_id,
+            organization=request.user.organization,
+            is_active=True
+        )
+    except Subscription.DoesNotExist:
+        messages.error(request, "Subscription not found or already cancelled.")
+        return redirect("settings")
 
+    # Deactivate the subscription
     subscription.is_active = False
+    subscription.cancelled_at = timezone.now()
     subscription.save()
 
     messages.success(request, "Your subscription has been cancelled successfully.")
@@ -75,7 +155,17 @@ def init_payment(request, plan_id):
     organization = request.user.organization
     plan = get_object_or_404(Plan, id=plan_id)
 
-    amount = int(plan.price * 100)  # Paystack expects kobo
+    # Get coupon from request if provided
+    coupon = None
+    final_amount = Decimal(str(plan.price))
+    coupon_code = request.GET.get('coupon_code') or request.POST.get('coupon_code')
+    
+    if coupon_code:
+        success, final_amount, message, coupon = apply_coupon(coupon_code, organization, plan)
+        if not success:
+            return JsonResponse({"error": message}, status=400)
+
+    amount = int(final_amount * 100)  # Paystack expects kobo
     reference = str(uuid.uuid4())
 
     # create inactive subscription first
@@ -90,13 +180,24 @@ def init_payment(request, plan_id):
     )
 
     # create pending payment
-    Payment.objects.create(
+    payment = Payment.objects.create(
         subscription=subscription,
-        amount=plan.price,
+        amount=final_amount,
         payment_method="paystack",
         transaction_id=reference,
         payment_status="pending",
+        coupon=coupon,
     )
+    
+    # Record coupon redemption if coupon was used
+    if coupon:
+        CouponRedemption.objects.create(
+            coupon=coupon,
+            organization=organization,
+            subscription=subscription,
+        )
+        coupon.uses += 1
+        coupon.save()
 
     headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
     data = {
@@ -118,11 +219,26 @@ def init_payment(request, plan_id):
 @login_required
 def create_payment(request):
     data = json.loads(request.body)
-    reference = data["reference"]
+    reference = data.get("reference")
     plan_id = data["plan_id"]
     amount = data["amount"]
+    coupon_code = data.get("coupon_code", "")
+    is_free = data.get("is_free", False)
 
     plan = get_object_or_404(Plan, id=plan_id)
+    coupon = None
+    
+    # Handle coupon if provided
+    if coupon_code:
+        try:
+            coupon = Coupon.objects.get(code__iexact=coupon_code)
+            if not coupon.is_valid():
+                return JsonResponse({"error": "Coupon is no longer valid"}, status=400)
+            if CouponRedemption.objects.filter(coupon=coupon, organization=request.user.organization).exists():
+                return JsonResponse({"error": "Coupon already used"}, status=400)
+        except Coupon.DoesNotExist:
+            return JsonResponse({"error": "Invalid coupon code"}, status=400)
+    
     subscription = Subscription.objects.create(
         organization=request.user.organization,
         plan=plan,
@@ -133,14 +249,75 @@ def create_payment(request):
         is_active=False,
     )
 
-    Payment.objects.create(
+    # For free month coupons, activate immediately without payment
+    if is_free and coupon and coupon.type == 'free_month':
+        # Record redemption
+        CouponRedemption.objects.create(
+            coupon=coupon,
+            organization=request.user.organization,
+            subscription=subscription,
+        )
+        coupon.uses += 1
+        coupon.save()
+        
+        # Create completed payment record
+        Payment.objects.create(
+            subscription=subscription,
+            amount=Decimal('0.00'),
+            payment_method="free_coupon",
+            transaction_id=f"free_coupon_{subscription.id}",
+            payment_status="completed",
+            coupon=coupon,
+        )
+        
+        # Activate subscription immediately
+        subscription.is_active = True
+        subscription.save()
+        
+        # Schedule deactivation task
+        if subscription.end_date > timezone.now():
+            deactivate_subscription.apply_async(
+                args=[str(subscription.id)],
+                eta=subscription.end_date
+            )
+        
+        # Send email
+        try:
+            owner = subscription.organization.owned_by
+            if owner and owner.email:
+                send_subscription_success_email(owner, subscription.organization, subscription)
+        except Exception as email_error:
+            print(f"Email error: {email_error}")
+
+        # Surface success to UI via Django messages (shown as toast on next page)
+        try:
+            messages.success(request, "Subscription activated! Free month coupon applied.")
+        except Exception:
+            pass
+
+        return JsonResponse({"success": True, "message": "Subscription activated with free month coupon!"})
+    
+    # For paid plans, create pending payment
+    payment = Payment.objects.create(
         subscription=subscription,
         amount=amount,
         payment_method="paystack",
-        transaction_id=reference,
+        transaction_id=reference or f"pending_{subscription.id}",
         payment_status="pending",
+        coupon=coupon,
     )
-    print("Payment record created")
+    
+    # Record coupon redemption after payment
+    if coupon:
+        CouponRedemption.objects.create(
+            coupon=coupon,
+            organization=request.user.organization,
+            subscription=subscription,
+        )
+        coupon.uses += 1
+        coupon.save()
+    
+    print(f"Payment record created: {payment.id}")
 
     return JsonResponse({"status": "ok"})
 

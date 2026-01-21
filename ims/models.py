@@ -180,7 +180,8 @@ class Supplier(models.Model):
 class ErrorTicket(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_assigned')
+    staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_created')
+    assigned_to = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_assigned')
     title = models.CharField(max_length=150, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -194,3 +195,14 @@ class ErrorTicket(models.Model):
 
     def __str__(self):
         return str(self.title)
+
+
+class TicketComment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    ticket = models.ForeignKey(ErrorTicket, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment by {self.author.email} on {self.ticket.title}"

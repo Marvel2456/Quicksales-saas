@@ -1,0 +1,55 @@
+{% load static %}
+<!-- Edit Organization Branding Modal -->
+<div class="modal fade" id="editOrganizationBrandingModal" tabindex="-1" aria-labelledby="editOrganizationBrandingModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editOrganizationBrandingModalLabel">Edit Organization Branding</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'update_organization_branding' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="org_logo" class="form-label">Organization Logo</label>
+            <div class="mb-2">
+              {% if organization.logo %}
+                <img src="{{ organization.logo.url }}" alt="Logo" style="max-width: 150px; max-height: 100px; object-fit: contain;">
+              {% else %}
+                <p class="text-muted">No logo uploaded</p>
+              {% endif %}
+            </div>
+            <input type="file" class="form-control" id="org_logo" name="logo" accept="image/*">
+            <div class="form-text">Upload your organization logo (JPG, PNG, GIF). Recommended size: 200x100px</div>
+          </div>
+          <div class="mb-3">
+            <label for="brand_color" class="form-label">Brand Color</label>
+            <div class="input-group">
+              <input type="color" class="form-control form-control-color" id="brand_color" name="brand_color" value="{{ organization.brand_color }}" style="max-width: 100px;" required>
+              <input type="text" class="form-control" id="brand_color_text" name="brand_color_text" value="{{ organization.brand_color }}" placeholder="#007bff" required>
+            </div>
+            <div class="form-text">Select or enter a hex color code (e.g., #007bff). This color will be used throughout your dashboard and receipts.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn app-btn-primary">Save Branding</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Sync color picker and text input
+document.getElementById('brand_color').addEventListener('input', function(e) {
+  document.getElementById('brand_color_text').value = e.target.value;
+});
+
+document.getElementById('brand_color_text').addEventListener('input', function(e) {
+  // Validate hex color format
+  if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+    document.getElementById('brand_color').value = e.target.value;
+  }
+});
+</script>
