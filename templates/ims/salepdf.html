@@ -1,40 +1,94 @@
 
 
-<div class="app-card app-card-orders-table shadow-sm mb-5">
-    <div class="app-card-body">
-        <div class="table-responsive">
-            <table class="table app-table-hover mb-0 text-left" id="salesPdf">
+<html>
+<head>
+    <style>
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
+        .header { 
+            margin-bottom: 12px; 
+            padding: 12px; 
+            background-color: {% if organization and organization.brand_color %}{{ organization.brand_color }}{% else %}#007bff{% endif %};
+            color: white;
+            border-radius: 4px;
+        }
+        .title { font-size: 16px; font-weight: bold; }
+        .meta { font-size: 11px; color: white; opacity: 0.9; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 1px solid #777; padding: 6px; font-size: 11px; }
+        th { 
+            background: {% if organization and organization.brand_color %}{{ organization.brand_color }}{% else %}#007bff{% endif %};
+            color: white;
+        }
+        .col-rep { width: 18%; }
+        .col-trans { width: 20%; }
+        .col-method { width: 10%; }
+        .col-date { width: 16%; }
+        .col-qty { width: 8%; text-align: center; }
+        .col-total { width: 14%; text-align: right; }
+        .col-profit { width: 14%; text-align: right; }
+        .wrap { word-wrap: break-word; white-space: normal; }
+        .summary { 
+            margin-top: 8px; 
+            border-top: 2px solid {% if organization and organization.brand_color %}{{ organization.brand_color }}{% else %}#007bff{% endif %};
+            padding-top: 6px; 
+            font-size: 12px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Sales Report</div>
+        <div class="meta">Branch: {{ branch.name }}</div>
+        {% if organization %}
+            <div class="meta">Organization: {{ organization.name }}</div>
+        {% endif %}
+        {% if filters.start_date or filters.end_date or filters.rep %}
+        <div class="meta">
+            {% if filters.start_date %}From {{ filters.start_date }}{% endif %}
+            {% if filters.end_date %} to {{ filters.end_date }}{% endif %}
+            {% if filters.rep %} | Rep: {{ filters.rep }}{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    <table>
                 <thead>
                     <tr>
-                        <th class="cell">Sales Rep</th>
-                        <th class="cell">Trans Id</th>
-                        <th class="cell">Branch</th>
-                        <th class="cell">Method</th>
-                        <th class="cell">Date</th>
-                        <th class="cell">Quantity</th>
-                        <th class="cell">Total</th>
-                        <th class="cell">Profit</th>
+                        <th class="col-rep">Sales Rep</th>
+                        <th class="col-trans">Trans Id</th>
+                        <th class="col-method">Method</th>
+                        <th class="col-date">Date</th>
+                        <th class="col-qty">Qty</th>
+                        <th class="col-total">Total</th>
+                        <th class="col-profit">Profit</th>
                     </tr>
                 </thead>
                 
                 <tbody>
                     {% for sale in sale %}
                     <tr>
-                        <td class="cell">{{sale.staff}}</td>
-                        <td class="cell"><span class="truncate">{{sale.transaction_id}}</span></td>
-                        <td class="cell"><span>{{sale.branch}}</span></td>
-                        <td class="cell"><span>{{sale.method}}</span></td>
-                        <td class="cell"><span>{{sale.date_updated}}</span></td>
-                        <td class="cell"><span class="badge bg-success">{{sale.get_cart_items}}</span></td>
-                        <td class="cell">{{sale.final_total_price}}</td>
-                        <td class="cell">{{sale.total_profit}}</td>
+                        <td class="col-rep wrap">
+                            {% if sale.staff.first_name or sale.staff.last_name %}
+                                {{ sale.staff.first_name }} {{ sale.staff.last_name }}
+                            {% else %}
+                                {{ sale.staff.email }}
+                            {% endif %}
+                        </td>
+                        <td class="col-trans wrap">{{ sale.transaction_id }}</td>
+                        <td class="col-method">{{ sale.method }}</td>
+                        <td class="col-date">{{ sale.date_updated|date:"M j, Y, g:i a" }}</td>
+                        <td class="col-qty">{{ sale.get_cart_items }}</td>
+                        <td class="col-total">{{ sale.final_total_price }}</td>
+                        <td class="col-profit">{{ sale.total_profit }}</td>
                         
                     </tr>
                     {% endfor %}
                     
                 </tbody>
-            </table>
-        </div><!--//table-responsive-->
-       
-    </div><!--//app-card-body-->		
-</div><!--//app-card-->
+    </table>
+    <div class="summary">
+        <strong>Total Quantity:</strong> {{ summary.total_quantity }} &nbsp; |
+        <strong>Total Sales:</strong> {{ summary.total_sales }} &nbsp; |
+        <strong>Total Profit:</strong> {{ summary.total_profit }}
+    </div>
+</body>
+</html>

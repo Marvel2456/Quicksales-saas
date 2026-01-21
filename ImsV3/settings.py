@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 import os
 from pathlib import Path
 from decouple import config
+
+
+def get_list(value: str):
+    return [item.strip() for item in value.split(',') if item.strip()]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -24,12 +28,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', cast=bool, default=False)
 
 
-# CSRF_TRUSTED_ORIGINS = ['https://*.quicksaless.up.railway.app','https://*.127.0.0.1'] #for railway setup
-# ALLOWED_HOSTS = ["*"]
-ALLOWED_HOSTS = ['.lvh.me', '.127.0.0.1.nip.io', 'localhost']
+ALLOWED_HOSTS = get_list(config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.lvh.me'))
+CSRF_TRUSTED_ORIGINS = get_list(config('CSRF_TRUSTED_ORIGINS', default=''))
+
 
 # ENV = config('ENV', default='development')  # 'production' or 'development'
 ENV = config('ENV', default='development')  # 'production' or 'development'
@@ -50,7 +54,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    "procrastinate.contrib.django",
+    # "procrastinate.contrib.django",
+    'django_celery_beat',
+    'django_celery_results',
     'ims.apps.ImsConfig',
     'account.apps.AccountConfig',
     'subscriptions.apps.SubscriptionsConfig',
@@ -60,6 +66,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,6 +74,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     # subdomain middleware
     'ImsV3.middleware.SubdomainOrganizationMiddleware',
+    'ImsV3.middleware.OrganizationContextMiddleware',
+    # Force password change middleware (must be after authentication)
+    'ImsV3.middleware.ForcePasswordChangeMiddleware',
+    # Subscription middleware (must be after authentication and organization)
+    'subscriptions.middleware.SubscriptionMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
@@ -84,6 +96,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'subscriptions.context_processors.paystack_public_key',
+                'subscriptions.context_processors.subscription_context',
+                'ims.context_processors.ticket_notifications',
             ],
         },
     },
@@ -99,25 +114,38 @@ UNFOLD = {
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'POST': config('DB_PORT'),
+if config('DB_NAME', default=None):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
+# Celery Configuration
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://redis:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+
+# Celery Beat Configuration (for scheduled tasks)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -144,24 +172,20 @@ AUTH_USER_MODEL = 'account.CustomUser'
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lagos'  # West Africa Time (UTC+1)
 
 USE_I18N = True
 
 USE_TZ = True
 
 
-# Email settings
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
-
-# For production, you can use SMTP settings like this:
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.your-email-provider.com'
-# EMAIL_PORT = 587      # or 465 for SSL
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = config('EMAIL_HOST_USER')  # Your email address
-# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')  # Your email password
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default=None)
+EMAIL_PORT = config('EMAIL_PORT', cast=int, default=587)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default=None)
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default=None)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool, default=True)
 
 
 
@@ -170,7 +194,9 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / "imsv3/static"]
+STATICFILES_DIRS = [BASE_DIR / "ImsV3/static"]
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
 
@@ -198,6 +224,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #     'ims': 'ims.urls',  # ims subdomain
 # }
 
+
+PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='')
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
+
+
+
 # Procrastinate logging settings
 LOGGING = {
     "version": 1,
@@ -221,3 +253,15 @@ LOGGING = {
         },
     },
 }
+
+
+if ENV == 'production':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', cast=int, default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+else:
+    SECURE_SSL_REDIRECT = False

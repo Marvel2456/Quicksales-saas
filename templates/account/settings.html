@@ -80,10 +80,9 @@
                             </div>
                             {% if subscription %}
                                 <div class="col-auto">
-                                    <form method="post" action="">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn app-btn-secondary">Cancel Plan</button>
-                                    </form>
+                                    <button type="button" class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#cancelSubscriptionModal">
+                                        Cancel Plan
+                                    </button>
                                 </div>
                             {% endif %}
                         </div>
@@ -94,7 +93,7 @@
             </div>
         </div><!--//row-->
         <hr class="my-4">
-        <div class="row g-4 settings-section">
+        {% comment %} <div class="row g-4 settings-section">
             <div class="col-12 col-md-4">
                 <h3 class="section-title">Data &amp; Privacy</h3>
                 <div class="section-intro">Settings section intro goes here. Morbi vehicula, est eget fermentum ornare. </div>
@@ -140,9 +139,9 @@
                     </div><!--//app-card-body-->						    
                 </div><!--//app-card-->
             </div>
-        </div><!--//row-->
-        <hr class="my-4">
-        <div class="row g-4 settings-section">
+        </div> {% endcomment %}
+        {% comment %} <hr class="my-4"> {% endcomment %}
+        {% comment %} <div class="row g-4 settings-section">
             <div class="col-12 col-md-4">
                 <h3 class="section-title">Notifications</h3>
                 <div class="section-intro">Settings section intro goes here. Duis velit massa, faucibus non hendrerit eget.</div>
@@ -178,8 +177,8 @@
                     </div><!--//app-card-body-->						    
                 </div><!--//app-card-->
             </div>
-        </div><!--//row-->
-        <hr class="my-4">
+        </div> {% endcomment %}
+        {% comment %} <hr class="my-4"> {% endcomment %}
     </div><!--//container-fluid-->
 </div><!--//app-content-->
 {% endblock content %}

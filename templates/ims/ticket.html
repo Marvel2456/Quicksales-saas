@@ -15,16 +15,23 @@
                  <div class="page-utilities">
                     <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
                         <div class="col-auto">
+                            <button type="button" class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#createTicketModal">
+                                <i class="fas fa-plus"></i>&nbsp; Create Ticket
+                            </button>
+                        </div>
+                        <div class="col-auto">
                             <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
-                                
                                 <div class="col-auto">
-                                    <input type="text" id="search-orders" name="product" class="form-control search-orders" placeholder="Product Name">
+                                    <select name="status" class="form-select">
+                                        <option value="" {% if not current_status %}selected{% endif %}>All Statuses</option>
+                                        <option value="Pending" {% if current_status == 'Pending' %}selected{% endif %}>Pending</option>
+                                        <option value="Seen" {% if current_status == 'Seen' %}selected{% endif %}>Seen</option>
+                                    </select>
                                 </div>
                                 <div class="col-auto">
-                                    <button type="submit" class="btn app-btn-secondary">Search</button>
+                                    <button type="submit" class="btn app-btn-secondary">Filter</button>
                                 </div>
                             </form>
-                            
                         </div><!--col-->
                     </div><!--row-->
                 </div><!--table-utilities-->
@@ -45,9 +52,11 @@
                                     <tr>
                                         <th class="cell">Sent By</th>
                                         <th class="cell">Branch</th>
-                                        <th class="cell">POS</th>
                                         <th class="cell">Title</th>
                                         <th class="cell">Status</th>
+                                        {% if can_assign %}
+                                        <th class="cell">Assigned To</th>
+                                        {% endif %}
                                         <th class="cell">Date</th>
                                         <th class="cell">Viewed On</th>
                                         <th class="cell"></th>
@@ -61,16 +70,18 @@
                                     <tr>
                                         <td class="cell"><span class="truncate">{{ticket.staff}}</span></td>
                                         <td class="cell">{{ticket.branch}}</td>
-                                        <td class="cell">{{ticket.pos}}</td>
                                         <td class="cell">{{ticket.title}}</td>
                                         <td class="cell"><span class="note">{{ticket.status}}</span></td>
+                                        {% if can_assign %}
+                                        <td class="cell"><span class="note">{{ticket.assigned_to|default:"Unassigned"}}</span></td>
+                                        {% endif %}
                                         <td class="cell"><span class="note">{{ticket.date_added}}</span></td>
                                         <td class="cell"><span class="note">{{ticket.date_updated}}</span></td>
                                         <td class="cell">
-                                            <a class="btn-sm app-btn-secondary" style="cursor:pointer;" href="{% url 'tickets' ticket.id %}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
-                                            {% comment %} <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#deleteInventoryModal{{inventory.pk}}"><i class="fa-solid fa-trash-can"></i></a> {% endcomment %}
+                                            <button class="btn-sm app-btn-secondary" style="cursor:pointer; border:none; background:none;" data-bs-toggle="modal" data-bs-target="#viewTicketModal{{ticket.pk}}" title="View ticket"><i class="fa-solid fa-eye"></i></button>
                                         </td>
                                     </tr>
+                                    {% include 'modals/view_ticket_modal.html' %}
                                     {% endfor %}
                                     
                                 </tbody>
@@ -105,5 +116,74 @@
         
     </div><!--//container-fluid-->
 </div><!--//app-content-->
+
+<!-- Create Ticket Modal -->
+<div class="modal fade" id="createTicketModal" tabindex="-1" aria-labelledby="createTicketModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createTicketModalLabel">Create Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'create_ticket' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="id_title" class="form-label">Title <span class="text-danger">*</span></label>
+                        {{ form.title }}
+                        {% if form.title.errors %}
+                            <div class="text-danger small mt-1">{{ form.title.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description <span class="text-danger">*</span></label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    {% if can_assign %}
+                    <div class="mb-3">
+                        <label for="id_assigned_to" class="form-label">Assign To</label>
+                        {{ form.assigned_to }}
+                        {% if form.assigned_to.errors %}
+                            <div class="text-danger small mt-1">{{ form.assigned_to.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn app-btn-primary">
+                        <i class="fas fa-plus"></i>&nbsp; Create Ticket
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const createModal = document.getElementById('createTicketModal');
+    if (createModal) {
+        createModal.addEventListener('show.bs.modal', function() {
+            const titleInput = document.getElementById('id_title');
+            const descriptionInput = document.getElementById('id_description');
+            const assignedInput = document.getElementById('id_assigned_to');
+            
+            if (titleInput && !titleInput.classList.contains('form-control')) {
+                titleInput.classList.add('form-control');
+            }
+            if (descriptionInput && !descriptionInput.classList.contains('form-control')) {
+                descriptionInput.classList.add('form-control');
+            }
+            if (assignedInput && !assignedInput.classList.contains('form-select')) {
+                assignedInput.classList.add('form-select');
+            }
+        });
+    }
+});
+</script>
 
 {% endblock content %}

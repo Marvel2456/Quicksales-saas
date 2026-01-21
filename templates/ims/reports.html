@@ -18,14 +18,14 @@
                     <div class="col-auto">
                         <label for="start_date">Start Date</label>
                         <div class="input-group mb-3 date" id="datepicker">
-                            <input type="text" class="form-control" name="start_date" id="due" placeholder="yy-mm-dd" aria-describedby="basic-addon2">
+                            <input type="text" class="form-control" name="start_date" id="due" placeholder="yy-mm-dd" aria-describedby="basic-addon2" {% if request.GET.start_date or start_date %}value="{{ request.GET.start_date|default:start_date }}"{% endif %}>
                             <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
                         </div>
                     </div>
                     <div class="col-auto">
                         <label for="end_date">End Date</label>
                         <div class="input-group mb-3 date" id="datepicker">
-                            <input type="text" class="form-control" name="end_date" id="due2" placeholder="yy-mm-dd" aria-describedby="basic-addon2">
+                            <input type="text" class="form-control" name="end_date" id="due2" placeholder="yy-mm-dd" aria-describedby="basic-addon2" {% if request.GET.end_date or end_date %}value="{{ request.GET.end_date|default:end_date }}"{% endif %}>
                             <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
                         </div>
                     </div> 
@@ -36,9 +36,12 @@
             </div><!--//col-->
              
         </div><!--row-->
-        <div class="col-auto pb-2">
-           <a href="{% url 'export_profit' branch.id %}?start_date={{ start_date }}&end_date={{ end_date }}" class="btn app-btn-secondary">
-                Export to Csv
+        <div class="col-auto pb-2 d-flex gap-2">
+           <a href="{% url 'export_profit' branch.id %}?start_date={{ request.GET.start_date|default:start_date }}&end_date={{ request.GET.end_date|default:end_date }}" class="btn app-btn-secondary">
+                Export Filtered CSV
+            </a>
+            <a href="{% url 'export_profit' branch.id %}" class="btn app-btn-secondary">
+                Export All CSV
             </a>
 
         </div>  
@@ -73,7 +76,7 @@
                                 <tbody>
                                     
                                     
-                                    {% for sale in sale %}
+                                    {% for sale in sale_page %}
                                     <tr>
                                         <td class="cell">{{sale.staff}}</td>
                                         <td class="cell"><span class="truncate">{{sale.transaction_id}}</span></td>
@@ -87,6 +90,25 @@
                                 </tbody>
                             </table>
                             <h5 class="text-center fw-bold pt-3">Total Profit: ${{total_profits}}</h5>
+                            <div class="pagination pb-4">
+                                <span class="step-links">
+                                  <nav aria-label="Page navigation example">
+                                    <ul class="pagination" style="color:yellow;">
+                                        {% if sale_page.has_previous %}
+                                        <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">previous</a></li>
+                                        {% endif %}
+                                        {% for i in nums %}
+                                        <span class="current">
+                                        <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{forloop.counter}}</a></li>
+                                        </span>
+                                        {% endfor %}
+                                        {% if sale_page.has_next %}
+                                        <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">next</a></li>
+                                        {% endif %}
+                                    </ul>
+                                  </nav>
+                                </span>
+                            </div>
                         </div><!--//table-responsive-->
                        
                     </div><!--app-card-body-->		

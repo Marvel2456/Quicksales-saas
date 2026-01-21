@@ -168,3 +168,33 @@ def send_subscription_success_email(user, organization, subscription):
         html_message=html_message,
         fail_silently=False,
     )
+
+
+def send_ticket_created_email(ticket, assigned_to, organization):
+    """
+    Send email notification when a ticket is created and assigned to someone
+    """
+    subject = f"New Support Ticket: {ticket.title}"
+    
+    ticket_url = f"http://{organization.slug}.{settings.DOMAIN}/ims/ticket/{ticket.id}/"
+    
+    context = {
+        'ticket': ticket,
+        'assigned_to': assigned_to,
+        'organization': organization,
+        'ticket_url': ticket_url,
+    }
+    
+    html_message = render_to_string('account/emails/ticket_created_email.html', context)
+    plain_message = strip_tags(html_message)
+    from_email = settings.DEFAULT_FROM_EMAIL
+    to_email = assigned_to.email
+
+    send_mail(
+        subject,
+        plain_message,
+        from_email,
+        [to_email],
+        html_message=html_message,
+        fail_silently=False,
+    )

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %} {{ branch.name }} Login Records {% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        <div class="mb-3">
+            <a href="{% url 'branchrecord' %}" class="btn app-btn-secondary">&larr; Back to Branch List</a>
+        </div>
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <h1 class="app-page-title mb-0">{{ branch.name }} &mdash; Login Records</h1>
+                <p class="text-muted mb-0">Last updated: {{ now|date:"M d, Y H:i" }}</p>
+            </div>
+            <div class="col-auto">
+                <form class="row gx-2" method="get" action="">
+                    <div class="col-auto">
+                        <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}" placeholder="Start date">
+                    </div>
+                    <div class="col-auto">
+                        <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}" placeholder="End date">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn app-btn-secondary">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="app-card app-card-orders-table shadow-sm mb-4">
+            <div class="app-card-body">
+                <div class="table-responsive">
+                    <table class="table app-table-hover mb-0 text-left">
+                        <thead>
+                            <tr>
+                                <th class="cell">Staff</th>
+                                <th class="cell">Email</th>
+                                <th class="cell">Activity</th>
+                                <th class="cell">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs_page %}
+                            <tr>
+                                <td class="cell">{{ log.staff.get_full_name }}</td>
+                                <td class="cell">{{ log.staff.email }}</td>
+                                <td class="cell">{{ log.activity }}</td>
+                                <td class="cell">{{ log.timestamp|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="cell text-center text-muted py-4">No login records found for this branch.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <nav class="app-pagination mt-3">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not logs_page.has_previous %}disabled{% endif %}">
+                    <a class="page-link" href="{% if logs_page.has_previous %}?page={{ logs_page.previous_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% else %}#{% endif %}">Previous</a>
+                </li>
+                {% for num in logs_page.paginator.page_range %}
+                    <li class="page-item {% if logs_page.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {% if not logs_page.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{% if logs_page.has_next %}?page={{ logs_page.next_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% else %}#{% endif %}">Next</a>
+                </li>
+            </ul>
+        </nav>
+
+    </div>
+</div>
+{% endblock content %}

@@ -10,7 +10,8 @@ from ims.view.inventory_views import (
     inventoryView, branch_inventory, inventory
 )
 from ims.view.audit_views import (
-    inventoryAudit, export_audit_csv, branchCount, countView, adminCountView, addCount, branchAudit
+    inventoryAudit, export_audit_csv, branchCount, countView, adminCountView, addCount, branchAudit,
+    uploadCountBulk, exportCountHistory
 )
 from ims.view.sale_views import (
     sale_complete, checkout, reciept, branchStore, store, sales, sale_pdf, branchSales,
@@ -74,6 +75,8 @@ urlpatterns = [
     path('count/', countView, name='count'),
     path('admincount/<str:pk>/', adminCountView, name='admincount'),
     path('addcount/', addCount, name='addcount'),
+    path('upload_count/', uploadCountBulk, name='upload_count'),
+    path('export_count/', exportCountHistory, name='export_count'),
     path('branchaudit/', branchAudit, name='branchaudit'),
 
 

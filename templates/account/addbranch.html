@@ -24,11 +24,7 @@
                 <label for="branch_address" class="form-label">Address</label>
                 <input name="branch_address" type="text" class="form-control" placeholder="Branch Address" required {% block Value-branch_address %} {% endblock Value-branch_address %}>
             </div>
-            <div class="mb-3">
-                <label for="branch" class="form-label">Company</label>
-                {{form.shop}}
-            </div>
-  
+
             <div class="mt-4 text-center" style="width:100%;">
               <button type="submit" class="btn btn-secondary">
                 {% block Btn-action %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Create Branch{% endblock Btn-action %}

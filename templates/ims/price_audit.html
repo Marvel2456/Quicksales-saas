@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %} Inventory Audit {% endblock title %}
+{% block title %} Restock History {% endblock title %}
 
 {% block content %}
 
@@ -9,18 +9,24 @@
         
         <div class="row g-3 mb-4 align-items-center justify-content-between">
             <div class="col-auto">
-                <h1 class="app-page-title mb-0">Inventory Audit</h1>
+                <h1 class="app-page-title mb-0">Restock History</h1>
             </div>
             <div class="col-auto">
                  <div class="page-utilities">
                     <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
                         <div class="col-auto">
-                            <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
+                            <form class="table-search-form row gx-2 align-items-center" method="GET" action=".">
                                 <div class="col-auto">
-                                    <input type="text" id="search-orders" name="product" class="form-control search-orders" placeholder="Staff Name">
+                                    <input type="text" id="search-orders" name="product" class="form-control search-orders" placeholder="Product name" value="{{ request.GET.product }}">
                                 </div>
                                 <div class="col-auto">
-                                    <button type="submit" class="btn app-btn-secondary">Search</button>
+                                    <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+                                </div>
+                                <div class="col-auto">
+                                    <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+                                </div>
+                                <div class="col-auto">
+                                    <button type="submit" class="btn app-btn-secondary">Filter</button>
                                 </div>  
                             </form>
                         </div><!--//col-->
@@ -30,8 +36,9 @@
             </div><!--//col-auto-->
         </div><!--//row-->
         
-        <div class="col-auto pb-2">
-            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_audit' branch.id %}">Export to Csv</a>
+        <div class="col-auto pb-2 d-flex gap-2">
+            <a class="btn app-btn-secondary" href="{% url 'export_audit' branch.id %}?product={{ request.GET.product|default:product }}&start_date={{ request.GET.start_date|default:start_date }}&end_date={{ request.GET.end_date|default:end_date }}">Export Filtered CSV</a>
+            <a class="btn app-btn-secondary" href="{% url 'export_audit' branch.id %}">Export All CSV</a>
         </div>  
         <div class="tab-content" id="orders-table-tab-content">
             <div class="tab-pane fade show active" id="orders-all" role="tabpanel" aria-labelledby="orders-all-tab">
@@ -43,12 +50,10 @@
                                     <tr>
                                         <th class="cell">Staff</th>
                                         <th class="cell">Product</th>
-                                        <th class="cell">Date Restocked</th>
+                                        <th class="cell">Restocked On</th>
                                         <th class="cell">Quantity Restocked</th>
-                                        <th class="cell">New Cost Price</th>
-                                        <th class="cell">New Sale Price</th>
-                                     
-                                        <th class="cell"></th>
+                                        <th class="cell">Cost Price</th>
+                                        <th class="cell">Sale Price</th>
                                     </tr>
                                 </thead>
                                 
@@ -57,7 +62,7 @@
                                     <tr>
                                         <td>{{audit.history_user}}</td>
                                         <td>{{audit.product.product_name}}</td>
-                                        <td>{{audit.history_date}}</td>
+                                        <td>{{audit.history_date|date:"M d, Y H:i"}}</td>
                                         <td>{{audit.quantity_restocked}}</td>
                                         <td>{{audit.cost_price}}</td>
                                         <td>{{audit.sale_price}}</td>

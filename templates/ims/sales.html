@@ -22,14 +22,14 @@
                                 <div class="col-auto">
                                     <label for="start_date">Start Date</label>
                                     <div class="input-group mb-3 date" id="datepicker">
-                                        <input type="text" class="form-control" name="start_date" id="due" placeholder="yy-mm-dd" aria-describedby="basic-addon2">
+                                        <input type="text" class="form-control" name="start_date" id="due" placeholder="yy-mm-dd" aria-describedby="basic-addon2" {% if request.GET.start_date %}value="{{ request.GET.start_date }}"{% endif %}>
                                         <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
                                     </div>
                                 </div>
                                 <div class="col-auto">
                                     <label for="end_date">End Date</label>
                                     <div class="input-group mb-3 date" id="datepicker">
-                                        <input type="text" class="form-control" name="end_date" id="due2" placeholder="yy-mm-dd" aria-describedby="basic-addon2">
+                                        <input type="text" class="form-control" name="end_date" id="due2" placeholder="yy-mm-dd" aria-describedby="basic-addon2" {% if request.GET.end_date %}value="{{ request.GET.end_date }}"{% endif %}>
                                         <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
                                     </div>
                                 </div> 
@@ -44,9 +44,11 @@
             </div><!--//col-auto-->
         </div><!--//row-->
         
-        <div class="col-auto pb-2">
-            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' branch.id %}">Export to Csv</a>
-            <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' branch.id %}">Export to Pdf </a>
+        <div class="col-auto pb-2 d-flex gap-2">
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' branch.id %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">Export Filtered CSV</a>
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' branch.id %}">Export All CSV</a>
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' branch.id %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">Export Filtered PDF</a>
+            <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' branch.id %}">Export All PDF</a>
         </div>  
         {% comment %} <div class="col-auto pb-2">
            
@@ -98,15 +100,15 @@
                       <nav aria-label="Page navigation example">
                         <ul class="pagination" style="color:yellow;">
                             {% if sale_page.has_previous %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}">previous</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">previous</a></li>
                             {% endif %}
                             {% for i in nums %}
                             <span class="current">
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}">{{forloop.counter}}</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">{{forloop.counter}}</a></li>
                             </span>
                             {% endfor %}
                             {% if sale_page.has_next %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}">next</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">next</a></li>
                             {% endif %}
                         </ul>
                       </nav>

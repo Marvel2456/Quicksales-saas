@@ -1,0 +1,118 @@
+<div class="modal fade" id="viewTicketModal{{ticket.pk}}" tabindex="-1" aria-labelledby="viewTicketModalLabel{{ticket.pk}}" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <div>
+                    <h5 class="modal-title" id="viewTicketModalLabel{{ticket.pk}}">
+                        <i class="fas fa-ticket-alt me-2"></i>{{ticket.title}}
+                    </h5>
+                    <small class="text-muted">{{ticket.date_added|date:"M d, Y H:i"}}</small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Ticket Info Card -->
+                <div class="card border-0 bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title mb-2">Description</h6>
+                        <p class="card-text">{{ticket.description}}</p>
+                        <hr class="my-2">
+                        <div class="row g-2 small">
+                            <div class="col-auto">
+                                <strong>Status:</strong> 
+                                <span class="badge bg-{% if ticket.status == 'Pending' %}warning{% else %}success{% endif %} text-dark">
+                                    {{ ticket.status }}
+                                </span>
+                            </div>
+                            <div class="col-auto">
+                                <strong>Created By:</strong> {{ ticket.staff.get_full_name|default:ticket.staff.email }}
+                            </div>
+                            {% if ticket.assigned_to %}
+                            <div class="col-auto">
+                                <strong>Assigned To:</strong> {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.email }}
+                            </div>
+                            {% endif %}
+                            <div class="col-auto">
+                                <strong>Branch:</strong> {{ ticket.branch.name|default:"N/A" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="mb-3">
+                    <h6 class="mb-3">
+                        <i class="fas fa-comments me-2"></i>Comments
+                        <span class="badge bg-secondary">{{ ticket.comments.all|length }}</span>
+                    </h6>
+                    
+                    {% if ticket.comments.all %}
+                        <div class="comments-list" style="max-height: 300px; overflow-y: auto;">
+                            {% for comment in ticket.comments.all %}
+                            <div class="card border-0 border-start border-2 border-primary mb-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <strong class="small">{{ comment.author.get_full_name|default:comment.author.email }}</strong>
+                                        <small class="text-muted">{{ comment.created_at|date:"M d H:i" }}</small>
+                                    </div>
+                                    <p class="mb-0 small">{{ comment.content }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-sm alert-light border border-1 mb-3" role="alert">
+                            <small class="text-muted">No comments yet. Be the first to add a comment.</small>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Add Comment Form -->
+                <form method="post" action="{% url 'tickets' ticket.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label for="content_{{ticket.pk}}" class="form-label small fw-bold">Add Comment</label>
+                        <textarea name="content" id="content_{{ticket.pk}}" class="form-control form-control-sm" rows="2" placeholder="Write your comment..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-sm app-btn-secondary">
+                        <i class="fa-solid fa-paper-plane me-1"></i>Post Comment
+                    </button>
+                </form>
+
+                <!-- Update Ticket (Managers/Owners Only) -->
+                {% if can_assign %}
+                <hr class="my-3">
+                <div class="bg-light p-2 rounded">
+                    <h6 class="small mb-2"><i class="fas fa-edit me-2"></i>Update Ticket</h6>
+                    <form method="post" action="{% url 'tickets' ticket.id %}">
+                        {% csrf_token %}
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label for="status_{{ticket.pk}}" class="form-label small">Status</label>
+                                <select name="status" id="status_{{ticket.pk}}" class="form-select form-select-sm">
+                                    <option value="Pending" {% if ticket.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                    <option value="Seen" {% if ticket.status == 'Seen' %}selected{% endif %}>Seen</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="assigned_to_{{ticket.pk}}" class="form-label small">Assign To</label>
+                                <select name="assigned_to" id="assigned_to_{{ticket.pk}}" class="form-select form-select-sm">
+                                    <option value="">Unassigned</option>
+                                    {% for team_member in staff %}
+                                    <option value="{{ team_member.id }}" {% if ticket.assigned_to.id == team_member.id %}selected{% endif %}>
+                                        {{ team_member.get_full_name|default:team_member.email }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-sm app-btn-primary mt-2">
+                            <i class="fa-solid fa-save me-1"></i>Update
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

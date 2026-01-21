@@ -89,7 +89,7 @@
                                         {% endif %}
                                     </tr>
                                     {% include 'modals/delete_product.html' %}
-                                    {% include 'modals/modal_edit_product.html' %}
+                                    {% include 'modals/modal_edit_product.html' with categories=category %}
                                     {% endfor %}
                                 </tbody>
                             </table>

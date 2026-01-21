@@ -9,11 +9,23 @@
         {% if user.branch == branch or user.is_admin %}
         <div class="row g-3 mb-4 align-items-center justify-content-between">
             <div class="col-auto">
-                <h1 class="app-page-title mb-0">Inventory</h1>
+                <h1 class="app-page-title mb-0">Physical Count & Variance{% if branch %} — {{ branch.branch_name|default:branch.name }}{% endif %}</h1>
             </div>
             <div class="col-auto">
                  <div class="page-utilities">
                     <div class="row g-2 justify-content-start justify-content-md-end align-items-center">
+                        <div class="col-auto">
+                            <a href="{% url 'upload_count' %}" class="btn app-btn-primary">
+                                <svg class="svg-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5.5a.5.5 0 0 0-1 0v5.995L5.207 4.207a.5.5 0 0 0-.707.707l3.5 3.5a.5.5 0 0 0 .707 0l3.5-3.5a.5.5 0 1 0-.707-.707L8.5 6.495V.5Z" fill="currentColor"/><path d="M14.5 10a.5.5 0 0 0-1 0v3.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-3.5a.5.5 0 0 0-1 0v3.5A1.5 1.5 0 0 0 3.5 15h10a1.5 1.5 0 0 0 1.5-1.5v-3.5Z" fill="currentColor"/></svg>
+                                Bulk Upload
+                            </a>
+                        </div>
+                        <div class="col-auto">
+                            <a href="{% url 'export_count' %}" class="btn app-btn-secondary">
+                                <svg class="svg-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5 13.5a.5.5 0 0 0 1 0v-5.995l2.293 2.293a.5.5 0 0 0 .707-.707l-3.5-3.5a.5.5 0 0 0-.707 0l-3.5 3.5a.5.5 0 1 0 .707.707L7.5 6.505v6.995Z" fill="currentColor"/><path d="M14.5 10a.5.5 0 0 0-1 0v3.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-3.5a.5.5 0 0 0-1 0v3.5A1.5 1.5 0 0 0 3.5 15h10a1.5 1.5 0 0 0 1.5-1.5v-3.5Z" fill="currentColor"/></svg>
+                                Export
+                            </a>
+                        </div>
                         <div class="col-auto">
                             <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
                                 
@@ -31,8 +43,50 @@
             </div><!--col-auto-->
         </div><!--row-->
        
+        <!-- Variance Statistics Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-lg-3">
+                <div class="app-card bg-success-light shadow-sm">
+                    <div class="app-card-body p-3 small">
+                        <h4 class="app-card-title mb-2">Total Items Counted</h4>
+                        <div class="card-text text-success"><strong style="font-size: 1.5rem;">{{ total_items }}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-3">
+                <div class="app-card bg-warning-light shadow-sm">
+                    <div class="app-card-body p-3 small">
+                        <h4 class="app-card-title mb-2">Items with Variance</h4>
+                        <div class="card-text text-warning"><strong style="font-size: 1.5rem;">{{ items_with_variance }}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-3">
+                <div class="app-card bg-danger-light shadow-sm">
+                    <div class="app-card-body p-3 small">
+                        <h4 class="app-card-title mb-2">Total Variance Qty</h4>
+                        <div class="card-text text-danger"><strong style="font-size: 1.5rem;">{{ total_variance_qty }}</strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-3">
+                <div class="app-card bg-info-light shadow-sm">
+                    <div class="app-card-body p-3 small">
+                        <h4 class="app-card-title mb-2">Variance Rate</h4>
+                        <div class="card-text text-info"><strong style="font-size: 1.5rem;">
+                            {% if total_items > 0 %}
+                                {% widthratio items_with_variance total_items 100 %}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+       
         <nav id="orders-table-tab" class="orders-table-tab app-nav-tabs nav shadow-sm flex-column flex-sm-row mb-">
-            <a class="flex-sm-fill text-sm-center nav-link active" id="orders-all-tab" data-bs-toggle="tab" href="#orders-all" role="tab" aria-controls="orders-all" aria-selected="true">Inventory</a>
+            <a class="flex-sm-fill text-sm-center nav-link active" id="orders-all-tab" data-bs-toggle="tab" href="#orders-all" role="tab" aria-controls="orders-all" aria-selected="true">Inventory with Counts</a>
         </nav>
         
         <div class="tab-content" id="orders-table-tab-content">
@@ -43,55 +97,123 @@
                             <table class="table app-table-hover mb-0 text-left" id="example">
                                 <thead>
                                     <tr>
-                                        <th class="cell">id</th>
                                         <th class="cell">Product</th>
-                                        <th class="cell">Count</th>
+                                        <th class="cell">System Qty</th>
+                                        <th class="cell">Physical Count</th>
                                         <th class="cell">Variance</th>
-                                        <th class="cell">Date</th>
-                                        
+                                        <th class="cell">Variance %</th>
+                                        <th class="cell">Status</th>
+                                        <th class="cell">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for audit in audit %}
+                                    {% for item_data in inventory %}
                                     <tr>
-                                        <td class="cell">{{forloop.counter}}</td>
-                                        <td class="cell"><span class="truncate">{{audit.product.product_name}}</span></td>
-                                        <td class="cell">{{audit.count}}</td>
-                                        <td class="cell">{{audit.variance}}</td>
-                                        <td class="cell">{{audit.last_updated}}</td>
-                                        
+                                        <td class="cell"><span class="truncate">{{ item_data.item.product.product_name }}</span></td>
+                                        <td class="cell">{{ item_data.item.store_quantity }}</td>
+                                        <td class="cell">
+                                            {% if item_data.item.count is not None and item_data.item.count != 0 %}
+                                                {{ item_data.item.count }}
+                                            {% else %}
+                                                <span class="badge badge-secondary">Not Counted</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="cell">
+                                            {% if item_data.variance %}
+                                                <span class="badge badge-{{ item_data.variance_status }}">
+                                                    {% if item_data.variance > 0 %}
+                                                        +{{ item_data.variance }}
+                                                    {% else %}
+                                                        {{ item_data.variance }}
+                                                    {% endif %}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge badge-secondary">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="cell">
+                                            {% if item_data.variance_pct %}
+                                                <span class="badge badge-{{ item_data.variance_status }}">{{ item_data.variance_pct|floatformat:1 }}%</span>
+                                            {% else %}
+                                                <span class="badge badge-secondary">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="cell">
+                                            {% if item_data.item.count is not None and item_data.item.count != 0 %}
+                                                {% if item_data.variance == 0 %}
+                                                    <span class="badge badge-success">✓ OK</span>
+                                                {% elif item_data.variance > 0 %}
+                                                    <span class="badge badge-danger">⚠ Overage</span>
+                                                {% elif item_data.variance < 0 %}
+                                                    <span class="badge badge-warning">⚠ Shortage</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge badge-secondary">Not Counted</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="cell">
+                                            <button type="button" class="btn btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#countModal-{{ item_data.item.id }}">
+                                                <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-pencil" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M12.146.145a.513.513 0 0 1 .723 0l2.986 2.986a.513.513 0 0 1 0 .723l-1.708 1.708-3.71-3.71 1.709-1.707zM11.3 2.21L3.862 9.667a.513.513 0 0 0-.102.147l-.043.147-.911 3.051a.513.513 0 0 0 .627.627l3.051-.911.147-.043.147-.102 7.457-7.457-3.71-3.71z"/>
+                                                </svg>
+                                                Record
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <p class="text-muted mb-0">No inventory items found. Start by adding a count.</p>
+                                        </td>
                                     </tr>
                                     {% endfor %}
-                                    
                                 </tbody>
                             </table>
                         </div><!--table-responsive-->
                        
                     </div><!--app-card-body-->		
                 </div><!--app-card-->
-                <div class="pagination">
-                    <span class="step-links">
-                      <nav aria-label="Page navigation example">
-                        <ul class="pagination" style="color:yellow;">
-                            {% if inventory_page.has_previous %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ inventory_page.previous_page_number }}">previous</a></li>
-                            {% endif %}
-                            {% for i in nums %}
-                            <span class="current">
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}">{{forloop.counter}}</a></li>
-                            </span>
-                            {% endfor %}
-                            {% if inventory_page.has_next %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ inventory_page.next_page_number }}">next</a></li>
-                            {% endif %}
-                        </ul>
-                      </nav>
-                    </span>
-                </div>
                 
             </div><!--tab-pane-->
             
         </div><!--//tab-content-->
+
+        <!-- Count Modals for each inventory item -->
+        {% for item_data in inventory %}
+        <div class="modal fade" id="countModal-{{ item_data.item.id }}" tabindex="-1" aria-labelledby="countModalLabel-{{ item_data.item.id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="countModalLabel-{{ item_data.item.id }}">Record Physical Count - {{ item_data.item.product.product_name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="post" action="{% url 'addcount' %}">
+                        {% csrf_token %}
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Product</label>
+                                <input type="text" class="form-control" value="{{ item_data.item.product.product_name }}" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">System Quantity</label>
+                                <input type="text" class="form-control" value="{{ item_data.item.store_quantity }}" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label for="count-{{ item_data.item.id }}" class="form-label"><strong>Physical Count *</strong></label>
+                                <input type="number" id="count-{{ item_data.item.id }}" name="count" class="form-control" value="{{ item_data.item.count|default:'' }}" min="0" required>
+                                <small class="form-text text-muted">Enter the actual physical count</small>
+                            </div>
+                            <input type="hidden" name="id" value="{{ item_data.item.id }}">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Count</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     {% else %} 
     This is not your branch, you can only access your branch!!!
     {% endif %}

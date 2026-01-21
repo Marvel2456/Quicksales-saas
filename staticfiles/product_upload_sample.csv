@@ -1,0 +1,4 @@
+product_name,category,brand,unit,batch_no,cost_price,sale_price,quantity,reorder_level
+Sample Product 1,Electronics,Brand A,Piece,BATCH001,100.00,150.00,50,10
+Sample Product 2,Groceries,Brand B,Kg,BATCH002,50.00,75.00,100,20
+Sample Product 3,Clothing,Brand C,Piece,BATCH003,200.00,300.00,30,5

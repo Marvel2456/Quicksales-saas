@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .header {
+            background-color: {{ organization.brand_color|default:"#007bff" }};
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            border-radius: 0 0 5px 5px;
+            font-size: 12px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: {{ organization.brand_color|default:"#007bff" }};
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            margin-top: 15px;
+        }
+        .ticket-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 3px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>New Support Ticket</h2>
+        </div>
+
+        <div class="content">
+            <p>Hi {{ assigned_to.get_full_name|default:assigned_to.email }},</p>
+
+            <p>A new support ticket has been created in {{ organization.name }} and assigned to you.</p>
+
+            <div class="ticket-details">
+                <strong>Ticket Details:</strong><br>
+                <strong>Title:</strong> {{ ticket.title }}<br>
+                <strong>Description:</strong> {{ ticket.description }}<br>
+                <strong>Branch:</strong> {{ ticket.branch }}<br>
+                <strong>Reported By:</strong> {{ ticket.staff.get_full_name|default:ticket.staff.email }}<br>
+                <strong>Status:</strong> {{ ticket.status }}<br>
+                <strong>Date Created:</strong> {{ ticket.date_added|date:"M d, Y H:i" }}
+            </div>
+
+            <p>Please review and address the ticket as soon as possible.</p>
+
+            <a href="{{ ticket_url }}" class="button">View Ticket</a>
+
+            <p>Thank you!</p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; {{ organization.name }} - Powered by Marvex Quicksales</p>
+        </div>
+    </div>
+</body>
+</html>

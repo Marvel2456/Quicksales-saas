@@ -9,6 +9,15 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 class OwnerRegisterForm(UserCreationForm):
     organization_name = forms.CharField(max_length=255, required=True, label='Organization Name')
     organization_country = forms.CharField(max_length=300, required=False, label='Organization Country')
+    organization_logo = forms.ImageField(required=False, label='Organization Logo')
+    brand_color = forms.CharField(
+        max_length=7, 
+        required=False, 
+        initial='#007bff',
+        label='Brand Color',
+        help_text='Hex color code (e.g., #007bff)',
+        widget=forms.TextInput(attrs={'type': 'color'})
+    )
     branch_name = forms.CharField(max_length=255, required=True, label='Branch Name')
     branch_address = forms.CharField(max_length=255, required=True, label='Branch Address')
     business_type = forms.ChoiceField(
@@ -20,8 +29,8 @@ class OwnerRegisterForm(UserCreationForm):
         model = CustomUser
         fields = (
             'email', 'first_name', 'last_name', 'phone_number',
-            'organization_name', 'branch_name', 'branch_address',
-            'business_type', 'password1', 'password2'
+            'organization_name', 'organization_country', 'organization_logo', 'brand_color',
+            'branch_name', 'branch_address', 'business_type', 'password1', 'password2'
         )
 
 class CustomUserCreationForm(UserCreationForm):

@@ -3,6 +3,7 @@ from account.models import Organization
 import uuid
 from django.db.models import Q, UniqueConstraint
 from django.utils import timezone
+from decimal import Decimal
 
 
 class Plan(models.Model):
@@ -20,6 +21,53 @@ class Plan(models.Model):
     def __str__(self):
         return self.name
     
+
+class Coupon(models.Model):
+    TYPE_CHOICES = (
+        ('percent', 'Percent Off'),
+        ('fixed', 'Fixed Amount'),
+        ('free_month', 'Free Month'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    code = models.CharField(max_length=50, unique=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    value = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    duration_days = models.PositiveIntegerField(default=30)  # used for free_month
+    max_uses = models.PositiveIntegerField(default=100)
+    uses = models.PositiveIntegerField(default=0)
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+
+    def __str__(self):
+        return self.code
+
+    def is_valid(self):
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.start_date and now < self.start_date:
+            return False
+        if self.end_date and now > self.end_date:
+            return False
+        if self.uses >= self.max_uses:
+            return False
+        return True
+
+
+class CouponRedemption(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='redemptions')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='coupon_redemptions')
+    subscription = models.ForeignKey('Subscription', on_delete=models.CASCADE, related_name='coupon_redemptions', null=True, blank=True)
+    used_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.organization} - {self.coupon.code}"
+
 
 class Subscription(models.Model):
     PROVIDER_CHOICES = (
@@ -75,6 +123,7 @@ class Payment(models.Model):
     ('failed', 'Failed'),
     ]
     payment_status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending', blank=True, null=True)
+    coupon = models.ForeignKey('Coupon', on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

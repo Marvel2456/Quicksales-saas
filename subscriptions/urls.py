@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import coupon_views
 
 urlpatterns = [
     path('settings/', views.settingsView, name='settings'),
@@ -11,4 +12,8 @@ urlpatterns = [
 
     # Paystack webhook (asynchronous notification from Paystack)
     path("webhook/paystack/", views.paystack_webhook, name="paystack_webhook"),
+    
+    # Coupon endpoints
+    path("api/validate-coupon/", coupon_views.validate_coupon_api, name="validate_coupon_api"),
+    path("api/apply-coupon/<uuid:subscription_id>/", coupon_views.apply_coupon_to_subscription, name="apply_coupon_to_subscription"),
 ]

@@ -13,6 +13,7 @@ import json
 from account.decorators import role_required
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+from django.db.models import Sum
 
 
 
@@ -232,6 +233,15 @@ def sale_complete(request, pk):
 
     if total == sale.get_cart_total:
         sale.completed = True
+        
+        # Reset physical count for all items in this sale since inventory changed
+        sale_items = sale.salesitem_set.all()
+        for sale_item in sale_items:
+            if sale_item.inventory:
+                inventory_item = sale_item.inventory
+                inventory_item.count = None  # Reset to null
+                inventory_item.variance = 0  # Reset variance
+                inventory_item.save()
 
     sale.save()
 
@@ -276,29 +286,37 @@ def branchSales(request):
 def sales(request, pk):
     organization = request.user.organization
     branch = Branch.objects.get(organization=organization, id=pk)
-    sale = Sale.objects.filter(branch=branch).order_by('-date_updated')
-    paginator = Paginator(Sale.objects.filter(branch=branch).order_by('-date_updated'), 10)
-    page = request.GET.get('page')
-    sale_page = paginator.get_page(page)
-    nums = "a" *sale_page.paginator.num_pages
+    sale_qs = Sale.objects.filter(branch=branch).order_by('-date_updated')
+    
+    # Get filter parameters
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
     rep_contains_query = request.GET.get('rep')
 
-    if start_date_contains != '' and start_date_contains is not None:
-        sale_page = sale.filter(date_updated__gte=start_date_contains)
+    # Apply filters to queryset before pagination
+    if start_date_contains and start_date_contains != '':
+        sale_qs = sale_qs.filter(date_updated__date__gte=start_date_contains)
 
-    if end_date_contains != '' and end_date_contains is not None:
-        sale_page = sale.filter(date_updated__lt=end_date_contains)
+    if end_date_contains and end_date_contains != '':
+        sale_qs = sale_qs.filter(date_updated__date__lte=end_date_contains)
 
-    if rep_contains_query != '' and rep_contains_query is not None:
-        sale_page = sale.filter(staff__first_name__icontains=rep_contains_query)
+    if rep_contains_query and rep_contains_query != '':
+        sale_qs = sale_qs.filter(staff__first_name__icontains=rep_contains_query)
+
+    # Now paginate the filtered queryset
+    paginator = Paginator(sale_qs, 10)
+    page = request.GET.get('page')
+    sale_page = paginator.get_page(page)
+    nums = "a" * sale_page.paginator.num_pages
 
     context = {
         'branch':branch,
-        'sale':sale,
+        'sale':sale_qs,
         'sale_page':sale_page,
-        'nums':nums
+        'nums':nums,
+        'start_date': start_date_contains,
+        'end_date': end_date_contains,
+        'rep': rep_contains_query,
     }
     return render(request, 'ims/sales.html', context)
 
@@ -306,10 +324,44 @@ def sales(request, pk):
 def sale_pdf(request, pk):
     organization = request.user.organization
     branch = Branch.objects.get(organization=organization, id=pk)
-    sale = Sale.objects.filter(branch=branch)
+    sale_qs = Sale.objects.filter(branch=branch).order_by('-date_updated')
+
+    # Apply same filters as sales list view
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    rep = request.GET.get('rep')
+
+    if start_date and start_date != '':
+        sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
+    if end_date and end_date != '':
+        sale_qs = sale_qs.filter(date_updated__date__lte=end_date)
+    if rep and rep != '':
+        sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+
+    # Aggregate totals
+    agg = sale_qs.aggregate(
+        total_sales=Sum('final_total_price'),
+        total_profit=Sum('total_profit'),
+    )
+    total_sales = agg.get('total_sales') or 0
+    total_profit = agg.get('total_profit') or 0
+    total_quantity = sum(s.get_cart_items for s in sale_qs)
 
     template_path = 'ims/salepdf.html'
-    context = {'sale': sale}
+    context = {
+        'sale': sale_qs,
+        'branch': branch,
+        'filters': {
+            'start_date': start_date,
+            'end_date': end_date,
+            'rep': rep,
+        },
+        'summary': {
+            'total_sales': total_sales,
+            'total_profit': total_profit,
+            'total_quantity': total_quantity,
+        }
+    }
     # Create a Django response object, and specify content_type as pdf
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'filename="Sales_report.pdf"'
@@ -338,9 +390,23 @@ def export_sales_csv(request, pk):
     writer = csv.writer(response)
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
-    sale = Sale.objects.filter(branch=branch)
+    sale_qs = Sale.objects.filter(branch=branch)
     
-    for sale in sale:
+    # Apply filters from request
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    rep = request.GET.get('rep')
+    
+    if start_date and start_date != '':
+        sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
+    
+    if end_date and end_date != '':
+        sale_qs = sale_qs.filter(date_updated__date__lte=end_date)
+    
+    if rep and rep != '':
+        sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+    
+    for sale in sale_qs:
         writer.writerow([sale.staff, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
     
     return response
@@ -361,10 +427,10 @@ def export_profit_csv(request, pk):
     sale = Sale.objects.filter(branch = branch)
 
     if start_date_contains:
-        sale = sale.filter(date_updated__gte=start_date_contains)
+        sale = sale.filter(date_updated__date__gte=start_date_contains)
 
     if end_date_contains:
-        sale = sale.filter(date_updated__lt=end_date_contains)
+        sale = sale.filter(date_updated__date__lte=end_date_contains)
 
     total_profits = sum(sale.values_list('total_profit', flat=True))
     for sale in sale:

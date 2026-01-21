@@ -40,6 +40,14 @@ class UserForm(ModelForm):
     class Meta:
         model = CustomUser
         fields = ('first_name', 'last_name', 'phone_number', 'email', 'branch', 'role')
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'branch': forms.Select(attrs={'class': 'form-select'}),
+            'role': forms.Select(attrs={'class': 'form-select'}),
+        }
 
 class ProductForm(ModelForm):
     class Meta:
@@ -199,19 +207,48 @@ class ReorderForm(ModelForm):
         model = Inventory
         fields = ('reorder_level',)
 
+
 class CreateTicketForm(ModelForm):
+    assigned_to = forms.ModelChoiceField(queryset=CustomUser.objects.none(), required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}))
+
+    def __init__(self, *args, **kwargs):
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields['assigned_to'].queryset = CustomUser.objects.filter(organization=organization)
+        # Widgets
+        self.fields['title'].widget = forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Issue title'})
+        self.fields['description'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Describe the issue'})
+
     class Meta:
         model = ErrorTicket
-        fields = ('title', 'description')
+        fields = ('title', 'description', 'assigned_to')
         exclude = ['staff', 'branch']
 
+
 class UpdateTicketForm(ModelForm):
+    assigned_to = forms.ModelChoiceField(queryset=CustomUser.objects.none(), required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}))
+
+    def __init__(self, *args, **kwargs):
+        organization = kwargs.pop('organization', None)
+        super().__init__(*args, **kwargs)
+        if organization:
+            self.fields['assigned_to'].queryset = CustomUser.objects.filter(organization=organization)
+        self.fields['status'].widget = forms.Select(attrs={'class': 'form-select'})
+
     class Meta:
         model = ErrorTicket
-        fields = ('status',)
+        fields = ('status', 'assigned_to')
 
+
+class TicketCommentForm(ModelForm):
+    class Meta:
+        model = TicketComment
+        fields = ('content',)
         widgets = {
-            'status': forms.Select(attrs={'class':'form-select', 'placeholder':'status', 'required':True})
+            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Add a comment...'})
         }
 
 class PaymentForm(ModelForm):
@@ -223,6 +260,18 @@ class AddCountForm(ModelForm):
     class Meta:
         model = Inventory
         fields = ('count',)
+        widgets = {
+            'count': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Physical count', 'min': 0})
+        }
+
+
+class UploadCountForm(forms.Form):
+    """Form for bulk importing physical counts via CSV/Excel"""
+    file = forms.FileField(
+        required=True,
+        help_text='Upload CSV or Excel file with columns: product_name, count',
+        widget=forms.FileInput(attrs={'accept': '.csv,.xlsx,.xls', 'class': 'form-control'})
+    )
 
 
 class UploadProductForm(forms.Form):
