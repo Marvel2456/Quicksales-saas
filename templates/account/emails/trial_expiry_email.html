@@ -1,0 +1,5 @@
+<h2>Hello {{ user.first_name }},</h2>
+<p>Your free trial on <strong>{{ user.organization.name }}</strong> ends on <strong>{{ expiry_date|date:"M d, Y H:i" }}</strong>.</p>
+<p>To keep your access uninterrupted, please upgrade your plan before the trial ends.</p>
+<p>Upgrade here: <a href="{{ upgrade_url }}">{{ upgrade_url }}</a></p>
+<p>Thank you for using Marvex Quicksales!</p>

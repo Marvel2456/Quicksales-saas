@@ -154,8 +154,23 @@ def loginUser(request):
                 organization=organization,
                 branch=user.branch,
                 activity={'Login successful'}
-                
             )
+
+            # Create notification for owner when staff members log in
+            if user.role in ['manager', 'sales'] and organization:
+                owner = organization.owned_by
+                if owner and owner != user:
+                    # Create login notification for owner
+                    login_message = f"{user.get_full_name() or user.email} ({user.role}) logged in"
+                    if user.branch:
+                        login_message += f" at {user.branch.name} branch"
+
+                    Notification.objects.create(
+                        user=owner,
+                        message=login_message,
+                        notification_type='info',
+                        is_read=False
+                    )
 
             messages.success(request, f'Welcome {user.get_full_name()}')
 
@@ -196,8 +211,18 @@ def createBranch(request):
     if request.method == 'POST':
         form = CreateBranchForm(request.POST)
         if form.is_valid():
-            form.save()
+            new_branch = form.save()
             messages.success(request, 'Branch Created Successfully')
+
+            # Notify owner about new branch creation
+            owner = organization.owned_by
+            if owner and owner != request.user:
+                Notification.objects.create(
+                    user=owner,
+                    message=f"New branch created: {new_branch.name}",
+                    notification_type='success',
+                    is_read=False
+                )
             return redirect('branch')
 
     context = {
@@ -465,6 +490,25 @@ def delete_notification(request, pk):
         notification.delete()
         messages.success(request, 'Notification deleted')
     return redirect('notifications')
+
+
+@login_required(login_url='login')
+def mark_notification_read(request, pk):
+    """Mark a single notification as read"""
+    notification = get_object_or_404(Notification, id=pk, user=request.user)
+    notification.is_read = True
+    notification.save()
+    return redirect('notifications')
+
+
+@login_required(login_url='login')
+def mark_all_notifications_read(request):
+    """Mark all unread notifications as read"""
+    if request.method == 'POST':
+        request.user.notifications.filter(is_read=False).update(is_read=True)
+        messages.success(request, 'All notifications marked as read')
+    return redirect('notifications')
+
 
 
 

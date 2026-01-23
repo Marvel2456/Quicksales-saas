@@ -10,12 +10,18 @@
             <div class="app-card shadow-sm p-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h3 class="mb-0">Notifications</h3>
+                    {% if notifications and notifications.paginator.count > 0 %}
+                    <form method="post" action="{% url 'notifications_mark_all_read' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-primary text-white">Mark all as read</button>
+                    </form>
+                    {% endif %}
                 </div>
 
                 {% if notifications and notifications.paginator.count > 0 %}
                     <ul class="list-group list-group-flush">
                         {% for n in notifications %}
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                            <li class="list-group-item d-flex justify-content-between align-items-start {% if not n.is_read %}bg-light{% endif %}">
                                 <div class="ms-2 me-auto">
                                     <div class="fw-semibold">
                                         {% if n.notification_type == 'success' %}
@@ -28,17 +34,30 @@
                                             <span class="badge bg-info text-dark me-2"><i class="fas fa-info-circle"></i></span>
                                         {% endif %}
                                         {{ n.created_at|date:'M d, Y H:i' }}
+                                        {% if not n.is_read %}
+                                            <span class="badge bg-primary ms-2">New</span>
+                                        {% endif %}
                                     </div>
                                     <div class="mt-1">{{ n.message }}</div>
                                 </div>
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-danger btn-delete-notification"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#deleteNotificationModal"
-                                        data-url="{% url 'notification_delete' n.id %}"
-                                        data-message="{{ n.message|truncatechars:80 }}">
-                                    Delete
-                                </button>
+                                <div class="btn-group" role="group">
+                                    {% if not n.is_read %}
+                                    <a href="{% url 'notification_mark_read' n.id %}" 
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Mark as read">
+                                        <i class="fas fa-check"></i>
+                                    </a>
+                                    {% endif %}
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger btn-delete-notification"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#deleteNotificationModal"
+                                            data-url="{% url 'notification_delete' n.id %}"
+                                            data-message="{{ n.message|truncatechars:80 }}"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </li>
                         {% endfor %}
                     </ul>

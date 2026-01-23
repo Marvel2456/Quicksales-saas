@@ -99,6 +99,8 @@ TEMPLATES = [
                 'subscriptions.context_processors.paystack_public_key',
                 'subscriptions.context_processors.subscription_context',
                 'ims.context_processors.ticket_notifications',
+                'account.context_processors.notification_count',
+                'account.context_processors.cart_count',
             ],
         },
     },
@@ -125,6 +127,11 @@ if config('DB_NAME', default=None):
             'PORT': config('DB_PORT', default='5432'),
         }
     }
+    # Production database SSL configuration
+    if ENV == 'production':
+        DATABASES['default']['OPTIONS'] = {
+            'sslmode': 'require',
+        }
 else:
     DATABASES = {
         'default': {
@@ -211,7 +218,7 @@ MEDIA_URL = '/media/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # LOGIN_REDIRECT_URL = 'index'
-# LOGIN_URL = 'login'
+LOGIN_URL = 'login'  # Points to account:login URL
 
 # Subdomain settings
 # DOMAIN = "yourdomain.com"
@@ -229,13 +236,17 @@ PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='')
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
 
 
-
+LOGGING_CONFIG = 'logging.config.dictConfig'
 # Procrastinate logging settings
 LOGGING = {
     "version": 1,
+    "disable_existing_loggers": False,
     "formatters": {
         "procrastinate": {
             "format": "%(asctime)s %(levelname)-7s %(name)s %(message)s"
+        },
+        "default": {
+            "format": "[%(levelname)s] %(name)s: %(message)s"
         },
     },
     "handlers": {
@@ -244,6 +255,11 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "procrastinate",
         },
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
     },
     "loggers": {
         "procrastinate": {
@@ -251,17 +267,47 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "ims": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "account": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }
 
+# Session Configuration - Logout after 10 minutes of inactivity
+SESSION_COOKIE_AGE = 600  # 10 minutes in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Update session on every request to track activity
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Expire session when browser closes
 
 if ENV == 'production':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=True)
+    
+    # Session Cookie Security
     SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Strict'
+    
+    # CSRF Cookie Security
     CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_SAMESITE = 'Strict'
+    
+    # HTTP Strict Transport Security (HSTS)
     SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', cast=int, default=31536000)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    
+    # Additional Security Headers
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    REFERRER_POLICY = 'strict-origin-when-cross-origin'
 else:
     SECURE_SSL_REDIRECT = False

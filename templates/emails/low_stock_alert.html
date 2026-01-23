@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #dc3545;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #333;
+        }
+        .detail-value {
+            color: #666;
+        }
+        .warning {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>⚠️ Low Stock Alert</h2>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{ owner_name }},</p>
+            
+            <div class="alert-box">
+                <p>Your product <strong>{{ product_name }}</strong> in the <strong>{{ branch_name }}</strong> branch is running low on stock.</p>
+            </div>
+            
+            <h3>Stock Details</h3>
+            <div class="details">
+                <div class="detail-row">
+                    <span class="detail-label">Product:</span>
+                    <span class="detail-value">{{ product_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Branch:</span>
+                    <span class="detail-value">{{ branch_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Current Stock:</span>
+                    <span class="detail-value"><strong class="warning">{{ current_stock }} units</strong></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Reorder Level:</span>
+                    <span class="detail-value">{{ reorder_level }} units</span>
+                </div>
+            </div>
+            
+            <p>Please consider placing a new order to replenish your inventory and avoid stockouts.</p>
+            
+            <p>You can log in to your {{ organization_name }} dashboard to manage your inventory and place orders.</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated alert from {{ organization_name }}. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -20,6 +20,8 @@ urlpatterns = [
     # Notifications
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/<uuid:pk>/delete/', views.delete_notification, name='notification_delete'),
+    path('notifications/<uuid:pk>/mark-read/', views.mark_notification_read, name='notification_mark_read'),
+    path('notifications/mark-all-read/', views.mark_all_notifications_read, name='notifications_mark_all_read'),
     # path('settings/', views.settingsView, name='settings'),
     # path("settings/edit_organization/<uuid:pk>/", views.editOrganization, name="edit_organization"),
     # path('plan/', views.planView, name='plan'),

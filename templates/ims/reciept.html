@@ -7,17 +7,22 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
         <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
-        <title class="hidden-print">Quicksales</title>
+        <title class="hidden-print">{{ organization.name }} - Receipt</title>
     </head>
     <body>
         <div class="container">
             <div class="row">
                 <div class="col-12 pt-2">
                     <div class="text-center">
-                        <img src="" alt="Logo">
-                        <h2><strong>Quicksales</strong></h2><hr><br>
+                        {% if organization.logo %}
+                            <img src="{{ organization.logo.url }}" alt="{{ organization.name }}" style="max-height: 80px; margin-bottom: 10px;">
+                        {% endif %}
+                        <h2><strong>{{ organization.name }}</strong></h2>
+                        <p><strong>{{ branch.name }}</strong></p>
+                        <hr><br>
                         <p>Date: {{sale.date_added|date:"D, d M, Y"}}</p>
-                        <p>Total Sales: {{sale.final_total_price}}</p>
+                        <p>Transaction ID: {{sale.transaction_id}}</p>
+                        <p>Sales Rep: {{sale.staff.get_full_name}}</p>
                     </div><hr><br>
                     <div>
                         <table class="table text-center">
@@ -40,6 +45,11 @@
                             {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <div class="text-center mt-3 mb-3">
+                        <p><strong>Total: ₦{{sale.final_total_price}}</strong></p>
+                        <p>Payment Method: {{sale.method}}</p>
                     </div>
                     
                     <button class="btn btn-secondary hidden-print" id="btnPrint">Print</button>

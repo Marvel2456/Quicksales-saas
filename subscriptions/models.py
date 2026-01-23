@@ -7,8 +7,27 @@ from decimal import Decimal
 
 
 class Plan(models.Model):
+    TIER_CHOICES = (
+        ('basic', 'Basic'),
+        ('growth', 'Growth'),
+        ('premium', 'Premium'),
+    )
+    SIZE_CHOICES = (
+        ('starter', 'Starter'),
+        ('large', 'Large'),
+        ('xl', 'XL'),
+    )
+    BILLING_FREQUENCY_CHOICES = (
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('annually', 'Annually'),
+    )
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    tier = models.CharField(max_length=20, choices=TIER_CHOICES, default='basic')
+    size = models.CharField(max_length=20, choices=SIZE_CHOICES, default='starter')
+    billing_frequency = models.CharField(max_length=20, choices=BILLING_FREQUENCY_CHOICES, default='monthly')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     duration_in_days = models.PositiveIntegerField(default=30)
     description = models.TextField(blank=True, null=True)
@@ -20,6 +39,10 @@ class Plan(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        ordering = ['tier', 'size', 'billing_frequency']
+        unique_together = ('tier', 'size', 'billing_frequency')
     
 
 class Coupon(models.Model):

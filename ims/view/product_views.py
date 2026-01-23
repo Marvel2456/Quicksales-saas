@@ -270,6 +270,10 @@ def upload_product(request):
                                 inventory.reorder_level = reorder_level
                                 inventory.status = 'Available' if inventory.quantity > 0 else 'Restocking'
                                 inventory.save()
+
+                            # Reset quantity_restocked so subsequent non-restock saves (e.g., sales) don't carry this value
+                            Inventory.objects.filter(id=inventory.id).update(quantity_restocked=0)
+                            inventory.quantity_restocked = 0
                             
                             if is_new_product:
                                 created_count += 1
@@ -372,6 +376,9 @@ def upload_product(request):
                     inventory.reorder_level = reorder_level
                     inventory.status = 'Available' if inventory.quantity > 0 else 'Restocking'
                     inventory.save()
+
+                # Reset quantity_restocked so future saves (like sales) don't look like restocks
+                Inventory.objects.filter(id=inventory.id).update(quantity_restocked=0)
 
                 messages.success(
                     request,

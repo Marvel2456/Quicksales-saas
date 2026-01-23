@@ -3,7 +3,7 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from datetime import datetime, date
 from ims.models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket
-from account.models import CustomUser, Branch, ActivityLog
+from account.models import CustomUser, Branch, ActivityLog, Notification
 from django.contrib.auth.decorators import login_required
 from ims.forms import *
 from django.core.paginator import Paginator
@@ -96,6 +96,15 @@ def staffs(request, pk):
                 messages.warning(
                     request,
                     f"Staff account created but email failed to send. Please provide credentials manually. Error: {str(e)}"
+                )
+
+            # Create notification for owner about new staff member
+            if organization.owned_by and organization.owned_by != request.user:
+                Notification.objects.create(
+                    user=organization.owned_by,
+                    message=f"New staff member added: {staff_user.get_full_name() or staff_user.email} ({staff_user.role}) to {branch.name} branch",
+                    notification_type='success',
+                    is_read=False
                 )
             
             return redirect('staff', pk=branch.id)

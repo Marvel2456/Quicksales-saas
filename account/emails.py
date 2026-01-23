@@ -65,9 +65,16 @@ def send_subscription_renewal_email(user, renewal_link):
 
 
 # Trial expiry reminder email
-def send_trial_expiry_email(user, expiry_date):
+def send_trial_expiry_email(user, expiry_date, upgrade_url):
     subject = _("Trial Expiry Reminder")
-    html_message = render_to_string('account/emails/trial_expiry_email.html', {'user': user, 'expiry_date': expiry_date})
+    html_message = render_to_string(
+        'account/emails/trial_expiry_email.html',
+        {
+            'user': user,
+            'expiry_date': expiry_date,
+            'upgrade_url': upgrade_url,
+        },
+    )
     plain_message = strip_tags(html_message)
     from_email = settings.DEFAULT_FROM_EMAIL
     to_email = user.email

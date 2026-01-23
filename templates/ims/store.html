@@ -33,19 +33,25 @@
             {% for inventory in inventory_page %}
             {% comment %} {% if inventory.branch == user.branch %} {% endcomment %}
             <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
-                <div class="app-card app-card-doc shadow-sm  h-100">
+                <div class="app-card app-card-doc shadow-sm  h-100 {% if inventory.store_quantity <= 0 %}opacity-50{% endif %}">
                     <div class="app-card-thumb-holder p-3">
-                        <a class="btn add-cart"
-                            data-inventory="{{ inventory.id }}"
-                            data-action="add"
-                            data-branch="{{ branch.id }}"
-                            data-url="{% url 'update_cart' branch.id %}">
-                        <span class="icon-holder">
-                            <i class="fa-solid fa-cart-plus"></i>
-                        </span>
-                        </a>
-
-
+                        {% if inventory.store_quantity > 0 %}
+                            <a class="btn add-cart"
+                                data-inventory="{{ inventory.id }}"
+                                data-action="add"
+                                data-branch="{{ branch.id }}"
+                                data-url="{% url 'update_cart' branch.id %}">
+                            <span class="icon-holder">
+                                <i class="fa-solid fa-cart-plus"></i>
+                            </span>
+                            </a>
+                        {% else %}
+                            <div class="btn btn-secondary disabled" style="cursor: not-allowed; opacity: 0.6;">
+                                <span class="icon-holder">
+                                    <i class="fa-solid fa-ban"></i>
+                                </span>
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="app-card-body p-3 has-card-actions">
                         
@@ -54,6 +60,13 @@
                             <ul class="list-unstyled mb-0">
                                 <li><span class="text-muted">Category:</span> {{inventory.product.category}}</li>
                                 <li><span class="text-muted">Price:</span> {{inventory.sale_price}}</li>
+                                <li>
+                                    {% if inventory.store_quantity > 0 %}
+                                        <span class="badge bg-success">In Stock ({{ inventory.store_quantity }})</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Out of Stock</span>
+                                    {% endif %}
+                                </li>
                             </ul>
                         </div><!--//app-doc-meta-->
 

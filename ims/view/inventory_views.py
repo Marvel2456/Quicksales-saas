@@ -203,7 +203,10 @@ def restock(request, pk):
         if form.is_valid():
             restocked_inventory = form.save(commit=False)
             restocked_inventory.quantity += restocked_inventory.quantity_restocked
+            restocked_inventory.quantity_restocked = restocked_inventory.quantity_restocked or 0
             restocked_inventory.save()
+            # Reset quantity_restocked to zero so future non-restock saves (e.g., sales) don't carry old restock values into history
+            Inventory.objects.filter(id=restocked_inventory.id).update(quantity_restocked=0)
             messages.success(request, 'Successfully updated')
             return redirect('inventorys', pk=restocked_inventory.branch.id)
     else:

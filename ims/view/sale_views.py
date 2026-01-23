@@ -3,7 +3,7 @@ from django.http import HttpResponseRedirect
 from django.contrib import messages
 from datetime import datetime, date
 from ims.models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket
-from account.models import CustomUser, Branch, ActivityLog
+from account.models import CustomUser, Branch, ActivityLog, Notification
 from django.contrib.auth.decorators import login_required
 from ims.forms import *
 from django.core.paginator import Paginator
@@ -82,17 +82,48 @@ def cart(request, pk):
         branch = Branch.objects.get(organization=organization, id=pk)
         inventory = Inventory.objects.filter(branch=branch)
 
-        sale, _ = Sale.objects.get_or_create(
-            staff=staff, branch=branch, organization=organization, completed=False
-        )
+        sale = None
+        items = []
 
-        items = sale.salesitem_set.all()
+        # Get active sale ID from session without creating a new one
+        active_sale_id = request.session.get(f'active_sale_{branch.id}')
+        if active_sale_id:
+            try:
+                sale = Sale.objects.get(
+                    id=active_sale_id,
+                    staff=staff,
+                    branch=branch,
+                    completed=False,
+                    cancelled=False,
+                )
+                items = sale.salesitem_set.all()
+            except Sale.DoesNotExist:
+                request.session.pop(f'active_sale_{branch.id}', None)
+                sale = None
+
+        # Get all open sales for this staff/branch (exclude cancelled)
+        open_sales = Sale.objects.filter(
+            staff=staff,
+            branch=branch,
+            organization=organization,
+            completed=False,
+            cancelled=False,
+        ).order_by('-date_added')
+
+        # If no active sale in session but there are open sales, restore the most recent one
+        # (user logged back in after session expired)
+        if sale is None and open_sales.exists():
+            sale = open_sales.first()
+            request.session[f'active_sale_{branch.id}'] = str(sale.id)
+            items = sale.salesitem_set.all()
         
     context = {
         'branch':branch,
         'items':items,
         'sale':sale,
-        'inventory':inventory
+        'inventory':inventory,
+        'open_sales': open_sales,
+        'active_sale_id': str(sale.id) if sale else '',
     }
     return render(request, 'ims/cart.html', context)
 
@@ -108,9 +139,24 @@ def checkout(request, pk):
         branch = Branch.objects.get(organization=organization, id=pk)
         inventory = Inventory.objects.filter(branch=branch)
 
-        sale, _ = Sale.objects.get_or_create(
-            staff=staff, branch=branch, organization=organization, completed=False
-        )
+        # Get active sale from session
+        active_sale_id = request.session.get(f'active_sale_{branch.id}')
+        if active_sale_id:
+            try:
+                sale = Sale.objects.get(
+                    id=active_sale_id,
+                    staff=staff,
+                    branch=branch,
+                    completed=False,
+                    cancelled=False,
+                )
+            except Sale.DoesNotExist:
+                request.session.pop(f'active_sale_{branch.id}', None)
+                messages.error(request, 'Active sale not found, please start a new sale')
+                return redirect('store', pk=branch.id)
+        else:
+            messages.error(request, 'No active sale. Add an item from the store to start a sale.')
+            return redirect('store', pk=branch.id)
 
         items = sale.salesitem_set.all()
         form = PaymentForm()
@@ -141,10 +187,40 @@ def updateCart(request, pk):
     staff = request.user
     branch = Branch.objects.get(organization=organization, id=pk)
     inventory = Inventory.objects.filter(branch_id = branch).get(id=inventoryId)
-    sale, _ = Sale.objects.get_or_create(
-        staff=staff, branch=branch, organization=organization, completed=False
-    )
+    
+    # Check if product is in stock
+    if inventory.quantity <= 0:
+        return JsonResponse({'error': 'Product is out of stock'}, status=400)
+    
+    # Get active sale from session
+    active_sale_id = request.session.get(f'active_sale_{branch.id}')
+    sale = None
+    if active_sale_id:
+        try:
+            sale = Sale.objects.get(
+                id=active_sale_id,
+                staff=staff,
+                branch=branch,
+                completed=False,
+                cancelled=False,
+            )
+        except Sale.DoesNotExist:
+            sale = None
 
+    # Reuse last open sale if session missing
+    if sale is None:
+        sale = Sale.objects.filter(
+            staff=staff,
+            branch=branch,
+            organization=organization,
+            completed=False,
+            cancelled=False,
+        ).order_by('-date_added').first()
+
+    # Create sale only when first item is added and none exist
+    if sale is None:
+        sale = Sale.objects.create(staff=staff, branch=branch, organization=organization)
+        request.session[f'active_sale_{branch.id}'] = str(sale.id)
 
     saleItem, created = SalesItem.objects.get_or_create(
         sale=sale, branch=branch, inventory=inventory
@@ -183,7 +259,22 @@ def updateQuantity(request, pk):
     except Inventory.DoesNotExist:
         return JsonResponse({'error': 'Inventory not found'}, status=404)
 
-    sale, _ = Sale.objects.get_or_create(staff=staff, organization=organization, branch=branch, completed=False)
+    # Get active sale from session
+    active_sale_id = request.session.get(f'active_sale_{branch.id}')
+    if not active_sale_id:
+        return JsonResponse({'error': 'No active sale'}, status=400)
+
+    try:
+        sale = Sale.objects.get(
+            id=active_sale_id,
+            staff=staff,
+            branch=branch,
+            completed=False,
+            cancelled=False,
+        )
+    except Sale.DoesNotExist:
+        return JsonResponse({'error': 'Active sale not found'}, status=404)
+    
     saleItem, _ = SalesItem.objects.get_or_create(sale=sale, branch=branch, inventory=inventory)
 
     saleItem.quantity = input_value
@@ -215,12 +306,38 @@ def sale_complete(request, pk):
     except Branch.DoesNotExist:
         return JsonResponse({'error': 'Branch not found'}, status=404)
 
+    # Get active sale from session
+    active_sale_id = request.session.get(f'active_sale_{branch.id}')
+    if not active_sale_id:
+        return JsonResponse({'error': 'No active sale session'}, status=404)
+    
     try:
         sale = Sale.objects.get(
-            staff=staff, branch=branch, organization=organization, completed=False
+            id=active_sale_id,
+            staff=staff,
+            branch=branch,
+            organization=organization,
+            completed=False,
+            cancelled=False,
         )
     except Sale.DoesNotExist:
-        return JsonResponse({'error': 'No open sale found'}, status=404)
+        # Sale might already be completed, check for it
+        try:
+            existing_sale = Sale.objects.get(
+                id=active_sale_id,
+                staff=staff,
+                branch=branch,
+                organization=organization,
+            )
+            if existing_sale.completed:
+                return JsonResponse({'error': 'Sale already completed'}, status=400)
+            else:
+                return JsonResponse({'error': 'No open sale found'}, status=404)
+        except Sale.DoesNotExist:
+            return JsonResponse({'error': 'No open sale found'}, status=404)
+
+    if sale.cancelled:
+        return JsonResponse({'error': 'Sale already cancelled'}, status=400)
 
     sale.transaction_id = transaction_id
     total = float(data['payment']['total_cart'])
@@ -232,18 +349,49 @@ def sale_complete(request, pk):
         sale.method = method
 
     if total == sale.get_cart_total:
+        # Check if inventory has already been reduced for this completed sale
+        if sale.completed:
+            return JsonResponse({'error': 'Sale already completed and inventory adjusted'}, status=400)
+            
         sale.completed = True
         
-        # Reset physical count for all items in this sale since inventory changed
-        sale_items = sale.salesitem_set.all()
+        # Reduce inventory for all items in this sale ONLY ONCE
+        # Convert to list to avoid lazy evaluation issues with queryset
+        sale_items = list(sale.salesitem_set.all())
+        
         for sale_item in sale_items:
             if sale_item.inventory:
+                # IMPORTANT: Refresh inventory from DB to get latest state
                 inventory_item = sale_item.inventory
+                inventory_item.refresh_from_db()
+                
+                # Reduce quantity by the amount sold
+                inventory_item.quantity -= sale_item.quantity
+                inventory_item.quantity_restocked = 0  # Prevent restock marker from leaking into history
                 inventory_item.count = None  # Reset to null
                 inventory_item.variance = 0  # Reset variance
                 inventory_item.save()
+        
+        # NOTE: Keep SalesItems for sale history. They won't be counted in store_quantity
+        # because store_quantity now only counts items from open (incomplete) sales.
+        # This prevents double-tracking while preserving sales history.
+        
+        # Notify owner of high-value sales (e.g., sales over 50000)
+        if sale.final_total_price and sale.final_total_price >= 50000:
+            owner = organization.owned_by
+            if owner and owner != staff:
+                Notification.objects.create(
+                    user=owner,
+                    message=f"High-value sale completed: ₦{sale.final_total_price:,.2f} by {staff.get_full_name() or staff.email} at {branch.name} branch",
+                    notification_type='success',
+                    is_read=False
+                )
 
     sale.save()
+    
+    # Clear active sale from session if it was completed
+    if sale.completed:
+        request.session.pop(f'active_sale_{branch.id}', None)
 
     messages.success(request, 'sale completed')
 
@@ -442,9 +590,108 @@ def export_profit_csv(request, pk):
     
     
     return response
+
+
+# Multiple concurrent sales management endpoints
+
+@role_required(roles=['owner', 'sales'])
+@login_required
+def create_new_sale(request, pk):
+    """Create a new sale and set it as active"""
+    organization = request.user.organization
+    staff = request.user
     
+    try:
+        branch = Branch.objects.get(organization=organization, id=pk)
+    except Branch.DoesNotExist:
+        messages.error(request, 'Branch not found')
+        return redirect('store', pk=pk)
+    
+    # Create new sale immediately
+    sale = Sale.objects.create(staff=staff, branch=branch, organization=organization)
+    
+    # Set as active sale in session
+    request.session[f'active_sale_{branch.id}'] = str(sale.id)
+    
+    messages.success(request, 'New sale created. Add items from the store.')
+    return redirect('store', pk=branch.id)
 
 
+@role_required(roles=['owner', 'sales'])
+@login_required
+def switch_sale(request, pk, sale_id):
+    """Switch to a different open sale"""
+    organization = request.user.organization
+    staff = request.user
+    
+    try:
+        branch = Branch.objects.get(organization=organization, id=pk)
+        sale = Sale.objects.get(
+            id=sale_id, staff=staff, branch=branch, 
+            organization=organization, completed=False
+        )
+    except (Branch.DoesNotExist, Sale.DoesNotExist):
+        messages.error(request, 'Sale not found')
+        return redirect('cart', pk=pk)
+    
+    # Set as active sale in session
+    request.session[f'active_sale_{branch.id}'] = str(sale.id)
+    
+    messages.success(request, f'Switched to sale (ID: {sale.id.hex[:8]})')
+    return redirect('cart', pk=branch.id)
+
+
+@role_required(roles=['owner', 'sales'])
+@login_required
+def cancel_sale(request, pk, sale_id):
+    """Cancel a sale but keep history for reporting"""
+    organization = request.user.organization
+    staff = request.user
+    
+    try:
+        branch = Branch.objects.get(organization=organization, id=pk)
+        sale = Sale.objects.get(
+            id=sale_id, staff=staff, branch=branch,
+            organization=organization, completed=False
+        )
+    except (Branch.DoesNotExist, Sale.DoesNotExist):
+        messages.error(request, 'Sale not found')
+        return redirect('cart', pk=pk)
+    
+    # Restore inventory quantities ONLY if the sale was completed
+    # (Open sales never reduced inventory - they only reserved items in store_quantity)
+    sale_items = sale.salesitem_set.all()
+    
+    if sale.completed:
+        # This should rarely happen as we look for completed=False above
+        # But just in case, restore only if the sale was completed
+        for sale_item in sale_items:
+            if sale_item.inventory:
+                inventory_item = sale_item.inventory
+                # Restore the quantity by adding back what was in the sale
+                inventory_item.quantity += sale_item.quantity
+                inventory_item.save()
+    
+    # NOTE: Keep SalesItems for sale history. The cancelled flag on Sale prevents
+    # them from being counted in store_quantity calculations.
+    # For open sales being cancelled: the SalesItems disappearing from open_salesitems
+    # query will automatically increase store_quantity (no manual restoration needed)
+    
+    # Mark sale as cancelled but keep record
+    sale.cancelled = True
+    sale.completed = True
+    sale.final_total_price = 0
+    sale.total_profit = 0
+    sale.transaction_id = sale.transaction_id or f"CANCEL-{int(datetime.now().timestamp())}"
+    sale.save(update_fields=['cancelled', 'completed', 'final_total_price', 'total_profit', 'transaction_id'])
+    
+    # Clear from session if it was the active sale
+    active_sale_id = request.session.get(f'active_sale_{branch.id}')
+    if active_sale_id == str(sale_id):
+        request.session.pop(f'active_sale_{branch.id}', None)
+    
+    messages.success(request, 'Sale cancelled successfully')
+    return redirect('cart', pk=branch.id)
 
 
 @role_required(roles=['owner', 'sales'])
@@ -462,6 +709,7 @@ def reciept(request, pk):
         'salesitem': salesitem,
         'sale': sale,
         'branch': sale.branch,
+        'organization': organization,
     }
     return render(request, 'ims/reciept.html', context)
 

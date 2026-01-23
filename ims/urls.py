@@ -15,10 +15,12 @@ from ims.view.audit_views import (
 )
 from ims.view.sale_views import (
     sale_complete, checkout, reciept, branchStore, store, sales, sale_pdf, branchSales,
-    updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData 
+    updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData,
+    create_new_sale, switch_sale, cancel_sale
 )
 from ims.view.team_views import (staffs, staff, edit_staff, delete_staff, record, 
                                  branchTeam, branchRecord)
+from ims.view.test_signal_view import test_low_stock_signal_view
 
 
 
@@ -99,6 +101,12 @@ urlpatterns = [
     path('export_sales/<uuid:pk>/', export_sales_csv, name= 'export_sales'),
     path('export_profit/<uuid:pk>/export/', export_profit_csv, name= 'export_profit'),
     path('profitData/<str:pk>/', profitData, name='profitData'),
+    
+    # Multiple concurrent sales URLs
+    path('sale/<uuid:pk>/new/', create_new_sale, name='create_new_sale'),
+    path('sale/<uuid:pk>/switch/<uuid:sale_id>/', switch_sale, name='switch_sale'),
+    path('sale/<uuid:pk>/cancel/<uuid:sale_id>/', cancel_sale, name='cancel_sale'),
+    
     path('sale-pdf/<uuid:pk>/', sale_pdf, name='sale-pdf'),
     
 
@@ -124,6 +132,8 @@ urlpatterns = [
     path('branchrep/', views.branchReport, name='branchrep'),
     path('reports/<uuid:pk>/', views.report, name='reports'),
     
+    # Test URL - remove in production
+    path('test-low-stock-signal/', test_low_stock_signal_view, name='test_low_stock_signal'),
     
     
 ]

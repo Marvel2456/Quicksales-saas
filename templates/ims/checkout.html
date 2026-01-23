@@ -91,14 +91,19 @@
 
 
     function submitPayment(){
-        console.log('paymrnt')
+        console.log('payment processing')
         let method = document.getElementById('method').value
         if (!method) {
             alert("Please select a payment method")
             return
         }
+        
+        // Disable button to prevent double submission
+        let payBtn = document.getElementById('pay')
+        payBtn.disabled = true
+        payBtn.textContent = 'Processing...'
+        
         let paymentData = {
-            
             'total_cart':total_cart,
             'method': method
         }
@@ -117,6 +122,13 @@
         .then((data) =>{
             console.log('Success', data)
             window.location.href = `/ims/reciept/${data.sale_id}/`
+        })
+        .catch(error => {
+            console.error('Error:', error)
+            alert('Payment processing failed. Please try again.')
+            // Re-enable button on error
+            payBtn.disabled = false
+            payBtn.textContent = 'Confirm Payment'
         })
 
 

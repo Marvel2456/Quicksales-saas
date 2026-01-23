@@ -63,6 +63,7 @@
                                     <tr>
                                         <th class="cell">Sales Rep</th>
                                         <th class="cell">Trans Id</th>
+                                        <th class="cell">Status</th>
                                         <th class="cell">Method</th>
                                         <th class="cell">Date</th>
                                         <th class="cell">Quantity</th>
@@ -77,6 +78,15 @@
                                     <tr>
                                         <td class="cell">{{sale.staff.first_name}}</td>
                                         <td class="cell"><span class="truncate">{{sale.transaction_id}}</span></td>
+                                        <td class="cell">
+                                            {% if sale.cancelled %}
+                                                <span class="badge bg-danger">Cancelled</span>
+                                            {% elif sale.completed %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Open</span>
+                                            {% endif %}
+                                        </td>
                                         <td class="cell"><span>{{sale.method}}</span></td>
                                         <td class="cell"><span>{{sale.date_updated}}</span></td>
                                         <td class="cell"><span class="badge bg-success">{{sale.get_cart_items}}</span></td>

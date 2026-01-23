@@ -1,8 +1,17 @@
 from django.shortcuts import render
+from subscriptions.models import Plan
 
 # Create your views here.
 
 
 def landingPage(request):
-    return render(request, 'pages/landing_page.html')
+    # Get tier and size choices from the Plan model
+    tier_choices = Plan.TIER_CHOICES
+    size_choices = Plan.SIZE_CHOICES
+    
+    context = {
+        'tier_choices': tier_choices,
+        'size_choices': size_choices,
+    }
+    return render(request, 'pages/landing_page.html', context)
 

@@ -78,12 +78,18 @@ class Inventory(models.Model):
 
     @property
     def store_quantity(self):
-        salesitem = self.salesitem_set.all()
-        store = self.quantity - sum([item.quantity for item in salesitem])
+        # Only count items from OPEN (incomplete, non-cancelled) sales
+        # Completed or cancelled sales should not reduce available quantity
+        open_salesitems = self.salesitem_set.filter(
+            sale__completed=False,
+            sale__cancelled=False
+        )
+        store = self.quantity - sum([item.quantity for item in open_salesitems])
         return store
 
     @property
     def quantity_sold(self):
+        # Count items from all sales (for reporting)
         salesitem = self.salesitem_set.all()
         sold = sum([item.quantity for item in salesitem])
         return sold
@@ -107,6 +113,7 @@ class Sale(models.Model):
     )
     method = models.CharField(max_length=50, choices=choices,default="Cash", blank=True, null=True)
     completed = models.BooleanField(default=False)
+    cancelled = models.BooleanField(default=False)
     history = HistoricalRecords()
 
     def __str__(self):

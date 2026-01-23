@@ -19,6 +19,78 @@ from account.emails import send_subscription_success_email
 from decimal import Decimal
 
 
+def get_or_create_plan(tier, size, billing_frequency):
+    """Get or create a Plan based on tier, size, and billing frequency"""
+    # Define plan properties based on tier and size
+    tier_upper = tier.lower()
+    size_upper = size.lower()
+    freq_upper = billing_frequency.lower()
+    
+    # Generate a meaningful name
+    tier_display = dict(Plan.TIER_CHOICES).get(tier_upper, tier)
+    size_display = dict(Plan.SIZE_CHOICES).get(size_upper, size)
+    freq_display = dict(Plan.BILLING_FREQUENCY_CHOICES).get(freq_upper, billing_frequency)
+    
+    plan_name = f"{tier_display} {size_display} - {freq_display}"
+    
+    # Define features based on tier
+    tier_features = {
+        'basic': {'users': 1, 'branches': 1, 'products': 100},
+        'growth': {'users': 5, 'branches': 5, 'products': 1000},
+        'premium': {'users': 20, 'branches': 20, 'products': 5000}
+    }
+    
+    # Define base prices based on tier and size
+    base_prices = {
+        'basic': {'starter': 15000, 'large': 25000, 'xl': 40000},
+        'growth': {'starter': 35000, 'large': 60000, 'xl': 100000},
+        'premium': {'starter': 80000, 'large': 150000, 'xl': 250000}
+    }
+    
+    # Get base price
+    base_price = base_prices.get(tier_upper, {}).get(size_upper, 15000)
+    
+    # Apply billing frequency multiplier
+    freq_multipliers = {
+        'monthly': 1.0,
+        'quarterly': 0.95,   # 5% discount
+        'annually': 0.85      # 15% discount
+    }
+    
+    multiplier = freq_multipliers.get(freq_upper, 1.0)
+    final_price = int(base_price * multiplier)
+    
+    # Duration in days based on frequency
+    duration_map = {
+        'monthly': 30,
+        'quarterly': 90,
+        'annually': 365
+    }
+    
+    duration = duration_map.get(freq_upper, 30)
+    
+    # Get features
+    features = tier_features.get(tier_upper, {'users': 1, 'branches': 1, 'products': 100})
+    
+    # Get or create the plan
+    plan, created = Plan.objects.get_or_create(
+        tier=tier_upper,
+        size=size_upper,
+        billing_frequency=freq_upper,
+        defaults={
+            'name': plan_name,
+            'price': final_price,
+            'duration_in_days': duration,
+            'description': f"{tier_display} plan with {size_display} capacity",
+            'max_users': features['users'],
+            'max_branches': features['branches'],
+            'max_products': features['products'],
+        }
+    )
+    
+    return plan
+
+
 def apply_coupon(coupon_code, organization, plan):
     """
     Apply a coupon to a plan and return adjusted amount.
@@ -91,12 +163,15 @@ def settingsView(request):
     
     organization = request.user.organization
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
-    plans = Plan.objects.all().exclude(name='Free').order_by('price')
+    plans = Plan.objects.all().exclude(name='Free').order_by('tier', 'size', 'billing_frequency')
 
     context = {
         'organization': organization,
         'subscription': subscription,
-        'plans': plans
+        'plans': plans,
+        'tier_choices': Plan.TIER_CHOICES,
+        'size_choices': Plan.SIZE_CHOICES,
+        'billing_frequency_choices': Plan.BILLING_FREQUENCY_CHOICES,
     }
     return render(request, 'account/settings.html', context)
 
@@ -220,12 +295,23 @@ def init_payment(request, plan_id):
 def create_payment(request):
     data = json.loads(request.body)
     reference = data.get("reference")
-    plan_id = data["plan_id"]
-    amount = data["amount"]
+    
+    # Support both old plan_id format and new tier/size/frequency format
+    if "plan_id" in data:
+        plan = get_object_or_404(Plan, id=data["plan_id"])
+    else:
+        # New format: tier, size, billing_frequency
+        tier = data.get("tier")
+        size = data.get("size")
+        frequency = data.get("frequency")
+        if not all([tier, size, frequency]):
+            return JsonResponse({"error": "Missing plan parameters"}, status=400)
+        plan = get_or_create_plan(tier, size, frequency)
+    
+    amount = data.get("amount", float(plan.price))
     coupon_code = data.get("coupon_code", "")
     is_free = data.get("is_free", False)
 
-    plan = get_object_or_404(Plan, id=plan_id)
     coupon = None
     
     # Handle coupon if provided

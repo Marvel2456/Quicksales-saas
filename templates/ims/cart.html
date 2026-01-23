@@ -5,6 +5,50 @@
 
 <div class="app-content pt-3 p-md-3 p-lg-4">
     <div class="container-xl">
+        
+        <!-- Multiple Sales Management Section -->
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="card border-0">
+                    <div class="app-card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-2"><b>Open Sales Sessions</b></h6>
+                                <div class="btn-group" role="group">
+                                    {% for open_sale in open_sales %}
+                                        <a href="{% url 'switch_sale' branch.id open_sale.id %}" 
+                                           class="btn btn-sm {% if active_sale_id and active_sale_id == open_sale.id|stringformat:'s' %}btn-primary text-white{% else %}btn-outline-primary{% endif %}">
+                                            Sale #{{ forloop.counter }}
+                                            {% if open_sale.get_cart_items > 0 %}
+                                                <span class="badge bg-light text-dark">{{ open_sale.get_cart_items }} items</span>
+                                            {% endif %}
+                                        </a>
+                                    {% empty %}
+                                        <span class="text-muted">No open sales</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div>
+                                <a href="{% url 'create_new_sale' branch.id %}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-plus"></i> New Sale
+                                </a>
+                                {% if sale %}
+                                <a href="#" 
+                                   class="btn btn-danger btn-sm"
+                                   data-bs-toggle="modal" 
+                                   data-bs-target="#cancelSaleModal"
+                                   data-sale-id="{{ sale.id }}"
+                                   data-branch-id="{{ branch.id }}">
+                                    <i class="fas fa-times"></i> Cancel Current
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div class="row">
             <div class="col-md-12">
                 <div class="md">
@@ -12,10 +56,10 @@
                         <div class="app-card-body p-2">
                             <table class="table app-table-hover">
                                 <tr>
-                                    <th class="cell"><h6 id="sum_quantity"><b>Item: </b><div>{{sale.get_cart_items}}</div></h6></th>
+                                    <th class="cell"><h6 id="sum_quantity"><b>Item: </b><div>{% if sale %}{{sale.get_cart_items}}{% else %}0{% endif %}</div></h6></th>
                                     <th class="cell">
                                         <h6 id="final_total"><b>Total: </b>
-                                        <div><i class="fa-solid fa-naira-sign"></i>{{sale.get_cart_total}}</div>
+                                        <div><i class="fa-solid fa-naira-sign"></i>{% if sale %}{{sale.get_cart_total}}{% else %}0{% endif %}</div>
               
                                     </h6>
                                     </th>
@@ -78,5 +122,44 @@
         <!-- end cart -->
     </div>
 </div>
+
+<!-- Cancel Sale Modal -->
+<div class="modal fade" id="cancelSaleModal" tabindex="-1" aria-labelledby="cancelSaleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="cancelSaleModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Cancel Sale</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to cancel this sale?</p>
+        <p class="text-muted small">This action will mark the sale as cancelled but keep it in your sales history.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Sale</button>
+        <a id="confirmCancelBtn" href="#" class="btn btn-danger">
+          <i class="fas fa-trash me-2"></i>Cancel Sale
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const cancelSaleModal = document.getElementById('cancelSaleModal');
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  
+  // When modal is shown, capture the sale data
+  cancelSaleModal.addEventListener('show.bs.modal', function(event) {
+    const button = event.relatedTarget;
+    const saleId = button.getAttribute('data-sale-id');
+    const branchId = button.getAttribute('data-branch-id');
+    
+    // Set the href for the confirm button
+    confirmCancelBtn.href = `/ims/sale/${branchId}/cancel/${saleId}/`;
+  });
+});
+</script>
 
 {% endblock content %}
