@@ -190,17 +190,27 @@ def upload_product(request):
                     
                     for index, row in df.iterrows():
                         try:
-                            # Get category
+                            # Get or create category
                             category_name = str(row.get('category', '')).strip()
+                            if not category_name:
+                                errors.append(f"Row {index + 2}: Category name is required")
+                                error_count += 1
+                                continue
+                            
+                            # Get or create category (case-insensitive)
                             category = Category.objects.filter(
                                 organization=organization,
+                                branch=branch,
                                 category_name__iexact=category_name
                             ).first()
                             
                             if not category:
-                                errors.append(f"Row {index + 2}: Category '{category_name}' not found")
-                                error_count += 1
-                                continue
+                                category = Category.objects.create(
+                                    organization=organization,
+                                    branch=branch,
+                                    category_name=category_name
+                                )
+                                messages.info(request, f"New category '{category_name}' created.")
                             
                             product_name = str(row.get('product_name', '')).strip()
                             if not product_name:

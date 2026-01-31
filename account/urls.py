@@ -22,6 +22,7 @@ urlpatterns = [
     path('notifications/<uuid:pk>/delete/', views.delete_notification, name='notification_delete'),
     path('notifications/<uuid:pk>/mark-read/', views.mark_notification_read, name='notification_mark_read'),
     path('notifications/mark-all-read/', views.mark_all_notifications_read, name='notifications_mark_all_read'),
+    path('api/session-check/', views.session_check, name='session_check'),
     # path('settings/', views.settingsView, name='settings'),
     # path("settings/edit_organization/<uuid:pk>/", views.editOrganization, name="edit_organization"),
     # path('plan/', views.planView, name='plan'),

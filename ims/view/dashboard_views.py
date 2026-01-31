@@ -142,6 +142,51 @@ def dashboard(request, pk):
     # Create lists for all 12 months with data or 0
     month_labels = [calendar.month_abbr[i] for i in range(1, 13)]
     month_values = [monthly_sales.get(i, 0) for i in range(1, 13)]
+    
+    # Get monthly profit data for the current year (for comparison chart)
+    monthly_profits = defaultdict(float)
+    profits_by_month = (
+        Sale.objects.filter(
+            branch_id=branch,
+            date_added__year=current_year
+        )
+        .values('date_added__month')
+        .annotate(total_profit=Sum('total_profit'))
+        .order_by('date_added__month')
+    )
+    
+    for profit in profits_by_month:
+        month_num = profit['date_added__month']
+        monthly_profits[month_num] = profit['total_profit']
+    
+    # Create profit values for all 12 months
+    month_profit_values = [monthly_profits.get(i, 0) for i in range(1, 13)]
+    
+    # Calculate daily sales data for the current month (for area chart)
+    daily_sales = defaultdict(float)
+    daily_profits = defaultdict(float)
+    
+    daily_stats = (
+        Sale.objects.filter(
+            branch_id=branch,
+            date_added__year=current_year,
+            date_added__month=int(current_month)
+        )
+        .values('date_added__day')
+        .annotate(daily_revenue=Sum('final_total_price'), daily_profit=Sum('total_profit'))
+        .order_by('date_added__day')
+    )
+    
+    for stat in daily_stats:
+        day = stat['date_added__day']
+        daily_sales[day] = stat['daily_revenue'] or 0
+        daily_profits[day] = stat['daily_profit'] or 0
+    
+    # Get the number of days in current month
+    num_days = calendar.monthrange(int(current_year), int(current_month))[1]
+    daily_labels = [str(i) for i in range(1, num_days + 1)]
+    daily_revenue_values = [daily_sales.get(i, 0) for i in range(1, num_days + 1)]
+    daily_profit_values = [daily_profits.get(i, 0) for i in range(1, num_days + 1)]
 
     context = {
         'branch':branch,
@@ -159,6 +204,11 @@ def dashboard(request, pk):
         'top_products': top_products,
         'month_labels': month_labels,
         'month_values': month_values,
+        'month_profit_values': month_profit_values,
+        'daily_labels': daily_labels,
+        'daily_revenue_values': daily_revenue_values,
+        'daily_profit_values': daily_profit_values,
+        'current_month_name': calendar.month_name[int(current_month)],
     }
     return render(request, 'ims/index.html', context)
 

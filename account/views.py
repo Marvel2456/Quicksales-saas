@@ -313,6 +313,7 @@ def deleteBranch(request):
 
 
 
+@login_required(login_url='login')
 def accountView(request):
     organization = request.user.organization
     subscription = Subscription.objects.filter(organization=organization).order_by('-end_date').first()
@@ -541,5 +542,16 @@ def mark_all_notifications_read(request):
 #     return render(request, 'account/settings.html', context)
 
 
-
-
+@login_required(login_url='login')
+def session_check(request):
+    """Check if user's session is still valid (for debugging idle timeout)"""
+    from django.http import JsonResponse
+    from datetime import datetime
+    
+    return JsonResponse({
+        'authenticated': request.user.is_authenticated,
+        'user': request.user.email if request.user.is_authenticated else None,
+        'session_key': request.session.session_key,
+        'session_expiry': datetime.fromtimestamp(request.session.get_expiry_age()).isoformat() if request.session else None,
+        'timestamp': datetime.now().isoformat()
+    })

@@ -19,6 +19,11 @@ from decimal import Decimal
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ImsV3.settings')
 django.setup()
 
+# Configure test settings
+from django.conf import settings
+if 'testserver' not in settings.ALLOWED_HOSTS:
+    settings.ALLOWED_HOSTS.append('testserver')
+
 from django.test import TestCase, Client, TransactionTestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse

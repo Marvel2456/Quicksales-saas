@@ -212,13 +212,19 @@ var barChartConfig = {
 
 // Generate charts on load
 window.addEventListener('load', function(){
-	
-	var lineChart = document.getElementById('canvas-linechart').getContext('2d');
-	window.myLine = new Chart(lineChart, lineChartConfig);
-	
-	var barChart = document.getElementById('canvas-barchart').getContext('2d');
-	window.myBar = new Chart(barChart, barChartConfig);
-	
-
+    
+	var lineCanvas = document.getElementById('canvas-linechart');
+	if (lineCanvas) {
+		var lineChart = lineCanvas.getContext('2d');
+		window.myLine = new Chart(lineChart, lineChartConfig);
+	}
+    
+	var barCanvas = document.getElementById('canvas-barchart');
+	if (barCanvas) {
+		var barChart = barCanvas.getContext('2d');
+		window.myBar = new Chart(barChart, barChartConfig);
+	}
+    
+    
 });	
 	

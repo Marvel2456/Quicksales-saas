@@ -163,7 +163,7 @@ def settingsView(request):
     
     organization = request.user.organization
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
-    plans = Plan.objects.all().exclude(name='Free').order_by('tier', 'size', 'billing_frequency')
+    plans = Plan.objects.exclude(tier='free').order_by('tier', 'size', 'billing_frequency')
 
     context = {
         'organization': organization,
@@ -293,119 +293,148 @@ def init_payment(request, plan_id):
 @csrf_exempt
 @login_required
 def create_payment(request):
-    data = json.loads(request.body)
-    reference = data.get("reference")
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
     
-    # Support both old plan_id format and new tier/size/frequency format
-    if "plan_id" in data:
-        plan = get_object_or_404(Plan, id=data["plan_id"])
-    else:
-        # New format: tier, size, billing_frequency
-        tier = data.get("tier")
-        size = data.get("size")
-        frequency = data.get("frequency")
-        if not all([tier, size, frequency]):
-            return JsonResponse({"error": "Missing plan parameters"}, status=400)
-        plan = get_or_create_plan(tier, size, frequency)
-    
-    amount = data.get("amount", float(plan.price))
-    coupon_code = data.get("coupon_code", "")
-    is_free = data.get("is_free", False)
+    try:
+        data = json.loads(request.body)
+        reference = data.get("reference")
+        print(f"📝 Creating payment with reference: {reference}")
+        
+        # Support both old plan_id format and new tier/size/frequency format
+        if "plan_id" in data:
+            plan = get_object_or_404(Plan, id=data["plan_id"])
+        else:
+            # New format: tier, size, billing_frequency
+            tier = data.get("tier")
+            size = data.get("size")
+            frequency = data.get("frequency")
+            if not all([tier, size, frequency]):
+                print(f"❌ Missing plan parameters: tier={tier}, size={size}, frequency={frequency}")
+                return JsonResponse({"error": "Missing plan parameters"}, status=400)
+            plan = get_or_create_plan(tier, size, frequency)
+            print(f"✓ Plan retrieved: {plan.tier} {plan.size} {plan.billing_frequency} - ₦{plan.price}")
+        
+        amount = data.get("amount", float(plan.price))
+        coupon_code = data.get("coupon_code", "")
+        is_free = data.get("is_free", False)
 
-    coupon = None
-    
-    # Handle coupon if provided
-    if coupon_code:
-        try:
-            coupon = Coupon.objects.get(code__iexact=coupon_code)
-            if not coupon.is_valid():
-                return JsonResponse({"error": "Coupon is no longer valid"}, status=400)
-            if CouponRedemption.objects.filter(coupon=coupon, organization=request.user.organization).exists():
-                return JsonResponse({"error": "Coupon already used"}, status=400)
-        except Coupon.DoesNotExist:
-            return JsonResponse({"error": "Invalid coupon code"}, status=400)
-    
-    subscription = Subscription.objects.create(
-        organization=request.user.organization,
-        plan=plan,
-        provider="paystack",
-        currency="NGN",
-        start_date=timezone.now(),
-        end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
-        is_active=False,
-    )
-
-    # For free month coupons, activate immediately without payment
-    if is_free and coupon and coupon.type == 'free_month':
-        # Record redemption
-        CouponRedemption.objects.create(
-            coupon=coupon,
+        coupon = None
+        
+        # Handle coupon if provided
+        if coupon_code:
+            try:
+                coupon = Coupon.objects.get(code__iexact=coupon_code)
+                if not coupon.is_valid():
+                    print(f"❌ Coupon expired: {coupon_code}")
+                    return JsonResponse({"error": "Coupon is no longer valid"}, status=400)
+                if CouponRedemption.objects.filter(coupon=coupon, organization=request.user.organization).exists():
+                    print(f"❌ Coupon already used: {coupon_code}")
+                    return JsonResponse({"error": "Coupon already used"}, status=400)
+                print(f"✓ Coupon valid: {coupon_code}")
+            except Coupon.DoesNotExist:
+                print(f"❌ Coupon not found: {coupon_code}")
+                return JsonResponse({"error": "Invalid coupon code"}, status=400)
+        
+        # Deactivate previous subscriptions for this organization
+        old_subs = Subscription.objects.filter(
             organization=request.user.organization,
-            subscription=subscription,
+            is_active=True
         )
-        coupon.uses += 1
-        coupon.save()
+        count = old_subs.count()
+        if count > 0:
+            old_subs.update(is_active=False)
+            print(f"✓ Deactivated {count} previous subscription(s)")
         
-        # Create completed payment record
-        Payment.objects.create(
-            subscription=subscription,
-            amount=Decimal('0.00'),
-            payment_method="free_coupon",
-            transaction_id=f"free_coupon_{subscription.id}",
-            payment_status="completed",
-            coupon=coupon,
+        subscription = Subscription.objects.create(
+            organization=request.user.organization,
+            plan=plan,
+            provider="paystack",
+            currency="NGN",
+            start_date=timezone.now(),
+            end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
+            is_active=False,
         )
-        
-        # Activate subscription immediately
-        subscription.is_active = True
-        subscription.save()
-        
-        # Schedule deactivation task
-        if subscription.end_date > timezone.now():
-            deactivate_subscription.apply_async(
-                args=[str(subscription.id)],
-                eta=subscription.end_date
+        print(f"✓ Subscription created: {subscription.id} (expires {subscription.end_date})")
+
+        # For free month coupons, activate immediately without payment
+        if is_free and coupon and coupon.type == 'free_month':
+            # Record redemption
+            CouponRedemption.objects.create(
+                coupon=coupon,
+                organization=request.user.organization,
+                subscription=subscription,
             )
+            coupon.uses += 1
+            coupon.save()
+            
+            # Create completed payment record
+            Payment.objects.create(
+                subscription=subscription,
+                amount=Decimal('0.00'),
+                payment_method="free_coupon",
+                transaction_id=f"free_coupon_{subscription.id}",
+                payment_status="completed",
+                coupon=coupon,
+            )
+            
+            # Activate subscription immediately
+            subscription.is_active = True
+            subscription.save()
+            
+            # Schedule deactivation task
+            if subscription.end_date > timezone.now():
+                deactivate_subscription.apply_async(
+                    args=[str(subscription.id)],
+                    eta=subscription.end_date
+                )
+            
+            # Send email
+            try:
+                owner = subscription.organization.owned_by
+                if owner and owner.email:
+                    send_subscription_success_email(owner, subscription.organization, subscription)
+            except Exception as email_error:
+                print(f"Email error: {email_error}")
+
+            # Surface success to UI via Django messages (shown as toast on next page)
+            try:
+                messages.success(request, "Subscription activated! Free month coupon applied.")
+            except Exception:
+                pass
+
+            print(f"✓ Free month subscription activated immediately")
+            return JsonResponse({"success": True, "message": "Subscription activated with free month coupon!"})
         
-        # Send email
-        try:
-            owner = subscription.organization.owned_by
-            if owner and owner.email:
-                send_subscription_success_email(owner, subscription.organization, subscription)
-        except Exception as email_error:
-            print(f"Email error: {email_error}")
-
-        # Surface success to UI via Django messages (shown as toast on next page)
-        try:
-            messages.success(request, "Subscription activated! Free month coupon applied.")
-        except Exception:
-            pass
-
-        return JsonResponse({"success": True, "message": "Subscription activated with free month coupon!"})
-    
-    # For paid plans, create pending payment
-    payment = Payment.objects.create(
-        subscription=subscription,
-        amount=amount,
-        payment_method="paystack",
-        transaction_id=reference or f"pending_{subscription.id}",
-        payment_status="pending",
-        coupon=coupon,
-    )
-    
-    # Record coupon redemption after payment
-    if coupon:
-        CouponRedemption.objects.create(
-            coupon=coupon,
-            organization=request.user.organization,
+        # For paid plans, create pending payment
+        payment = Payment.objects.create(
             subscription=subscription,
+            amount=amount,
+            payment_method="paystack",
+            transaction_id=reference or f"pending_{subscription.id}",
+            payment_status="pending",
+            coupon=coupon,
         )
-        coupon.uses += 1
-        coupon.save()
-    
-    print(f"Payment record created: {payment.id}")
+        
+        # Record coupon redemption after payment
+        if coupon:
+            CouponRedemption.objects.create(
+                coupon=coupon,
+                organization=request.user.organization,
+                subscription=subscription,
+            )
+            coupon.uses += 1
+            coupon.save()
+        
+        print(f"✓ Payment record created: {payment.id} (amount: ₦{amount}, reference: {reference})")
 
-    return JsonResponse({"status": "ok"})
+        return JsonResponse({"status": "ok"})
+    
+    except Exception as e:
+        print(f"❌ Error in create_payment: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 
@@ -415,10 +444,14 @@ def verify_payment(request):
     reference = request.GET.get('reference')
     
     if not reference:
+        print(f"❌ No reference provided")
         messages.error(request, 'Invalid payment reference')
         return redirect('settings')
     
     try:
+        print(f"🔍 Verifying payment with reference: {reference}")
+        print(f"👤 Organization: {request.user.organization.name}")
+        
         # Verify payment with Paystack
         headers = {
             'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
@@ -428,23 +461,35 @@ def verify_payment(request):
             headers=headers
         )
         
+        print(f"📡 Paystack response status: {response.status_code}")
+        
         if response.status_code == 200:
             data = response.json()
+            print(f"✅ Paystack data: {data.get('data', {}).get('status')}")
             
             if data['data']['status'] == 'success':
                 # Get the payment record using transaction_id (not reference)
-                with transaction.atomic():
-                    payment = Payment.objects.select_for_update().get(transaction_id=reference)
-                    
-                    # Only update if not already completed
-                    if payment.payment_status != 'completed':
+                try:
+                    payment = Payment.objects.get(transaction_id=reference)
+                    print(f"💳 Found payment record: {payment.id}")
+                except Payment.DoesNotExist:
+                    print(f"❌ Payment not found for reference: {reference}")
+                    print(f"Available transactions: {list(Payment.objects.filter(subscription__organization=request.user.organization).values_list('transaction_id', flat=True))}")
+                    messages.error(request, 'Payment record not found')
+                    return redirect('settings')
+                
+                # Only update if not already completed
+                if payment.payment_status != 'completed':
+                    with transaction.atomic():
                         payment.payment_status = 'completed'
                         payment.save()
+                        print(f"✓ Payment marked as completed")
                         
                         # Activate subscription
                         subscription = payment.subscription
                         subscription.is_active = True
                         subscription.save()
+                        print(f"✓ Subscription activated: {subscription.id}")
                         
                         # Schedule deactivation task using Celery
                         if subscription.end_date > timezone.now():
@@ -452,32 +497,38 @@ def verify_payment(request):
                                 args=[str(subscription.id)],
                                 eta=subscription.end_date
                             )
+                            print(f"✓ Deactivation scheduled for: {subscription.end_date}")
                         
                         # Send subscription success email
                         try:
                             owner = subscription.organization.owned_by
                             if owner and owner.email:
                                 send_subscription_success_email(owner, subscription.organization, subscription)
+                                print(f"✓ Email sent to: {owner.email}")
                         except Exception as email_error:
                             # Log but don't fail the payment if email fails
-                            print(f"Failed to send subscription email: {email_error}")
+                            print(f"⚠️ Failed to send subscription email: {email_error}")
                         
                         messages.success(request, 'Payment successful! Your subscription is now active.')
-                    else:
-                        messages.info(request, 'This payment has already been processed.')
-                        
+                else:
+                    print(f"ℹ️ Payment already processed")
+                    messages.info(request, 'This payment has already been processed.')
+                    
                 return redirect('settings')
             else:
+                print(f"❌ Payment status not success: {data['data']['status']}")
                 messages.error(request, 'Payment verification failed')
                 return redirect('settings')
         else:
+            print(f"❌ Paystack API error: {response.status_code}")
+            print(f"Response: {response.text}")
             messages.error(request, 'Could not verify payment')
             return redirect('settings')
             
-    except Payment.DoesNotExist:
-        messages.error(request, 'Payment record not found')
-        return redirect('settings')
     except Exception as e:
+        print(f"❌ Unexpected error during payment verification: {str(e)}")
+        import traceback
+        traceback.print_exc()
         messages.error(request, f'An error occurred: {str(e)}')
         return redirect('settings')
 

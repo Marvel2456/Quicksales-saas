@@ -208,3 +208,69 @@ def send_trial_expiry_reminders(self):
     except Exception as exc:
         logger.error(f"Error in send_trial_expiry_reminders: {exc}")
         raise self.retry(exc=exc, countdown=60)
+
+
+@shared_task(name="send_subscription_expiry_reminders", bind=True, max_retries=3)
+def send_subscription_expiry_reminders(self):
+    """
+    Send a reminder email and in-app notification to org owners whose subscription ends within 3 days.
+    Dedupe using recent reminder notifications (last 3 days) to avoid spamming.
+    """
+    try:
+        from subscriptions.models import Subscription
+        from .emails import send_subscription_renewal_email
+        
+        now = timezone.now()
+        # Check for subscriptions expiring within 3 days
+        window_end = now + timedelta(days=3)
+
+        subscriptions = Subscription.objects.select_related(
+            'organization', 'organization__owned_by', 'plan'
+        ).filter(
+            is_active=True,
+            end_date__gte=now,
+            end_date__lte=window_end,
+        )
+
+        for subscription in subscriptions:
+            org = subscription.organization
+            owner = org.owned_by
+            
+            if not owner or not owner.email:
+                continue
+
+            # Deduplicate: skip if a recent reminder exists
+            recent = Notification.objects.filter(
+                user=owner,
+                notification_type='warning',
+                message__icontains='Subscription expiring soon',
+                created_at__gte=now - timedelta(days=3),
+            ).exists()
+            if recent:
+                continue
+
+            # Calculate days remaining
+            days_remaining = (subscription.end_date - now).days
+            
+            # Create in-app notification
+            Notification.objects.create(
+                user=owner,
+                message=(
+                    f"Subscription expiring soon: {subscription.plan.name} for {org.name} "
+                    f"expires in {days_remaining} day(s) on {subscription.end_date.strftime('%b %d, %Y')}"
+                ),
+                notification_type='warning',
+                is_read=False,
+            )
+
+            # Send reminder email with renewal link
+            try:
+                renewal_url = f"{settings.DOMAIN}/subscriptions/settings/"
+                send_subscription_renewal_email(owner, renewal_url)
+                logger.info(f"Sent subscription renewal reminder to {owner.email} for {org.name}")
+            except Exception as email_exc:
+                logger.error(f"Subscription reminder email failed for {owner.email}: {email_exc}")
+
+    except Exception as exc:
+        logger.error(f"Error in send_subscription_expiry_reminders: {exc}")
+        raise self.retry(exc=exc, countdown=60)

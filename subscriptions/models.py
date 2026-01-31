@@ -8,6 +8,7 @@ from decimal import Decimal
 
 class Plan(models.Model):
     TIER_CHOICES = (
+        ('free', 'Free'),
         ('basic', 'Basic'),
         ('growth', 'Growth'),
         ('premium', 'Premium'),
@@ -38,7 +39,9 @@ class Plan(models.Model):
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     def __str__(self):
-        return self.name
+        if self.name:
+            return self.name
+        return f"{self.get_tier_display()} - {self.get_size_display()} ({self.get_billing_frequency_display()})"
     
     class Meta:
         ordering = ['tier', 'size', 'billing_frequency']

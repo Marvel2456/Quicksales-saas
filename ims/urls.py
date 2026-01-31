@@ -21,6 +21,7 @@ from ims.view.sale_views import (
 from ims.view.team_views import (staffs, staff, edit_staff, delete_staff, record, 
                                  branchTeam, branchRecord)
 from ims.view.test_signal_view import test_low_stock_signal_view
+from ims.api.offline_sync import sync_offline_sale, get_offline_data, sync_status
 
 
 
@@ -131,6 +132,11 @@ urlpatterns = [
     path('tickets/<str:pk>', views.Ticket, name='tickets'),
     path('branchrep/', views.branchReport, name='branchrep'),
     path('reports/<uuid:pk>/', views.report, name='reports'),
+    
+    # Offline Sync API URLs
+    path('api/sync-sale/', sync_offline_sale, name='sync_offline_sale'),
+    path('api/get-offline-data/', get_offline_data, name='get_offline_data'),
+    path('api/sync-status/', sync_status, name='sync_status'),
     
     # Test URL - remove in production
     path('test-low-stock-signal/', test_low_stock_signal_view, name='test_low_stock_signal'),
