@@ -14,6 +14,7 @@ from account.decorators import role_required
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.db.models import Sum
+from ims.view_caching import cached_view
 
 
 
@@ -48,24 +49,33 @@ def branchStore(request):
 @login_required
 # @is_unsubscribed
 def store(request, pk):
+    """Store view - optimized with select_related and proper pagination"""
     organization = request.user.organization
-    branch = Branch.objects.get(organization=organization, id=pk)
-    inventory = Inventory.objects.filter(branch=branch).all().order_by('-last_updated')
-    paginator = Paginator(Inventory.objects.all(), 15)
+    
+    # Use select_related to fetch branch in single query
+    branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+    
+    # Filter inventory for this branch with select_related for product
+    inventory_qs = Inventory.objects.filter(
+        branch=branch
+    ).select_related('product', 'branch').order_by('-last_updated')
+    
+    # Apply product filter if provided
+    product_contains_query = request.GET.get('product')
+    if product_contains_query:
+        inventory_qs = inventory_qs.filter(product__product_name__icontains=product_contains_query)
+    
+    # Paginate FILTERED queryset, not all inventory
+    paginator = Paginator(inventory_qs, 15)
     page = request.GET.get('page')
     inventory_page = paginator.get_page(page)
-    nums = "a" *inventory_page.paginator.num_pages
-    product_contains_query = request.GET.get('product')
-
-    if product_contains_query != '' and product_contains_query is not None:
-        inventory_page = inventory.filter(product__product_name__icontains=product_contains_query)
-
+    nums = "a" * inventory_page.paginator.num_pages
 
     context = {
-        'branch':branch,
-        'inventory':inventory,
-        'inventory_page':inventory_page,
-        'nums':nums
+        'branch': branch,
+        'inventory': inventory_qs,
+        'inventory_page': inventory_page,
+        'nums': nums
     }
     return render(request, 'ims/store.html', context)
 
@@ -75,12 +85,16 @@ def store(request, pk):
 @login_required
 # @is_unsubscribed
 def cart(request, pk):
+    """Cart view - optimized with select_related and prefetch_related"""
     organization = request.user.organization
     
     if request.user.is_authenticated:
         staff = request.user
-        branch = Branch.objects.get(organization=organization, id=pk)
-        inventory = Inventory.objects.filter(branch=branch)
+        # Use select_related to fetch branch in single query
+        branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+        
+        # Use prefetch_related for efficient inventory queries
+        inventory = Inventory.objects.filter(branch=branch).select_related('product', 'branch')
 
         sale = None
         items = []
@@ -89,14 +103,18 @@ def cart(request, pk):
         active_sale_id = request.session.get(f'active_sale_{branch.id}')
         if active_sale_id:
             try:
-                sale = Sale.objects.get(
+                # Use select_related for efficient sale queries
+                sale = Sale.objects.select_related(
+                    'staff', 'branch', 'organization'
+                ).get(
                     id=active_sale_id,
                     staff=staff,
                     branch=branch,
                     completed=False,
                     cancelled=False,
                 )
-                items = sale.salesitem_set.all()
+                # Use prefetch_related for sale items - note: product is through inventory, not direct
+                items = sale.salesitem_set.select_related('inventory__product', 'branch').all()
             except Sale.DoesNotExist:
                 request.session.pop(f'active_sale_{branch.id}', None)
                 sale = None
@@ -108,20 +126,20 @@ def cart(request, pk):
             organization=organization,
             completed=False,
             cancelled=False,
-        ).order_by('-date_added')
+        ).select_related('staff', 'branch').order_by('-date_added')
 
         # If no active sale in session but there are open sales, restore the most recent one
         # (user logged back in after session expired)
         if sale is None and open_sales.exists():
             sale = open_sales.first()
             request.session[f'active_sale_{branch.id}'] = str(sale.id)
-            items = sale.salesitem_set.all()
+            items = sale.salesitem_set.select_related('inventory__product', 'branch').all()
         
     context = {
-        'branch':branch,
-        'items':items,
-        'sale':sale,
-        'inventory':inventory,
+        'branch': branch,
+        'items': items,
+        'sale': sale,
+        'inventory': inventory,
         'open_sales': open_sales,
         'active_sale_id': str(sale.id) if sale else '',
     }
@@ -132,18 +150,23 @@ def cart(request, pk):
 @login_required
 # @is_unsubscribed
 def checkout(request, pk):
+    """Checkout view - optimized with select_related"""
     organization = request.user.organization
        
     if request.user.is_authenticated:
         staff = request.user
-        branch = Branch.objects.get(organization=organization, id=pk)
-        inventory = Inventory.objects.filter(branch=branch)
+        # Use select_related to fetch branch efficiently
+        branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+        # Use select_related for inventory
+        inventory = Inventory.objects.filter(branch=branch).select_related('product', 'branch')
 
         # Get active sale from session
         active_sale_id = request.session.get(f'active_sale_{branch.id}')
         if active_sale_id:
             try:
-                sale = Sale.objects.get(
+                sale = Sale.objects.select_related(
+                    'staff', 'branch', 'organization'
+                ).get(
                     id=active_sale_id,
                     staff=staff,
                     branch=branch,
@@ -158,7 +181,8 @@ def checkout(request, pk):
             messages.error(request, 'No active sale. Add an item from the store to start a sale.')
             return redirect('store', pk=branch.id)
 
-        items = sale.salesitem_set.all()
+        # Use prefetch_related for sale items - product is through inventory
+        items = sale.salesitem_set.select_related('inventory__product', 'branch').all()
         form = PaymentForm()
         if request.method == 'POST':
             form = PaymentForm(request.POST or None, instance=sale)
@@ -168,10 +192,10 @@ def checkout(request, pk):
                 messages.success(request, 'Payment Method Updated')
         
     context = {
-        'branch':branch,
-        'items':items,
-        'sale':sale,
-        'inventory':inventory,
+        'branch': branch,
+        'items': items,
+        'sale': sale,
+        'inventory': inventory,
     }
     return render(request, 'ims/checkout.html', context)
 
@@ -185,8 +209,14 @@ def updateCart(request, pk):
    
     organization = request.user.organization
     staff = request.user
-    branch = Branch.objects.get(organization=organization, id=pk)
-    inventory = Inventory.objects.filter(branch_id = branch).get(id=inventoryId)
+    # Use select_related for efficient branch loading
+    branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+    
+    # Fix: Use get directly with branch instead of filter(branch_id=branch)
+    inventory = Inventory.objects.select_related('product', 'branch').get(
+        branch=branch,
+        id=inventoryId
+    )
     
     # Check if product is in stock
     if inventory.quantity <= 0:
@@ -197,7 +227,7 @@ def updateCart(request, pk):
     sale = None
     if active_sale_id:
         try:
-            sale = Sale.objects.get(
+            sale = Sale.objects.select_related('staff', 'branch', 'organization').get(
                 id=active_sale_id,
                 staff=staff,
                 branch=branch,
@@ -209,7 +239,7 @@ def updateCart(request, pk):
 
     # Reuse last open sale if session missing
     if sale is None:
-        sale = Sale.objects.filter(
+        sale = Sale.objects.select_related('staff', 'branch', 'organization').filter(
             staff=staff,
             branch=branch,
             organization=organization,
@@ -221,9 +251,13 @@ def updateCart(request, pk):
     if sale is None:
         sale = Sale.objects.create(staff=staff, branch=branch, organization=organization)
         request.session[f'active_sale_{branch.id}'] = str(sale.id)
+        request.session.modified = True  # Ensure session is saved
 
     saleItem, created = SalesItem.objects.get_or_create(
-        sale=sale, branch=branch, inventory=inventory
+        sale=sale, 
+        branch=branch, 
+        inventory=inventory,
+        defaults={'organization': organization}
     )
 
     if action == 'add':
@@ -250,12 +284,12 @@ def updateQuantity(request, pk):
     organization = request.user.organization
     staff = request.user
     try:
-        branch = Branch.objects.get(organization=organization, id=pk)
+        branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
     except Branch.DoesNotExist:
         return JsonResponse({'error': 'Branch not found'}, status=404)
 
     try:
-        inventory = Inventory.objects.get(branch=branch, id=inventory_Id)
+        inventory = Inventory.objects.select_related('product', 'branch').get(branch=branch, id=inventory_Id)
     except Inventory.DoesNotExist:
         return JsonResponse({'error': 'Inventory not found'}, status=404)
 
@@ -265,7 +299,7 @@ def updateQuantity(request, pk):
         return JsonResponse({'error': 'No active sale'}, status=400)
 
     try:
-        sale = Sale.objects.get(
+        sale = Sale.objects.select_related('staff', 'branch', 'organization').get(
             id=active_sale_id,
             staff=staff,
             branch=branch,
@@ -275,7 +309,7 @@ def updateQuantity(request, pk):
     except Sale.DoesNotExist:
         return JsonResponse({'error': 'Active sale not found'}, status=404)
     
-    saleItem, _ = SalesItem.objects.get_or_create(sale=sale, branch=branch, inventory=inventory)
+    saleItem, _ = SalesItem.objects.select_related('sale', 'inventory', 'branch').get_or_create(sale=sale, branch=branch, inventory=inventory)
 
     saleItem.quantity = input_value
     saleItem.save()
@@ -428,13 +462,20 @@ def branchSales(request):
     return render(request, 'ims/branchsales.html', context)
 
 
+@cached_view(timeout=300, key_prefix='sales_list')
 @role_required(roles=['owner']) 
 @login_required
 # @is_unsubscribed
 def sales(request, pk):
+    """Sales list view - optimized with select_related and aggregate"""
     organization = request.user.organization
-    branch = Branch.objects.get(organization=organization, id=pk)
-    sale_qs = Sale.objects.filter(branch=branch).order_by('-date_updated')
+    # Use select_related to fetch branch in single query
+    branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+    
+    # Use select_related for staff to optimize foreign key access
+    sale_qs = Sale.objects.filter(
+        branch=branch
+    ).select_related('staff', 'branch', 'organization').order_by('-date_updated')
     
     # Get filter parameters
     start_date_contains = request.GET.get('start_date')
@@ -458,10 +499,10 @@ def sales(request, pk):
     nums = "a" * sale_page.paginator.num_pages
 
     context = {
-        'branch':branch,
-        'sale':sale_qs,
-        'sale_page':sale_page,
-        'nums':nums,
+        'branch': branch,
+        'sale': sale_qs,
+        'sale_page': sale_page,
+        'nums': nums,
         'start_date': start_date_contains,
         'end_date': end_date_contains,
         'rep': rep_contains_query,

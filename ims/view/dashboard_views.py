@@ -16,10 +16,12 @@ from xhtml2pdf import pisa
 from django.db.models import Sum, Count, Q
 from collections import defaultdict
 import calendar
+from ims.view_caching import cached_view
 
 # Write your views here.
 
 
+@cached_view(timeout=120, key_prefix='branch_dashboard')
 @role_required(roles=['owner'])
 @login_required(login_url='login')
 def branchDasboard(request):
@@ -30,24 +32,27 @@ def branchDasboard(request):
     current_month = now.strftime("%m")
     current_day = now.strftime("%d")
 
+    # Optimized query: use only necessary fields and filter at database level
     branch_qs = Branch.objects.filter(organization=organization)
 
     # Calculate today's sales for each branch
     branch_sales_data = []
     for branch in branch_qs:
-        today_sales = Sale.objects.filter(
+        # Use aggregate to avoid loading individual objects
+        sales_agg = Sale.objects.filter(
             branch=branch,
             date_added__year=current_year,
             date_added__month=current_month,
             date_added__day=current_day
+        ).aggregate(
+            total_sales=Sum('final_total_price'),
+            transaction_count=Count('id')
         )
-        total_sales = sum(today_sales.values_list('final_total_price', flat=True)) or 0
-        transaction_count = today_sales.count()
         
         branch_sales_data.append({
             'branch': branch,
-            'today_sales': total_sales,
-            'transaction_count': transaction_count
+            'today_sales': sales_agg['total_sales'] or 0,
+            'transaction_count': sales_agg['transaction_count'] or 0
         })
 
     paginator = Paginator(branch_sales_data, 15)
@@ -71,6 +76,7 @@ def branchDasboard(request):
     }
     return render(request, 'ims/branchdash.html', context)
 
+@cached_view(timeout=120, key_prefix='dashboard')
 @login_required(login_url=('login'))
 # @is_unsubscribed
 
@@ -83,37 +89,37 @@ def dashboard(request, pk):
     current_year = now.strftime("%Y")
     current_month = now.strftime("%m")
     current_day = now.strftime("%d")
-    products = Product.objects.filter(branch=branch, organization=organization).all()
-    category = Category.objects.filter(branch=branch, organization=organization).all()
+    
+    # Optimized queries: use count() instead of .all() for simple counts
+    products = Product.objects.filter(branch=branch, organization=organization)
+    category = Category.objects.filter(branch=branch, organization=organization)
     
     total_product = products.count()
     total_category = category.count()
-    transaction = len(Sale.objects.filter(
+    
+    # Use aggregate for sum/count to avoid loading all objects
+    today_sales_agg = Sale.objects.filter(
         date_added__year=current_year,
-        date_added__month = current_month,
-        date_added__day = current_day,
-        branch_id = pk
-    ))
-    today_sales = Sale.objects.filter(
-        date_added__year=current_year,
-        date_added__month = current_month,
-        date_added__day = current_day,
-        branch_id = pk
-    ).all()
-    total_sales = sum(today_sales.values_list('final_total_price',flat=True))
-    # make graph for highest paid products per day
-    today_profit = Sale.objects.filter(
-        date_added__year=current_year,
-        date_added__month = current_month,
-        date_added__day = current_day,
-        branch_id = pk
-    ).all()
-    total_profits = sum(today_profit.values_list('total_profit', flat=True))
-    pending = ErrorTicket.objects.filter(status='Pending')
-    inventory = Inventory.objects.filter(branch_id = branch).all()
+        date_added__month=current_month,
+        date_added__day=current_day,
+        branch_id=pk
+    ).aggregate(
+        count=Count('id'),
+        total_sales=Sum('final_total_price'),
+        total_profit=Sum('total_profit')
+    )
+    
+    transaction = today_sales_agg['count'] or 0
+    total_sales = today_sales_agg['total_sales'] or 0
+    total_profits = today_sales_agg['total_profit'] or 0
+    
+    pending = ErrorTicket.objects.filter(status='Pending').count()
+    inventory = Inventory.objects.filter(branch_id=branch)
 
-    # Top 7 recent high-quantity sales for bar chart
-    item = SalesItem.objects.filter(branch_id = branch).order_by('-quantity')[:7]
+    # Top 7 recent high-quantity sales for bar chart (optimized with select_related)
+    item = SalesItem.objects.filter(branch_id=branch).select_related(
+        'inventory__product'
+    ).order_by('-quantity')[:7]
 
     # Get top 5 selling products by total quantity sold for pie chart
     top_products = (

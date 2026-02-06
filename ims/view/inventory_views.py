@@ -13,6 +13,7 @@ import json
 from account.decorators import role_required
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+from ims.view_caching import cached_view
 
 
 
@@ -40,19 +41,35 @@ def branch_inventory(request):
 
 
 
+@cached_view(timeout=300, key_prefix='inventory_list')
 @role_required(roles=['owner', 'manager'])
 @login_required
 # @is_unsubscribed
 def inventory_list(request, pk):
+    """Inventory list view - optimized with select_related and proper pagination"""
     organization = request.user.organization
-    branch = Branch.objects.get(organization=organization, id=pk)
-    inventory = Inventory.objects.filter(branch=branch).all().order_by('-last_updated')
-    product = Product.objects.filter(branch=branch).all()
-    paginator = Paginator(Inventory.objects.filter(branch=branch).all(), 15)
+    # Use select_related to fetch branch in single query
+    branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+    
+    # Use select_related for efficient product and branch loading
+    inventory_qs = Inventory.objects.filter(branch=branch).select_related(
+        'product', 'branch', 'organization'
+    ).order_by('-last_updated')
+    
+    # Get products for this branch with select_related
+    product = Product.objects.filter(branch=branch).select_related('category', 'branch')
+    
+    # Apply product filter if provided
+    product_contains_query = request.GET.get('product')
+    if product_contains_query:
+        inventory_qs = inventory_qs.filter(product__product_name__icontains=product_contains_query)
+    
+    # Paginate FILTERED queryset
+    paginator = Paginator(inventory_qs, 15)
     page = request.GET.get('page')
     inventory_page = paginator.get_page(page)
-    nums = "a" *inventory_page.paginator.num_pages
-    product_contains_query = request.GET.get('product')
+    nums = "a" * inventory_page.paginator.num_pages
+    
     form = CreateInventoryForm
     if request.method == "POST":
         form = CreateInventoryForm(request.POST)
@@ -64,18 +81,14 @@ def inventory_list(request, pk):
             invenvtory_instance.save()
             messages.success(request, 'successfully created')
             return redirect('inventorys', pk=branch.id)
-            # find out why it is redirecting to a wrong url after creating an inventory
-    
-    if product_contains_query != '' and product_contains_query is not None:
-        inventory_page = inventory.filter(product__product_name__icontains=product_contains_query)
 
     context = {
-        'branch':branch,
-        'inventory':inventory,
-        'product':product,
-        'form':form,
-        'inventory_page':inventory_page,
-        'nums':nums,
+        'branch': branch,
+        'inventory': inventory_qs,
+        'product': product,
+        'form': form,
+        'inventory_page': inventory_page,
+        'nums': nums,
     }
     return render(request, 'ims/inventory.html', context)
 
@@ -87,15 +100,31 @@ def inventory_list(request, pk):
 @login_required
 # @is_unsubscribed
 def branchInventory(request):
-    inventory = Inventory.objects.all().order_by('branch')
-    product = Product.objects.filter().all()
-    branch = Branch.objects.filter().all()
-    paginator = Paginator(Inventory.objects.all(), 15)
-    page = request.GET.get('page')
-    inventory_page = paginator.get_page(page)
-    nums = "a" *inventory_page.paginator.num_pages
+    """Admin branch inventory view - optimized with select_related"""
+    # Use select_related for efficient loading
+    inventory_qs = Inventory.objects.select_related(
+        'product', 'branch', 'organization'
+    ).order_by('branch')
+    
+    product = Product.objects.select_related('category', 'branch').all()
+    branch = Branch.objects.select_related('organization').all()
+    
+    # Apply filters if provided
     product_contains_query = request.GET.get('product')
     branch_contains_query = request.GET.get('branch')
+    
+    if product_contains_query:
+        inventory_qs = inventory_qs.filter(product__product_name__icontains=product_contains_query)
+
+    if branch_contains_query:
+        inventory_qs = inventory_qs.filter(branch__name__icontains=branch_contains_query)
+    
+    # Paginate FILTERED queryset
+    paginator = Paginator(inventory_qs, 15)
+    page = request.GET.get('page')
+    inventory_page = paginator.get_page(page)
+    nums = "a" * inventory_page.paginator.num_pages
+    
     form = AdminCreateInventoryForm
     if request.method == "POST":
         form = AdminCreateInventoryForm(request.POST)
@@ -104,21 +133,13 @@ def branchInventory(request):
             messages.success(request, 'successfully created')
             return redirect('branchinv')
 
-    if product_contains_query != '' and product_contains_query is not None:
-        inventory_page = inventory.filter(product__product_name__icontains=product_contains_query)
-
-    if branch_contains_query != '' and branch_contains_query is not None:
-        inventory_page = inventory.filter(branch__branch_name__icontains=branch_contains_query)
-
-
     context = {
-        'inventory':inventory,
-        'product':product,
-        'branch':branch,
-        'form':form,
-        'inventory_page':inventory_page,
-        'nums':nums,
-
+        'inventory': inventory_qs,
+        'product': product,
+        'branch': branch,
+        'form': form,
+        'inventory_page': inventory_page,
+        'nums': nums,
     }
 
     return render(request, 'ims/branch_inv.html', context)

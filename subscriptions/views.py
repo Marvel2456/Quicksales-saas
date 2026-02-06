@@ -444,7 +444,7 @@ def verify_payment(request):
     reference = request.GET.get('reference')
     
     if not reference:
-        print(f"❌ No reference provided")
+        print(f" No reference provided")
         messages.error(request, 'Invalid payment reference')
         return redirect('settings')
     
