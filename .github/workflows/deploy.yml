@@ -50,14 +50,14 @@ jobs:
             
             # Stop containers
             echo "🛑 Stopping existing containers..."
-            docker-compose down
+            docker compose down
             echo "✓ Containers stopped"
             echo ""
             
             # Rebuild and restart containers
             echo "🔨 Building and starting containers..."
             echo "   This may take a few minutes..."
-            docker-compose up -d --build
+            docker compose up -d --build
             echo "✓ Containers built and started"
             echo ""
             
@@ -68,24 +68,24 @@ jobs:
             
             # Show container status
             echo "📦 Container Status:"
-            docker-compose ps
+            docker compose ps
             echo ""
             
             # Run database migrations
             echo "🗄️  Running database migrations..."
-            docker-compose exec -T web python manage.py migrate --noinput
+            docker compose exec -T web python manage.py migrate --noinput
             echo "✓ Migrations completed"
             echo ""
             
             # Collect static files
             echo "📦 Collecting static files..."
-            docker-compose exec -T web python manage.py collectstatic --noinput
+            docker compose exec -T web python manage.py collectstatic --noinput
             echo "✓ Static files collected"
             echo ""
             
             # Check web container logs for errors
             echo "🔍 Checking for errors in web container..."
-            docker-compose logs --tail=20 web | grep -i error || echo "✓ No errors found"
+            docker compose logs --tail=20 web | grep -i error || echo "✓ No errors found"
             echo ""
             
             # Clean up unused Docker images
