@@ -150,9 +150,10 @@ if config('DB_NAME', default=None):
             }
         }
     }
-    # Production database SSL configuration
-    if ENV == 'production':
-        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+    # Production database SSL configuration (only if enabled)
+    db_ssl_mode = config('DB_SSL_MODE', default='disable')
+    if ENV == 'production' and db_ssl_mode != 'disable':
+        DATABASES['default']['OPTIONS']['sslmode'] = db_ssl_mode
 else:
     DATABASES = {
         'default': {
