@@ -26,11 +26,13 @@ urlpatterns = [
     path('ims/', include('ims.urls')),
     path('subscriptions/', include('subscriptions.urls')),
     path('account/', include('account.urls')),
-    # Service worker at site root to allow scope '/'
-    path('service-worker.js', TemplateView.as_view(
-        template_name='service-worker.js',
-        content_type='application/javascript'
-    )),
 ]
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Add django-debug-toolbar URLs in development
+if settings.DEBUG:
+    urlpatterns = [
+        path('__debug__/', include('debug_toolbar.urls')),
+    ] + urlpatterns
+

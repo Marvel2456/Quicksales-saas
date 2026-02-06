@@ -6,169 +6,420 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Marvex Quicksales | Register</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Bootstrap Icons CDN -->
+    
+    <!-- Bootstrap CSS -->
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <!-- Animate.css CDN for extra animations -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-</head>
-<body class="bg-[#00004d] min-h-screen flex items-center justify-center py-8">
+    
+    <style>
+        /* Uncut Sans Font Registration */
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Regular.otf' %}") format('opentype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Medium.otf' %}") format('opentype');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Semibold.otf' %}") format('opentype');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Bold.otf' %}") format('opentype');
+            font-weight: 700;
+            font-style: normal;
+        }
 
-    <div class="w-full max-w-2xl bg-white rounded-xl shadow-lg p-8 animate__animated animate__fadeInDown">
-        <div class="flex justify-center mb-6">
-            <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo" class="h-16 w-auto">
+        body {
+            font-family: 'Uncut Sans', sans-serif !important;
+            background-color: #F7F7F7;
+        }
+        
+        .card-register {
+            border-radius: 24px;
+            border: 1px solid #e5e7eb;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .form-control, .form-select {
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            background-color: #f9fafb;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+            border-color: #2563EB;
+        }
+        
+        .btn-primary {
+            background-color: #2563EB;
+            border-color: #2563EB;
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+        
+        .btn-outline-secondary {
+            border-radius: 12px;
+            padding: 0.875rem 1rem;
+            font-weight: 700;
+            background-color: white;
+            color: #111827;
+            border-color: #d1d5db;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #f9fafb;
+            color: #111827;
+            border-color: #d1d5db;
+        }
+
+        .step-pill {
+            background: #F3F4F6;
+            padding: 0.25rem 1rem;
+            border-radius: 50rem;
+            font-size: 0.875rem;
+            color: #4B5563;
+            font-weight: 500;
+            width: fit-content;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .progress-line {
+            height: 1px;
+            background-color: #E5E7EB;
+            position: relative;
+            margin: 2rem 0;
+        }
+        
+        /* Checkbox style for password requirements */
+        .check-icon {
+            color: #10B981;
+        }
+        .gray-icon {
+            color: #9CA3AF;
+        }
+        .text-success-custom {
+            color: #16a34a !important;
+        }
+        
+        /* Utility overrides to match design exactly */
+         .text-gray-700 { color: #374151; }
+         .text-gray-500 { color: #6b7280; }
+         .text-gray-900 { color: #111827; }
+         .text-blue-600 { color: #2563EB; }
+         
+         .d-none { display: none !important; }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center min-vh-100 py-4 px-3">
+
+    <div class="card card-register bg-white shadow p-4 p-sm-5">
+        <!-- Header Section -->
+        <div class="d-flex flex-column align-items-center mb-2">
+            <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo" class="mb-4" style="height: 80px; width: auto;">
+            
+            <h3 id="step-title" class="fw-bold text-center mb-2 text-gray-900">Create your Organization Account</h3>
+            <p id="step-desc" class="text-gray-500 text-center small mb-0">Set up your account in 3 simple steps</p>
         </div>
-        <h2 class="text-2xl font-bold text-center text-[#00004d] mb-6">Create Your Organization Account</h2>
+        
+        <!-- Progress Indicator -->
+        <div class="progress-line d-flex align-items-center justify-content-center">
+            <div id="step-indicator" class="step-pill">Step 1/3</div>
+        </div>
         
         {% if messages %}
-            <div class="mb-4 space-y-2">
+            <div class="mb-4">
                 {% for message in messages %}
-                    <div class="p-4 rounded-lg {% if message.tags %}bg-{{ message.tags }}-100 text-{{ message.tags }}-800{% else %}bg-blue-100 text-blue-800{% endif %} border border-{% if message.tags %}{{ message.tags }}-300{% else %}blue-300{% endif %}">
-                        <p>{{ message }}</p>
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} py-2 px-3 small rounded-3" role="alert">
+                        {{ message }}
                     </div>
                 {% endfor %}
             </div>
         {% endif %}
         
-        <form method="post" enctype="multipart/form-data" class="space-y-4">
+        <form method="post" enctype="multipart/form-data" id="registerForm" class="mt-4 needs-validation" novalidate>
             {% csrf_token %}
             
-            <!-- Email -->
-            <div>
-                <label for="id_email" class="block mb-1 font-medium text-[#00004d]">Email</label>
-                <input type="email" id="id_email" name="email" value="{{ form.email.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                {% if form.email.errors %}<span class="text-red-500 text-sm">{{ form.email.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- First Name & Last Name -->
-            <div class="flex gap-4">
-                <div class="w-1/2">
-                    <label for="id_first_name" class="block mb-1 font-medium text-[#00004d]">First Name</label>
-                    <input type="text" id="id_first_name" name="first_name" value="{{ form.first_name.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                    {% if form.first_name.errors %}<span class="text-red-500 text-sm">{{ form.first_name.errors.0 }}</span>{% endif %}
+            <input type="hidden" name="brand_color" value="{{ form.brand_color.value|default:'#007bff' }}">
+            <input type="hidden" name="organization_country" value="{{ form.organization_country.value|default:'' }}">
+
+            <!-- Step 1: Personal Info -->
+            <div id="step1" class="step-content">
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label for="id_first_name" class="form-label text-gray-700 small fw-medium">First Name</label>
+                        <input type="text" id="id_first_name" name="first_name" value="{{ form.first_name.value|default:'' }}" required class="form-control" placeholder="">
+                        {% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>{% endif %}
+                    </div>
+                    <div class="col-6">
+                        <label for="id_last_name" class="form-label text-gray-700 small fw-medium">Last Name</label>
+                        <input type="text" id="id_last_name" name="last_name" value="{{ form.last_name.value|default:'' }}" required class="form-control" placeholder="">
+                        {% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>{% endif %}
+                    </div>
                 </div>
-                <div class="w-1/2">
-                    <label for="id_last_name" class="block mb-1 font-medium text-[#00004d]">Last Name</label>
-                    <input type="text" id="id_last_name" name="last_name" value="{{ form.last_name.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                    {% if form.last_name.errors %}<span class="text-red-500 text-sm">{{ form.last_name.errors.0 }}</span>{% endif %}
+
+                <div class="mb-3">
+                    <label for="id_email" class="form-label text-gray-700 small fw-medium">Business Email</label>
+                    <input type="email" id="id_email" name="email" value="{{ form.email.value|default:'' }}" required class="form-control" placeholder="">
+                    {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_phone_number" class="form-label text-gray-700 small fw-medium">Phone number</label>
+                    <input type="text" id="id_phone_number" name="phone_number" value="{{ form.phone_number.value|default:'' }}" required class="form-control" placeholder="">
+                    {% if form.phone_number.errors %}<div class="text-danger small mt-1">{{ form.phone_number.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="pt-2">
+                    <button type="button" onclick="nextStep(2)" class="btn btn-primary w-100">Continue</button>
+                    <p class="mt-4 text-center small text-gray-500">Already have an account? <a href="{% url 'login' %}" class="text-blue-600 fw-semibold text-decoration-none">Log in</a></p>
                 </div>
             </div>
-            
-            <!-- Phone Number -->
-            <div>
-                <label for="id_phone_number" class="block mb-1 font-medium text-[#00004d]">Phone Number</label>
-                <input type="text" id="id_phone_number" name="phone_number" value="{{ form.phone_number.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                {% if form.phone_number.errors %}<span class="text-red-500 text-sm">{{ form.phone_number.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Organization Name -->
-            <div>
-                <label for="id_organization_name" class="block mb-1 font-medium text-[#00004d]">Organization Name</label>
-                <input type="text" id="id_organization_name" name="organization_name" value="{{ form.organization_name.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                {% if form.organization_name.errors %}<span class="text-red-500 text-sm">{{ form.organization_name.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Business Type -->
-            <div>
-                <label for="id_business_type" class="block mb-1 font-medium text-[#00004d]">Business Type</label>
-                <select id="id_business_type" name="business_type" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                    <option value="">-- Select --</option>
-                    {% for key, value in form.business_type.field.choices %}
-                        <option value="{{ key }}" {% if form.business_type.value == key %}selected{% endif %}>{{ value }}</option>
-                    {% endfor %}
-                </select>
-                {% if form.business_type.errors %}<span class="text-red-500 text-sm">{{ form.business_type.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Country -->
-            <div>
-                <label for="id_organization_country" class="block mb-1 font-medium text-[#00004d]">Country</label>
-                <input type="text" id="id_organization_country" name="organization_country" value="{{ form.organization_country.value|default:'' }}" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                {% if form.organization_country.errors %}<span class="text-red-500 text-sm">{{ form.organization_country.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Organization Logo -->
-            <div>
-                <label for="id_organization_logo" class="block mb-1 font-medium text-[#00004d]">Organization Logo <span class="text-gray-500 text-sm">(Optional)</span></label>
-                <input type="file" id="id_organization_logo" name="organization_logo" accept="image/*" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#00004d] file:text-white hover:file:bg-blue-900">
-                <p class="text-xs text-gray-500 mt-1">Upload your organization logo (PNG, JPG, or SVG)</p>
-                {% if form.organization_logo.errors %}<span class="text-red-500 text-sm">{{ form.organization_logo.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Brand Color -->
-            <div>
-                <label for="id_brand_color" class="block mb-1 font-medium text-[#00004d]">Brand Color <span class="text-gray-500 text-sm">(Optional)</span></label>
-                <div class="flex items-center gap-3">
-                    <input type="color" id="id_brand_color" name="brand_color" value="{{ form.brand_color.value|default:'#007bff' }}" class="h-12 w-20 rounded-lg border border-gray-300 cursor-pointer">
-                    <input type="text" id="brand_color_text" value="{{ form.brand_color.value|default:'#007bff' }}" readonly class="flex-1 px-4 py-3 rounded-lg border border-gray-300 bg-gray-50 text-gray-700">
+
+            <!-- Step 2: Organization Info -->
+            <div id="step2" class="step-content d-none">
+                <div class="mb-3">
+                    <label for="id_organization_name" class="form-label text-gray-700 small fw-medium">Organization Name</label>
+                    <input type="text" id="id_organization_name" name="organization_name" value="{{ form.organization_name.value|default:'' }}" required class="form-control">
+                    {% if form.organization_name.errors %}<div class="text-danger small mt-1">{{ form.organization_name.errors.0 }}</div>{% endif %}
                 </div>
-                <p class="text-xs text-gray-500 mt-1">Choose your organization's primary brand color</p>
-                {% if form.brand_color.errors %}<span class="text-red-500 text-sm">{{ form.brand_color.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Branch Name -->
-            <div>
-                <label for="id_branch_name" class="block mb-1 font-medium text-[#00004d]">Branch Name</label>
-                <input type="text" id="id_branch_name" name="branch_name" value="{{ form.branch_name.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                {% if form.branch_name.errors %}<span class="text-red-500 text-sm">{{ form.branch_name.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Branch Address -->
-            <div>
-                <label for="id_branch_address" class="block mb-1 font-medium text-[#00004d]">Branch Address</label>
-                <input type="text" id="id_branch_address" name="branch_address" value="{{ form.branch_address.value|default:'' }}" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]">
-                {% if form.branch_address.errors %}<span class="text-red-500 text-sm">{{ form.branch_address.errors.0 }}</span>{% endif %}
-            </div>
-            
-            <!-- Password -->
-            <div>
-                <label for="id_password1" class="block mb-1 font-medium text-[#00004d]">Password</label>
-                <div class="relative">
-                    <input type="password" id="id_password1" name="password1" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d] pr-12">
-                    <button type="button" onclick="togglePassword('id_password1', this)" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#00004d] focus:outline-none">
-                        <i class="bi bi-eye-slash" id="password1-eye"></i>
+
+                <div class="mb-3">
+                    <label for="id_business_type" class="form-label text-gray-700 small fw-medium">Business Type</label>
+                    <select id="id_business_type" name="business_type" required class="form-select">
+                        <option value="">Select Option</option>
+                        {% for key, value in form.business_type.field.choices %}
+                            <option value="{{ key }}" {% if form.business_type.value == key %}selected{% endif %}>{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if form.business_type.errors %}<div class="text-danger small mt-1">{{ form.business_type.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_organization_logo" class="form-label text-gray-700 small fw-medium">Organization Logo</label>
+                    <input type="file" id="id_organization_logo" name="organization_logo" accept="image/*" class="form-control">
+                    {% if form.organization_logo.errors %}<div class="text-danger small mt-1">{{ form.organization_logo.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_branch_name" class="form-label text-gray-700 small fw-medium">Branch Name</label>
+                    <input type="text" id="id_branch_name" name="branch_name" value="{{ form.branch_name.value|default:'' }}" required class="form-control">
+                    {% if form.branch_name.errors %}<div class="text-danger small mt-1">{{ form.branch_name.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_branch_address" class="form-label text-gray-700 small fw-medium">Branch Address</label>
+                    <input type="text" id="id_branch_address" name="branch_address" value="{{ form.branch_address.value|default:'' }}" required class="form-control">
+                    {% if form.branch_address.errors %}<div class="text-danger small mt-1">{{ form.branch_address.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="d-flex gap-3 pt-2">
+                    <button type="button" onclick="prevStep(1)" class="btn btn-outline-secondary w-50">Back</button>
+                    <button type="button" onclick="nextStep(3)" class="btn btn-primary w-100 position-relative">
+                        Continue
+                        <div id="step2-user-thumb" class="d-none"></div>
                     </button>
                 </div>
-                {% if form.password1.errors %}<div class="text-red-500 text-sm mt-1">{% for error in form.password1.errors %}{{ error }}<br>{% endfor %}</div>{% endif %}
-                <p class="text-xs text-gray-500 mt-1">{{ form.password1.help_text|safe }}</p>
             </div>
-            
-            <!-- Confirm Password -->
-            <div>
-                <label for="id_password2" class="block mb-1 font-medium text-[#00004d]">Confirm Password</label>
-                <div class="relative">
-                    <input type="password" id="id_password2" name="password2" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d] pr-12">
-                    <button type="button" onclick="togglePassword('id_password2', this)" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#00004d] focus:outline-none">
-                        <i class="bi bi-eye-slash" id="password2-eye"></i>
-                    </button>
+
+            <!-- Step 3: Password -->
+            <div id="step3" class="step-content d-none">
+                <div class="mb-3">
+                    <label for="id_password1" class="form-label text-gray-700 small fw-medium">Password</label>
+                    <div class="position-relative">
+                        <input type="password" id="id_password1" name="password1" required class="form-control pe-5">
+                        <button type="button" onclick="togglePassword('id_password1', this)" class="btn p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-secondary border-0 bg-transparent">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                 </div>
-                {% if form.password2.errors %}<div class="text-red-500 text-sm mt-1">{% for error in form.password2.errors %}{{ error }}<br>{% endfor %}</div>{% endif %}
+
+                <div class="mb-3">
+                    <label for="id_password2" class="form-label text-gray-700 small fw-medium">Confirm Password</label>
+                    <div class="position-relative">
+                        <input type="password" id="id_password2" name="password2" required class="form-control pe-5">
+                        <button type="button" onclick="togglePassword('id_password2', this)" class="btn p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-secondary border-0 bg-transparent">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Password Requirements -->
+                <div class="bg-light rounded-3 p-3 small text-muted mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-1" id="req-length">
+                        <i class="bi bi-check-lg gray-icon fs-5"></i>
+                        <span>Your password must contain at least 8 characters.</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-1" id="req-unique">
+                        <i class="bi bi-check-lg gray-icon fs-5"></i>
+                        <span>Your password has to be unique</span>
+                    </div>
+                     <div class="d-flex align-items-center gap-2" id="req-numeric">
+                        <i class="bi bi-check-lg gray-icon fs-5"></i>
+                        <span>Your password can't be entirely numeric.</span>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 pt-2">
+                    <button type="button" onclick="prevStep(2)" class="btn btn-outline-secondary w-50">Back</button>
+                    <button type="submit" class="btn btn-primary w-100">Create Account</button>
+                </div>
             </div>
-            
-            <button type="submit" class="w-full bg-[#00004d] text-white py-3 rounded-lg font-semibold hover:bg-blue-900 transition">Register</button>
+
         </form>
-        <p class="mt-6 text-center text-gray-600">Already have an account? <a href="{% url 'login' %}" class="text-[#00004d] font-semibold hover:underline">Login</a></p>
     </div>
 
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
     <script>
+        let currentStep = 1;
+        
+        function updateUI(step) {
+            // Update Headers
+            const titleEl = document.getElementById('step-title');
+            const descEl = document.getElementById('step-desc');
+            const indicatorEl = document.getElementById('step-indicator');
+            
+            if (step === 1) {
+                titleEl.textContent = 'Create your Organization Account';
+                descEl.textContent = 'Set up your account in 3 simple steps';
+                indicatorEl.textContent = 'Step 1/3';
+            } else if (step === 2) {
+                titleEl.textContent = 'Tell us about your organization';
+                descEl.textContent = 'Answer questions about your organization';
+                 indicatorEl.textContent = 'Step 2/3';
+            } else if (step === 3) {
+                titleEl.textContent = 'Set your password';
+                descEl.textContent = 'Set your organization password';
+                 indicatorEl.textContent = 'Step 3/3';
+            }
+            
+            // Toggle visibility
+            document.querySelectorAll('.step-content').forEach(el => el.classList.add('d-none'));
+            document.getElementById(`step${step}`).classList.remove('d-none');
+        }
+
+        function validateStep(step) {
+            const stepEl = document.getElementById(`step${step}`);
+            const inputs = stepEl.querySelectorAll('input[required], select[required]');
+             let isValid = true;
+            
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    isValid = false;
+                    input.classList.add('is-invalid');
+                } else {
+                    input.classList.remove('is-invalid');
+                    
+                    // Specific validations
+                    if (input.type === 'email' && !validateEmail(input.value)) {
+                         isValid = false;
+                         input.classList.add('is-invalid');
+                    }
+                }
+            });
+            
+            return isValid;
+        }
+        
+        function validateEmail(email) {
+            return String(email)
+                .toLowerCase()
+                .match(
+                    /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+                );
+        }
+
+        function nextStep(step) {
+            if (validateStep(currentStep)) {
+                currentStep = step;
+                updateUI(step);
+            }
+        }
+
+        function prevStep(step) {
+            currentStep = step;
+            updateUI(step);
+        }
+
         function togglePassword(fieldId, btn) {
             const input = document.getElementById(fieldId);
             const icon = btn.querySelector('i');
             if (input.type === "password") {
                 input.type = "text";
-                icon.classList.add('bi-eye');
-                icon.classList.remove('bi-eye-slash');
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
             } else {
                 input.type = "password";
-                icon.classList.add('bi-eye-slash');
-                icon.classList.remove('bi-eye');
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
             }
         }
         
-        // Sync color picker with text input
-        document.getElementById('id_brand_color').addEventListener('input', function(e) {
-            document.getElementById('brand_color_text').value = e.target.value;
+        // Password Strength Validation
+        document.getElementById('id_password1').addEventListener('input', function(e) {
+            const password = e.target.value;
+            
+            // 8 characters
+            const reqLength = document.getElementById('req-length');
+            const iconLength = reqLength.querySelector('i');
+            if (password.length >= 8) {
+                reqLength.classList.add('text-success-custom');
+                iconLength.classList.remove('gray-icon');
+                iconLength.classList.add('check-icon');
+            } else {
+                reqLength.classList.remove('text-success-custom');
+                iconLength.classList.add('gray-icon');
+                iconLength.classList.remove('check-icon');
+            }
+            
+            // Numeric check
+            const reqNumeric = document.getElementById('req-numeric');
+             const iconNumeric = reqNumeric.querySelector('i');
+            if (password.length > 0 && !/^\d+$/.test(password)) {
+                 reqNumeric.classList.add('text-success-custom');
+                iconNumeric.classList.remove('gray-icon');
+                iconNumeric.classList.add('check-icon');
+            } else {
+                 reqNumeric.classList.remove('text-success-custom');
+                iconNumeric.classList.add('gray-icon');
+                iconNumeric.classList.remove('check-icon');
+            }
+            
+            // Unique check
+             const reqUnique = document.getElementById('req-unique');
+             const iconUnique = reqUnique.querySelector('i');
+
+             if (password.length > 3) { 
+                 reqUnique.classList.add('text-success-custom');
+                 iconUnique.classList.remove('gray-icon');
+                 iconUnique.classList.add('check-icon');
+             } else {
+                 reqUnique.classList.remove('text-success-custom');
+                iconUnique.classList.add('gray-icon');
+                 iconUnique.classList.remove('check-icon');
+             }
         });
     </script>
 </body>

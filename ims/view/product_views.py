@@ -14,6 +14,7 @@ import json
 from account.decorators import role_required, check_product_limit
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+from ims.view_caching import cached_view
 
 
 # Helper function to create notifications
@@ -50,19 +51,35 @@ def branch_product(request):
     }
     return render(request, 'ims/branch_product.html', context)
 
+@cached_view(timeout=300, key_prefix='product_list')
 @role_required(roles=['owner', 'manager'])
 @login_required
 @check_product_limit
 def product_category(request, pk):
+    """Product list view - optimized with select_related and proper pagination"""
     organization = request.user.organization
-    branch = Branch.objects.get(organization=organization, id=pk)
-    product = Product.objects.filter(branch=branch).all().order_by('-created_at')
-    category = Category.objects.filter(branch=branch).all()
-    paginator = Paginator(Product.objects.all(), 15)
+    # Use select_related to fetch branch in single query
+    branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+    
+    # Use select_related for efficient product and category loading
+    product_qs = Product.objects.filter(branch=branch).select_related(
+        'category', 'branch', 'organization'
+    ).order_by('-created_at')
+    
+    # Get categories for this branch with select_related
+    category = Category.objects.filter(branch=branch).select_related('branch', 'organization')
+    
+    # Apply product filter if provided
+    product_contains = request.GET.get('product_name')
+    if product_contains:
+        product_qs = product_qs.filter(product_name__icontains=product_contains)
+    
+    # Paginate FILTERED queryset
+    paginator = Paginator(product_qs, 15)
     page = request.GET.get('page')
     products_page = paginator.get_page(page)
-    nums = "a" *products_page.paginator.num_pages
-    product_contains = request.GET.get('product_name')
+    nums = "a" * products_page.paginator.num_pages
+    
     form = ProductForm()
     if request.method == "POST":
         form = ProductForm(request.POST)
@@ -73,21 +90,19 @@ def product_category(request, pk):
             product_instance.save()
             messages.success(request, 'successfully created')
             return redirect('products', pk=branch.id)
-
-    if product_contains != '' and product_contains is not None:
-        products_page = product.filter(product_name__icontains=product_contains)
         
     context = {
-        'category':category,
-        'form':form,
-        'product':product,
-        'products_page':products_page,
-        'nums':nums,
-        'branch':branch
+        'category': category,
+        'form': form,
+        'product': product_qs,
+        'products_page': products_page,
+        'nums': nums,
+        'branch': branch
     }
     return render(request, 'ims/products.html', context)
 
 
+@cached_view(timeout=600, key_prefix='product_detail')
 @role_required(roles=['owner'])
 def product(request, pk):
     products = Product.objects.get(id=pk)
@@ -100,8 +115,14 @@ def product(request, pk):
 
 @role_required(roles=['owner'])
 def edit_product(request, pk):
+    """Edit product view - optimized with select_related"""
     organization = request.user.organization
-    product = get_object_or_404(Product, id=pk, organization=organization)
+    # Use select_related to fetch related branch
+    product = get_object_or_404(
+        Product.objects.select_related('category', 'branch', 'organization'),
+        id=pk,
+        organization=organization
+    )
 
     if request.method == 'POST':
         form = EditProductForm(request.POST, instance=product, organization=organization)
@@ -112,7 +133,8 @@ def edit_product(request, pk):
     else:
         form = EditProductForm(instance=product, organization=organization)
 
-    categories = Category.objects.filter(organization=organization)
+    # Use select_related for categories
+    categories = Category.objects.filter(organization=organization).select_related('branch', 'organization')
 
     context = {
         'form': form,

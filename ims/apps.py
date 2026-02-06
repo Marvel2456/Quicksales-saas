@@ -7,3 +7,4 @@ class ImsConfig(AppConfig):
     
     def ready(self):
         import ims.signals
+        import ims.cache_signals  # Import cache invalidation signals

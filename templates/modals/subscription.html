@@ -12,50 +12,58 @@
         <!-- Billing Frequency Tabs -->
         <div class="d-flex justify-content-center gap-3 mb-4 flex-wrap">
           <button class="billing-tab-modal btn btn-outline-primary active text-white" data-frequency="monthly">
-            📅 Monthly
+            Monthly
           </button>
-          <button class="billing-tab-modal btn btn-outline-primary text-white" data-frequency="quarterly">
-            📊 Quarterly (Save 5%)
-          </button>
-          <button class="billing-tab-modal btn btn-outline-primary text-white" data-frequency="annually">
-            🎯 Annually (Save 15%)
+          <button class="billing-tab-modal btn btn-outline-primary text-dark" data-frequency="annually">
+            Yearly (Save 15%)
           </button>
         </div>
 
-        <!-- Plans Grid by Tier -->
-        {% for tier_name, tier_label in tier_choices %}
+        <!-- Plans Grid by Tier - Dynamically rendered from Database -->
+        {% regroup plans by tier as tier_groups %}
+        {% for tier_group in tier_groups %}
+            {% if tier_group.grouper != 'free' %}
         <div class="mb-5">
-          <h5 class="text-center mb-4 fw-bold">{{ tier_label }} Plans</h5>
-          <div class="row">
-            {% for size_name, size_label in size_choices %}
-            <div class="col-md-4 mb-3">
-              <div class="card shadow-sm p-3 h-100 plan-card-modal" data-tier="{{ tier_name }}" data-size="{{ size_name }}">
+          <h5 class="text-center mb-4 fw-bold">{{ tier_group.grouper|title }} Plans</h5>
+          <div class="row g-3">
+            {% regroup tier_group.list by size as size_groups %}
+            {% for size_group in size_groups %}
+            <div class="col-md-6">
+              {% with monthly_plan=size_group.list|dictsort:"billing_frequency"|last %}
+              {% with annual_plan=size_group.list|dictsort:"billing_frequency"|first %}
+              <div class="card shadow-sm p-3 h-100 plan-card-modal" 
+                   data-tier="{{ monthly_plan.tier }}" 
+                   data-size="{{ monthly_plan.size }}"
+                   data-monthly-price="{{ monthly_plan.price }}"
+                   data-monthly-id="{{ monthly_plan.id }}"
+                   data-annual-price="{{ annual_plan.price }}"
+                   data-annual-id="{{ annual_plan.id }}">
                 <div class="text-center mb-3">
-                  {% if size_name == 'starter' %}
+                  {% if monthly_plan.size == 'starter' %}
                     <span style="font-size: 2rem;">⭐</span>
-                  {% elif size_name == 'large' %}
+                  {% elif monthly_plan.size == 'large' %}
                     <span style="font-size: 2rem;">🚀</span>
                   {% else %}
                     <span style="font-size: 2rem;">👑</span>
                   {% endif %}
                 </div>
-                <h6 class="card-title text-center">{{ tier_label }} {{ size_label }}</h6>
+                <h6 class="card-title text-center">{{ monthly_plan.tier|title }} {{ monthly_plan.size|title }}</h6>
                 <div class="text-center mb-3">
-                  <div class="h4 fw-bold text-primary">₦<span class="plan-price-modal">--</span></div>
+                  <div class="h4 fw-bold text-primary">₦<span class="plan-price-modal">{{ monthly_plan.price|floatformat:0 }}</span></div>
                   <small class="text-muted"><span class="billing-period-modal">per month</span></small>
                 </div>
                 
                 <!-- Features -->
                 <ul class="list-unstyled mb-3 small" style="height: 120px; overflow-y: auto;">
-                  <li>✔ <strong class="plan-users-modal">1</strong> User</li>
-                  <li>✔ <strong class="plan-branches-modal">1</strong> Branch</li>
-                  <li>✔ <strong class="plan-products-modal">100</strong> Products</li>
+                  <li>✔ <strong>{{ monthly_plan.max_users }}</strong> User{{ monthly_plan.max_users|pluralize }}</li>
+                  <li>✔ <strong>{{ monthly_plan.max_branches }}</strong> Branch{{ monthly_plan.max_branches|pluralize:"es" }}</li>
+                  <li>✔ <strong>{{ monthly_plan.max_products }}</strong> Products</li>
                   <li>✔ Basic Analytics</li>
-                  {% if tier_name != 'basic' %}
+                  {% if monthly_plan.tier != 'basic' %}
                     <li>✔ Advanced Reports</li>
                     <li>✔ API Access</li>
                   {% endif %}
-                  {% if tier_name == 'premium' %}
+                  {% if monthly_plan.tier == 'premium' %}
                     <li>✔ Custom Branding</li>
                     <li>✔ Priority Support</li>
                     <li>✔ Dedicated Manager</li>
@@ -64,22 +72,25 @@
                 
                 <!-- Coupon Input -->
                 <div class="mb-3">
-                  <input type="text" class="form-control coupon-input-modal form-control-sm" placeholder="Coupon (optional)" data-tier="{{ tier_name }}" data-size="{{ size_name }}">
+                  <input type="text" class="form-control coupon-input-modal form-control-sm" placeholder="Coupon (optional)" data-tier="{{ monthly_plan.tier }}" data-size="{{ monthly_plan.size }}">
                   <small class="text-muted d-block mt-1">
-                    <span class="original-price-modal text-xs">Original: ₦<span class="base-price-modal">0</span></span>
+                    <span class="original-price-modal text-xs">Original: ₦<span class="base-price-modal">{{ monthly_plan.price|floatformat:0 }}</span></span>
                   </small>
                 </div>
                 
-                <button class="btn btn-primary w-100 select-plan-btn-modal" onclick="selectPlanFromModal('{{ tier_name }}', '{{ size_name }}', this)">
+                <button class="btn btn-primary w-100 select-plan-btn-modal">
                   <span class="btn-text text-white">Get Started</span>
                   <span class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
                     <span class="visually-hidden">Loading...</span>
                   </span>
                 </button>
               </div>
+              {% endwith %}
+              {% endwith %}
             </div>
             {% endfor %}
           </div>
+            {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -102,237 +113,229 @@
     }
 </style>
 <script>
-// Plan pricing data
-const planPricingModal = {
-    basic: { starter: 15000, large: 25000, xl: 40000 },
-    growth: { starter: 35000, large: 60000, xl: 100000 },
-    premium: { starter: 80000, large: 150000, xl: 250000 }
-};
-
-const planFeaturesModal = {
-    basic: { users: 1, branches: 1, products: 100 },
-    growth: { users: 5, branches: 5, products: 1000 },
-    premium: { users: 20, branches: 20, products: 5000 }
-};
-
-const billingMultipliersModal = {
-    monthly: 1,
-    quarterly: 0.95,
-    annually: 0.85
-};
-
-const billingLabelsModal = {
-    monthly: 'per month',
-    quarterly: 'per quarter',
-    annually: 'per year'
-};
-
-// Update pricing in modal
-function updatePricesModal(frequency) {
-    document.querySelectorAll('.plan-card-modal').forEach(card => {
-        const tier = card.dataset.tier;
-        const size = card.dataset.size;
-        const basePrice = planPricingModal[tier][size];
-        const finalPrice = Math.round(basePrice * billingMultipliersModal[frequency]);
-        
-        card.querySelector('.plan-price-modal').textContent = finalPrice.toLocaleString('en-NG');
-        card.querySelector('.billing-period-modal').textContent = billingLabelsModal[frequency];
-        card.querySelector('.base-price-modal').textContent = basePrice.toLocaleString('en-NG');
-        
-        const features = planFeaturesModal[tier];
-        card.querySelector('.plan-users-modal').textContent = features.users;
-        card.querySelector('.plan-branches-modal').textContent = features.branches;
-        card.querySelector('.plan-products-modal').textContent = features.products;
-    });
-}
-
-// Billing frequency tab handling in modal
 document.addEventListener('DOMContentLoaded', function() {
+    // Billing frequency tab handling
     document.querySelectorAll('.billing-tab-modal').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('.billing-tab-modal').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            updatePricesModal(this.dataset.frequency);
+            const frequency = this.dataset.frequency;
+            
+            // Update button styles
+            document.querySelectorAll('.billing-tab-modal').forEach(b => {
+                b.classList.remove('active', 'text-white');
+                b.classList.add('text-dark');
+            });
+            this.classList.add('active', 'text-white');
+            this.classList.remove('text-dark');
+            
+            // Update all plan prices based on frequency
+            document.querySelectorAll('.plan-card-modal').forEach(card => {
+                const monthlyPrice = parseFloat(card.dataset.monthlyPrice);
+                const annualPrice = parseFloat(card.dataset.annualPrice);
+                const price = frequency === 'monthly' ? monthlyPrice : annualPrice;
+                
+                const priceEl = card.querySelector('.plan-price-modal');
+                const periodEl = card.querySelector('.billing-period-modal');
+                const basePriceEl = card.querySelector('.base-price-modal');
+                
+                if (priceEl) {
+                    priceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
+                }
+                if (periodEl) {
+                    periodEl.textContent = frequency === 'monthly' ? 'per month' : 'per year';
+                }
+                if (basePriceEl) {
+                    basePriceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
+                }
+            });
         });
     });
     
-    // Coupon validation in modal
+    // Plan selection
+    document.querySelectorAll('.select-plan-btn-modal').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const card = this.closest('.plan-card-modal');
+            const frequency = document.querySelector('.billing-tab-modal.active').dataset.frequency;
+            const planId = frequency === 'monthly' ? card.dataset.monthlyId : card.dataset.annualId;
+            const monthlyPrice = parseFloat(card.dataset.monthlyPrice);
+            const annualPrice = parseFloat(card.dataset.annualPrice);
+            const price = frequency === 'monthly' ? monthlyPrice : annualPrice;
+            const tier = card.dataset.tier;
+            const size = card.dataset.size;
+            
+            // Get coupon if valid
+            const couponInput = card.querySelector('.coupon-input-modal');
+            let couponCode = null;
+            let finalPrice = price;
+            
+            if (couponInput && couponInput.classList.contains('is-valid')) {
+                couponCode = couponInput.getAttribute('data-coupon-code');
+                const discountedPrice = couponInput.getAttribute('data-final-price');
+                if (discountedPrice) {
+                    finalPrice = parseFloat(discountedPrice);
+                }
+            }
+            
+            // Preserve button and spinner reference for callback
+            const button = this;
+            const spinner = this.querySelector('.spinner-border');
+            
+            // Disable button and show spinner
+            button.disabled = true;
+            if (spinner) spinner.style.display = 'inline-block';
+            
+            // Initialize Paystack payment
+            const handler = PaystackPop.setup({
+                key: '{{ PAYSTACK_PUBLIC_KEY }}',
+                email: '{{ request.user.email }}',
+                amount: finalPrice * 100,
+                currency: "NGN",
+                ref: '' + Math.floor((Math.random() * 1000000000) + 1),
+                callback: function(response) {
+                    console.log('✅ Payment successful, reference:', response.reference);
+                    
+                    // Show loader
+                    const loaderHtml = '<div id="payment-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;"><div style="text-align: center;"><div class="spinner-border text-white" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div><p class="text-white mt-3">Processing your payment...</p></div></div>';
+                    document.body.insertAdjacentHTML('beforeend', loaderHtml);
+                    
+                    // Use XMLHttpRequest for subscription requests
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', "{% url 'create_payment' %}", true);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.setRequestHeader('X-CSRFToken', "{{ csrf_token }}");
+                    
+                    xhr.onload = function() {
+                        console.log('create_payment XHR status:', xhr.status);
+                        if (xhr.status === 200) {
+                            console.log('✓ Payment record created, redirecting in 2 seconds...');
+                            setTimeout(() => {
+                                window.location.href = "{% url 'verify_payment' %}?reference=" + response.reference;
+                            }, 2000);
+                        } else {
+                            console.error('❌ XHR Error:', xhr.status, xhr.responseText);
+                            const loader = document.getElementById('payment-loader');
+                            if (loader) loader.remove();
+                            button.disabled = false;
+                            if (spinner) spinner.style.display = 'none';
+                            // Show toast instead of alert
+                            const toast = document.createElement('div');
+                            toast.className = 'toast show position-fixed bottom-0 end-0 m-3';
+                            toast.style.zIndex = '9999';
+                            toast.innerHTML = `<div class="toast-body bg-danger text-white">Payment processing error. Please contact support.<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>`;
+                            document.body.appendChild(toast);
+                        }
+                    };
+                    
+                    xhr.onerror = function() {
+                        console.error('❌ XHR Network Error');
+                        const loader = document.getElementById('payment-loader');
+                        if (loader) loader.remove();
+                        button.disabled = false;
+                        if (spinner) spinner.style.display = 'none';
+                        // Show toast instead of alert
+                        const toast = document.createElement('div');
+                        toast.className = 'toast show position-fixed bottom-0 end-0 m-3';
+                        toast.style.zIndex = '9999';
+                        toast.innerHTML = `<div class="toast-body bg-danger text-white">Payment processing error. Please contact support.<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>`;
+                        document.body.appendChild(toast);
+                    };
+                    
+                    const payload = JSON.stringify({
+                        reference: response.reference,
+                        tier: tier,
+                        size: size,
+                        frequency: frequency,
+                        amount: finalPrice,
+                        coupon_code: couponCode
+                    });
+                    
+                    console.log('Sending XHR payload:', payload);
+                    xhr.send(payload);
+                },
+                onClose: function() {
+                    console.log('Payment dialog closed');
+                    button.disabled = false;
+                    if (spinner) spinner.style.display = 'none';
+                }
+            });
+            handler.openIframe();
+        });
+    });
+    
+    // Coupon validation
     document.querySelectorAll('.coupon-input-modal').forEach(input => {
-        input.addEventListener('keyup', function(e) {
+        input.addEventListener('keyup', function() {
             const couponCode = this.value.trim();
+            const card = this.closest('.plan-card-modal');
+            if (!card) return;
+            
             if (couponCode.length === 0) {
                 this.classList.remove('is-valid', 'is-invalid');
-                const card = this.closest('.plan-card-modal');
-                if (card) {
-                    const tier = card.dataset.tier;
-                    const size = card.dataset.size;
-                    const basePrice = planPricingModal[tier][size];
-                    card.querySelector('.plan-price-modal').textContent = Math.round(basePrice * billingMultipliersModal[document.querySelector('.billing-tab-modal.active').dataset.frequency]).toLocaleString('en-NG');
+                const frequency = document.querySelector('.billing-tab-modal.active').dataset.frequency;
+                const monthlyPrice = parseFloat(card.dataset.monthlyPrice);
+                const annualPrice = parseFloat(card.dataset.annualPrice);
+                const price = frequency === 'monthly' ? monthlyPrice : annualPrice;
+                const priceEl = card.querySelector('.plan-price-modal');
+                if (priceEl) {
+                    priceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
                 }
                 return;
             }
             
-            // Debounce coupon validation
             clearTimeout(this.validationTimeout);
             this.validationTimeout = setTimeout(() => {
-                validateCouponModal(couponCode, this);
+                const frequency = document.querySelector('.billing-tab-modal.active').dataset.frequency;
+                const monthlyPrice = parseFloat(card.dataset.monthlyPrice);
+                const annualPrice = parseFloat(card.dataset.annualPrice);
+                const price = frequency === 'monthly' ? monthlyPrice : annualPrice;
+                
+                // Use XMLHttpRequest for subscription requests
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '{% url "validate_coupon_api" %}', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            input.classList.add('is-valid');
+                            input.classList.remove('is-invalid');
+                            input.setAttribute('data-coupon-code', couponCode);
+                            input.setAttribute('data-final-price', data.final_amount);
+                            
+                            const priceEl = card.querySelector('.plan-price-modal');
+                            const originalPriceSpan = card.querySelector('.original-price-modal');
+                            
+                            if (priceEl) {
+                                priceEl.textContent = Math.round(data.final_amount).toLocaleString('en-NG');
+                                priceEl.style.color = '#28a745';
+                            }
+                            if (originalPriceSpan) {
+                                const discount = Math.round((data.discount / data.original_amount) * 100);
+                                originalPriceSpan.innerHTML = `Original: ₦${data.original_amount.toLocaleString('en-NG')} | Discount: <strong>${discount}%</strong> ✓`;
+                            }
+                        } else {
+                            input.classList.add('is-invalid');
+                            input.classList.remove('is-valid');
+                            input.removeAttribute('data-coupon-code');
+                            input.removeAttribute('data-final-price');
+                            
+                            const priceEl = card.querySelector('.plan-price-modal');
+                            if (priceEl) {
+                                priceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
+                                priceEl.style.color = '';
+                            }
+                        }
+                    }
+                };
+                
+                const payload = JSON.stringify({
+                    coupon_code: couponCode,
+                    plan_price: price
+                });
+                xhr.send(payload);
             }, 300);
         });
     });
-    
-    // Initialize with default monthly pricing
-    updatePricesModal('monthly');
 });
-
-function validateCouponModal(couponCode, inputElement) {
-    const card = inputElement.closest('.plan-card-modal');
-    if (!card) return;
-
-    const tier = card.dataset.tier;
-    const size = card.dataset.size;
-    const basePrice = planPricingModal[tier][size];
-    const frequency = document.querySelector('.billing-tab-modal.active').dataset.frequency;
-    const finalPrice = Math.round(basePrice * billingMultipliersModal[frequency]);
-
-    const priceDisplay = card.querySelector('.plan-price-modal');
-    const originalPriceSpan = card.querySelector('.original-price-modal');
-
-    fetch('{% url "validate_coupon_api" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}',
-        },
-        body: JSON.stringify({
-            coupon_code: couponCode,
-            plan_price: finalPrice // Send actual plan price
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            inputElement.classList.add('is-valid');
-            inputElement.classList.remove('is-invalid');
-            const discountPercentage = couponCode ? Math.round((data.discount / data.original_amount) * 100) : 0;
-            inputElement.setAttribute('data-discount', discountPercentage);
-            inputElement.setAttribute('data-coupon-code', couponCode);
-            inputElement.setAttribute('data-final-price', Math.round(data.final_amount));
-            
-            // Show discount info and update price display
-            if (originalPriceSpan) {
-                originalPriceSpan.innerHTML = `Original: ₦<span class="base-price-modal">${data.original_amount.toLocaleString('en-NG')}</span> | Discount: <strong>${discountPercentage}%</strong> ✓`;
-            }
-            
-            // Update the price display to show discounted price
-            if (priceDisplay) {
-                priceDisplay.textContent = Math.round(data.final_amount).toLocaleString('en-NG');
-                priceDisplay.style.color = '#28a745'; // Green for discounted price
-            }
-        } else {
-            inputElement.classList.add('is-invalid');
-            inputElement.classList.remove('is-valid');
-            inputElement.setAttribute('data-discount', 0);
-            inputElement.removeAttribute('data-coupon-code');
-            inputElement.removeAttribute('data-final-price');
-            
-            // Reset price to original
-            if (priceDisplay) {
-                priceDisplay.textContent = finalPrice.toLocaleString('en-NG');
-                priceDisplay.style.color = '#00004d'; // Original color
-            }
-            
-            if (originalPriceSpan) {
-                originalPriceSpan.textContent = data.message || 'Invalid coupon';
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error validating coupon:', error);
-        inputElement.classList.add('is-invalid');
-        inputElement.classList.remove('is-valid');
-    });
-}
-
-function selectPlanFromModal(tier, size, buttonElement) {
-    buttonElement.disabled = true;
-    const spinner = buttonElement.querySelector('.spinner-border');
-    if (spinner) spinner.style.display = 'inline-block';
-    
-    const basePrice = planPricingModal[tier][size];
-    const frequency = document.querySelector('.billing-tab-modal.active').dataset.frequency;
-    let finalPrice = Math.round(basePrice * billingMultipliersModal[frequency]);
-    
-    // Get coupon data if available
-    const card = buttonElement.closest('.plan-card-modal');
-    const couponInput = card?.querySelector('.coupon-input-modal');
-    let couponCode = null;
-    let discountAmount = 0;
-    
-    if (couponInput && couponInput.classList.contains('is-valid')) {
-        couponCode = couponInput.getAttribute('data-coupon-code');
-        const discountedPrice = parseInt(couponInput.getAttribute('data-final-price'));
-        if (discountedPrice) {
-            discountAmount = finalPrice - discountedPrice;
-            finalPrice = discountedPrice;
-        }
-    }
-    
-    // Use existing Paystack payment handler
-    payWithPaystackMatrix(tier, size, frequency, finalPrice, buttonElement, couponCode);
-}
-
-function payWithPaystackMatrix(tier, size, frequency, finalPrice, buttonElement, couponCode = null) {
-    // Create a Plan object representation to pass to payment handler
-    const planData = {
-        tier: tier,
-        size: size,
-        frequency: frequency,
-        amount: finalPrice,
-        coupon_code: couponCode
-    };
-    
-    // Show spinner and disable button
-    buttonElement.disabled = true;
-    const spinner = buttonElement.querySelector('.spinner-border');
-    if (spinner) spinner.style.display = 'inline-block';
-    
-    // Setup Paystack payment
-    var handler = PaystackPop.setup({
-        key: '{{ PAYSTACK_PUBLIC_KEY }}',
-        email: '{{ request.user.email }}',
-        amount: finalPrice * 100,  // kobo
-        currency: "NGN",
-        ref: ''+Math.floor((Math.random() * 1000000000) + 1),
-        callback: function(response){
-            fetch("{% url 'create_payment' %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": "{{ csrf_token }}",
-                },
-                body: JSON.stringify({
-                    reference: response.reference,
-                    tier: tier,
-                    size: size,
-                    frequency: frequency,
-                    amount: finalPrice,
-                    coupon_code: couponCode
-                }),
-            })
-            .then(res => res.json())
-            .then(data => {
-                window.location.href = "{% url 'verify_payment' %}?reference=" + response.reference;
-            })
-            .catch(err => {
-                buttonElement.disabled = false;
-                if (spinner) spinner.style.display = 'none';
-            });
-        },
-        onClose: function(){
-            buttonElement.disabled = false;
-            if (spinner) spinner.style.display = 'none';
-        }
-    });
-    handler.openIframe();
-}
 </script>

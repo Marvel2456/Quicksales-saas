@@ -25,8 +25,8 @@
           <div class="mb-3">
             <label for="brand_color" class="form-label">Brand Color</label>
             <div class="input-group">
-              <input type="color" class="form-control form-control-color" id="brand_color" name="brand_color" value="{{ organization.brand_color }}" style="max-width: 100px;" required>
-              <input type="text" class="form-control" id="brand_color_text" name="brand_color_text" value="{{ organization.brand_color }}" placeholder="#007bff" required>
+              <input type="color" class="form-control form-control-color" id="brand_color" name="brand_color" value="{{ organization.brand_color|default:'#007bff' }}" style="max-width: 100px;" required>
+              <input type="text" class="form-control" id="brand_color_text" name="brand_color_text" value="{{ organization.brand_color|default:'#007bff' }}" placeholder="#007bff" required>
             </div>
             <div class="form-text">Select or enter a hex color code (e.g., #007bff). This color will be used throughout your dashboard and receipts.</div>
           </div>

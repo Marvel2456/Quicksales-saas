@@ -39,7 +39,7 @@
                                     </div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <button type="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProfileModal">Change</button>
+                                    {% comment %} <button type="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProfileModal">Change</button> {% endcomment %}
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -50,7 +50,7 @@
                                     <div class="item-data">{{ request.user.get_full_name|default:"Not set" }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
+                                    {% comment %} <a class="btn-sm app-btn-secondary disabled" href="#">Change</a> {% endcomment %}
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -61,7 +61,7 @@
                                     <div class="item-data">{{ request.user.email }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
+                                    {% comment %} <a class="btn-sm app-btn-secondary disabled" href="#">Change</a> {% endcomment %}
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -72,7 +72,7 @@
                                     <div class="item-data">{{ organization.name }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
+                                    {% comment %} <a class="btn-sm app-btn-secondary disabled" href="#">Change</a> {% endcomment %}
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -83,7 +83,7 @@
                                     <div class="item-data">{{ request.user.get_role_display }}</div>
                                 </div><!--//col-->
                                 <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary disabled" href="#">Change</a>
+                                    {% comment %} <a class="btn-sm app-btn-secondary disabled" href="#">Change</a> {% endcomment %}
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
@@ -95,85 +95,7 @@
                 </div><!--//app-card-->
             </div><!--//col-->
             <div class="col-12 col-lg-6">
-                <div class="app-card app-card-account shadow-sm d-flex flex-column align-items-start">
-                    <div class="app-card-header p-3 border-bottom-0">
-                        <div class="row align-items-center gx-3">
-                            <div class="col-auto">
-                                <div class="app-icon-holder">
-                                    <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-sliders" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd" d="M11.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9.05 3a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0V3h9.05zM4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2.05 8a2.5 2.5 0 0 1 4.9 0H16v1H6.95a2.5 2.5 0 0 1-4.9 0H0V8h2.05zm9.45 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-2.45 1a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0v-1h9.05z"/>
-                                    </svg>
-                                </div><!--//icon-holder-->
-                                
-                            </div><!--//col-->
-                            <div class="col-auto">
-                                <h4 class="app-card-title">Preferences</h4>
-                            </div><!--//col-->
-                        </div><!--//row-->
-                    </div><!--//app-card-header-->
-                    <div class="app-card-body px-4 w-100">
-                        
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><strong>Language </strong></div>
-                                    <div class="item-data">English</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><strong>Time Zone</strong></div>
-                                    <div class="item-data">Central Standard Time (UTC-6)</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><strong>Currency</strong></div>
-                                    <div class="item-data">$(US Dollars)</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><strong>Email Subscription</strong></div>
-                                    <div class="item-data">Off</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><strong>SMS Notifications</strong></div>
-                                    <div class="item-data">On</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Change</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                    </div><!--//app-card-body-->
-                    <div class="app-card-footer p-4 mt-auto">
-                        <a class="btn app-btn-secondary" href="#">Manage Preferences</a>
-                    </div><!--//app-card-footer-->
-                    
-                </div><!--//app-card-->
+                
             </div><!--//col-->
             <div class="col-12 col-lg-6">
                 <div class="app-card app-card-account shadow-sm d-flex flex-column align-items-start">
@@ -198,82 +120,20 @@
                         <div class="item border-bottom py-3">
                             <div class="row justify-content-between align-items-center">
                                 <div class="col-auto">
-                                    <div class="item-label"><strong>Password</strong></div>
-                                    <div class="item-data">••••••••</div>
+                                    {% comment %} <div class="item-label"><strong>Password</strong></div>
+                                    <div class="item-data">••••••••</div> {% endcomment %}
                                 </div><!--//col-->
                                 <div class="col text-end">
                                     <button type="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">Change</button>
                                 </div><!--//col-->
                             </div><!--//row-->
                         </div><!--//item-->
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><strong>Two-Factor Authentication</strong></div>
-                                    <div class="item-data">You haven't set up two-factor authentication. </div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Set up</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
+                       
                     </div><!--//app-card-body-->
-                    
-                    <div class="app-card-footer p-4 mt-auto">
-                        <a class="btn app-btn-secondary" href="#">Manage Security</a>
-                    </div><!--//app-card-footer-->
                     
                 </div><!--//app-card-->
             </div>
-            <div class="col-12 col-lg-6">
-                <div class="app-card app-card-account shadow-sm d-flex flex-column align-items-start">
-                    <div class="app-card-header p-3 border-bottom-0">
-                        <div class="row align-items-center gx-3">
-                            <div class="col-auto">
-                                <div class="app-icon-holder">
-                                    <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-credit-card" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd" d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1H2zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7z"/>
-                                    <path d="M2 10a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1z"/>
-                                    </svg>
-                                </div><!--//icon-holder-->
-                                
-                            </div><!--//col-->
-                            <div class="col-auto">
-                                <h4 class="app-card-title">Payment methods</h4>
-                            </div><!--//col-->
-                        </div><!--//row-->
-                    </div><!--//app-card-header-->
-                    <div class="app-card-body px-4 w-100">
-                        
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><i class="fab fa-cc-visa me-2"></i><strong>Credit/Debit Card </strong></div>
-                                    <div class="item-data">1234*******5678</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Edit</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                        <div class="item border-bottom py-3">
-                            <div class="row justify-content-between align-items-center">
-                                <div class="col-auto">
-                                    <div class="item-label"><i class="fab fa-paypal me-2"></i><strong>PayPal</strong></div>
-                                    <div class="item-data">Not connected</div>
-                                </div><!--//col-->
-                                <div class="col text-end">
-                                    <a class="btn-sm app-btn-secondary" href="#">Connect</a>
-                                </div><!--//col-->
-                            </div><!--//row-->
-                        </div><!--//item-->
-                    </div><!--//app-card-body-->
-                    <div class="app-card-footer p-4 mt-auto">
-                        <a class="btn app-btn-secondary" href="#">Manage Payment</a>
-                    </div><!--//app-card-footer-->
-                    
-                </div><!--//app-card-->
-            </div>
+            
         </div><!--//row-->
         
     </div><!--//container-fluid-->

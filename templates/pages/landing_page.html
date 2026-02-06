@@ -1,331 +1,2064 @@
 {% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Marvex Quicksales</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Bootstrap Icons CDN -->
+    <title>Marvex Quicksales - Smart Inventory Management System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <!-- Animate.css CDN for extra animations -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
+    <!-- Custom Landing Page CSS -->
+    <link href="{% static 'assets/css/landing.css' %}" rel="stylesheet">
+    
     <style>
-        /* Custom keyframes for Tailwind */
-        @layer utilities {
-            .animate-fadeinup {
-                animation: fadeInUp 1s both;
-            }
-            .animate-fadeindown {
-                animation: fadeInDown 1s both;
-            }
-            .animate-bouncein {
-                animation: bounceIn 1s both;
+        /* Uncut Sans Font Registration */
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Regular.otf' %}") format('opentype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Medium.otf' %}") format('opentype');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Semibold.otf' %}") format('opentype');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Bold.otf' %}") format('opentype');
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        body {
+            font-family: 'Uncut Sans', sans-serif !important;
+        }
+
+        h1, h2, h3, h4, h5, h6, .navbar-nav .nav-link, .btn {
+            font-family: 'Uncut Sans', sans-serif !important;
+        }
+
+        :root {
+            --primary-color: #00004d;
+            --primary-hover: #000080;
+            --secondary-color: #4169E1;
+        }
+        
+        /* Navbar Styles */
+        .navbar {
+            background-color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 0.5rem 0;
+        }
+        
+        .navbar-brand img {
+            height: 75px;
+            width: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .navbar-brand img:hover {
+            transform: scale(1.05);
+        }
+        
+        .navbar-nav .nav-link {
+            color: var(--primary-color) !important;
+            font-weight: 500;
+            font-size: 1rem;
+            padding: 0.5rem 1rem !important;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            color: var(--secondary-color) !important;
+        }
+        
+        .navbar-nav .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background-color: var(--secondary-color);
+            transition: width 0.3s ease;
+        }
+        
+        .navbar-nav .nav-link:hover::after {
+            width: 80%;
+        }
+        
+        .btn-login {
+            color: var(--primary-color) !important;
+            font-weight: 500;
+            padding: 0.5rem 1.5rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-login:hover {
+            color: var(--secondary-color) !important;
+        }
+        
+        .btn-start-trial {
+            background-color: var(--secondary-color);
+            color: #ffffff !important;
+            font-weight: 600;
+            padding: 0.6rem 2rem;
+            border-radius: 12px;
+            border: 2px solid var(--secondary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-start-trial:hover {
+            background-color: transparent;
+            color: var(--secondary-color) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(65, 105, 225, 0.3);
+        }
+        
+        /* Navbar Toggle - Custom Hamburger */
+        .navbar-toggler {
+            border: none !important;
+            background-color: transparent !important;
+            padding: 5px !important;
+            width: 40px !important;
+            height: 40px !important;
+            display: none; /* Default to hidden, shown via media query on mobile */
+            position: relative !important;
+            cursor: pointer !important;
+            z-index: 1000 !important;
+        }
+        
+        .navbar-toggler:hover {
+            background-color: rgba(0,0,0,0.05) !important;
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: none !important;
+            outline: none !important;
+        }
+        
+        /* Custom Hamburger Lines */
+        .navbar-toggler-icon {
+            position: relative !important;
+            display: block !important;
+            width: 24px !important;
+            height: 2px !important;
+            background-color: #00004d !important;
+            margin: 0 auto !important;
+        }
+        
+        .navbar-toggler-icon::before,
+        .navbar-toggler-icon::after {
+            content: '' !important;
+            position: absolute !important;
+            left: 0 !important;
+            width: 24px !important;
+            height: 2px !important;
+            background-color: #00004d !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        .navbar-toggler-icon::before {
+            top: -7px !important;
+        }
+        
+        .navbar-toggler-icon::after {
+            bottom: -7px !important;
+        }
+        
+        /* Hide toggler on desktop */
+        @media (min-width: 992px) {
+            .navbar-toggler {
+                display: none !important;
             }
         }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(40px);}
-            to { opacity: 1; transform: translateY(0);}
+        
+        /* Ensure toggler shows on mobile */
+        @media (max-width: 991.98px) {
+            .navbar-toggler {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
         }
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-40px);}
-            to { opacity: 1; transform: translateY(0);}
+        
+        /* Mobile Menu Styles */
+        @media (max-width: 991.98px) {
+            .navbar-nav {
+                padding: 1rem 0;
+            }
+            
+            .navbar-nav .nav-link {
+                padding: 0.75rem 0 !important;
+            }
+            
+            .navbar-nav .nav-link::after {
+                display: none;
+            }
+            
+            .btn-login, .btn-start-trial {
+                width: 100%;
+                margin: 0.5rem 0;
+                text-align: center;
+            }
         }
-        @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.3);}
-            50% { opacity: 1; transform: scale(1.05);}
-            70% { transform: scale(0.9);}
-            100% { transform: scale(1);}
+        
+        /* Body Padding for Fixed Navbar */
+        body {
+            padding-top: 80px;
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body>
 
-    <!-- Navbar -->
-    <nav class="fixed top-0 left-0 w-full bg-white shadow z-50 animate__animated animate__fadeInDown">
-        <div class="container mx-auto flex items-center justify-between py-3 px-4">
-            <a href="#" class="font-bold text-2xl text-[#00004d] animate__animated animate__pulse animate__infinite"><img style="height:90px; width:85px;" src="{% static 'assets/images/mq_logo.png' %}"></a>
-            <div class="hidden md:flex space-x-6 items-center">
-                <a href="#why-mqs" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown">Why MQs?</a>
-                <a href="#plans" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-1s">Plans</a>
-                <a href="#features" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-2s">Features</a>
-                <a href="#newsletter" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-3s">Newsletter</a>
-                <a href="#contact" class="text-[#00004d] hover:text-blue-700 font-medium transition animate__animated animate__fadeInDown animate__delay-4s">Contact</a>
-                <div class="flex space-x-3 ml-4">
-                    <a href="https://twitter.com/" target="_blank" aria-label="Twitter" class="text-[#00004d] hover:text-blue-400 animate__animated animate__bounceIn"><i class="bi bi-twitter"></i></a>
-                    <a href="https://facebook.com/" target="_blank" aria-label="Facebook" class="text-[#00004d] hover:text-blue-600 animate__animated animate__bounceIn animate__delay-1s"><i class="bi bi-facebook"></i></a>
-                    <a href="https://linkedin.com/" target="_blank" aria-label="LinkedIn" class="text-[#00004d] hover:text-blue-700 animate__animated animate__bounceIn animate__delay-2s"><i class="bi bi-linkedin"></i></a>
-                    <a href="https://instagram.com/" target="_blank" aria-label="Instagram" class="text-[#00004d] hover:text-pink-500 animate__animated animate__bounceIn animate__delay-3s"><i class="bi bi-instagram"></i></a>
-                </div>
-            </div>
-            <button class="md:hidden text-[#00004d]" id="nav-toggle">
-                <i class="bi bi-list" style="font-size: 2.5rem; font-weight: bold;"></i>
+    <!-- Responsive Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <!-- Brand/Logo -->
+            <a class="navbar-brand" href="{% url 'landing_page' %}">
+                <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo">
+            </a>
+            
+            <!-- Mobile Toggle Button -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
             </button>
-        </div>
-        <!-- Mobile Menu -->
-        <div class="md:hidden hidden flex-col px-4 pb-4 bg-white" id="mobile-menu">
-            <a href="#why-mqs" class="block py-2 text-[#00004d] hover:text-blue-700">Why MQs?</a>
-            <a href="#plans" class="block py-2 text-[#00004d] hover:text-blue-700">Plans</a>
-            <a href="#features" class="block py-2 text-[#00004d] hover:text-blue-700">Features</a>
-            <a href="#newsletter" class="block py-2 text-[#00004d] hover:text-blue-700">Newsletter</a>
-            <a href="#contact" class="block py-2 text-[#00004d] hover:text-blue-700">Contact</a>   
+            
+            <!-- Navbar Links -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-lg-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#businesses">For Businesses</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#pricing">Pricing</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#faqs">FAQs</a>
+                    </li>
+                    <li class="nav-item ms-lg-3">
+                        <a class="btn btn-login" href="{% url 'login' %}">Log in</a>
+                    </li>
+                    <li class="nav-item ms-lg-2">
+                        <a class="btn btn-start-trial" href="{% url 'register' %}">Start free trial</a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
-<!-- Hero Section with background image and overlay -->
-    <section class="pt-40 pb-32 min-h-[70vh] relative text-center overflow-hidden" style="background-image: url('{% static "assets/images/hero1.jpg" %}'); background-size: cover; background-position: center;">
-        <div class="absolute inset-0 bg-[#00004d]/80"></div>
-        <div class="relative container mx-auto px-4 md:px-16 flex flex-col items-center justify-center z-10">
-            <div class="w-full text-white">
-                <h1 class="text-4xl md:text-6xl font-bold mb-6 animate-fadeinup">Grow Your Business with <span class="animate__animated animate__heartBeat animate__infinite text-blue-200">Marvex Quicksales</span></h1>
-                <p class="text-lg md:text-2xl mb-10 text-blue-100 animate-fadeinup delay-150">All-in-one sales management SaaS platform to help you track, manage, and boost your sales efficiently.</p>
-                <a href="{% url 'register' %}" class="inline-block bg-white text-[#00004d] px-10 py-4 rounded-full font-semibold shadow hover:bg-blue-900 hover:text-white transition animate-bouncein text-lg">Try it for free</a>
-            </div>
-        </div>
-        <!-- Decorative floating shapes -->
-        <div class="absolute top-10 left-10 w-24 h-24 bg-blue-300 rounded-full opacity-40 animate__animated animate__fadeInDown"></div>
-        <div class="absolute bottom-10 right-10 w-32 h-32 bg-blue-400 rounded-full opacity-30 animate__animated animate__fadeInUp"></div>
-    </section>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <!-- Feature Icons -->
+                    <div class="hero-icons mb-4">
+                        <div class="icon-badge">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                        <div class="icon-badge icon-green">
+                            <i class="bi bi-box-seam"></i>
+                        </div>
+                        <div class="icon-badge icon-red">
+                            <i class="bi bi-shop"></i>
+                        </div>
+                    </div>
 
-    <!-- Why MQs Section -->
-    <section id="why-mqs" class="py-16" style="background: linear-gradient(135deg, #e0e7ff 60%, #f8fafc 100%);">
-        <div class="container mx-auto px-4 md:px-16">
-            <h2 class="text-3xl font-bold text-center mb-8 text-[#00004d] animate__animated animate__fadeInDown">Why Choose Marvex Quicksales?</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-white rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInLeft">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-lightbulb"></i></div>
-                    <h5 class="font-semibold mb-2">Innovative Tools</h5>
-                    <p class="text-gray-700">Stay ahead with cutting-edge features designed for modern sales teams.</p>
-                </div>
-                <div class="bg-white rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-1s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-graph-up-arrow"></i></div>
-                    <h5 class="font-semibold mb-2">Proven Results</h5>
-                    <p class="text-gray-700">Thousands of organizations have grown their revenue with MQs.</p>
-                </div>
-                <div class="bg-white rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInRight animate__delay-2s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-emoji-smile"></i></div>
-                    <h5 class="font-semibold mb-2">Delightful Experience</h5>
-                    <p class="text-gray-700">Enjoy a user-friendly interface and world-class support every step of the way.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+                    <!-- Hero Content -->
+                    <div class="hero-content text-center">
+                        <h1 class="hero-title mb-4">
+                            Manage your business<br>
+                            sales, stocks & finances
+                        </h1>
+                        <p class="hero-subtitle mb-5">
+                            Track sales in real time, manage stock accurately, control<br class="d-none d-md-block">
+                            staff access, and make better decisions faster.
+                        </p>
 
-    <!-- Features Section (darker slate background) -->
-    <section id="features" class="py-16 bg-slate-800">
-        <div class="container mx-auto px-4 md:px-16">
-            <h2 class="text-3xl font-bold text-center mb-10 text-white animate__animated animate__fadeInDown">Features</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-bar-chart"></i></div>
-                    <h5 class="font-semibold mb-2">Analytics Dashboard</h5>
-                    <p class="text-gray-700">Get real-time insights into your sales performance with our intuitive dashboard.</p>
-                </div>
-                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-1s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-people"></i></div>
-                    <h5 class="font-semibold mb-2">Customer Management</h5>
-                    <p class="text-gray-700">Manage all your customers in one place and keep track of every interaction.</p>
-                </div>
-                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-2s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-cloud-arrow-up"></i></div>
-                    <h5 class="font-semibold mb-2">Cloud-Based</h5>
-                    <p class="text-gray-700">Access your sales data securely from anywhere, anytime.</p>
-                </div>
-                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-3s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-shield-lock"></i></div>
-                    <h5 class="font-semibold mb-2">Secure Platform</h5>
-                    <p class="text-gray-700">Your data is protected with enterprise-grade security and encryption.</p>
-                </div>
-                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-4s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-lightning-charge"></i></div>
-                    <h5 class="font-semibold mb-2">Fast Performance</h5>
-                    <p class="text-gray-700">Enjoy lightning-fast load times and seamless user experience.</p>
-                </div>
-                <div class="bg-white/90 rounded-xl shadow p-8 text-center hover:shadow-lg transition animate__animated animate__fadeInUp animate__delay-5s">
-                    <div class="text-4xl mb-3 text-[#00004d]"><i class="bi bi-headset"></i></div>
-                    <h5 class="font-semibold mb-2">24/7 Support</h5>
-                    <p class="text-gray-700">Our support team is always available to help you with any issues.</p>
+                        <!-- CTA Buttons -->
+                        <div class="hero-buttons mb-5">
+                            <a href="{% url 'register' %}" class="btn btn-hero-primary">
+                                Start free trial
+                            </a>
+                            <a href="#pricing" class="btn btn-hero-secondary">
+                                View Pricing
+                            </a>
+                        </div>
+
+                        <!-- Dashboard Preview Image -->
+                        <div class="dashboard-preview">
+                            <div class="dashboard-mockup">
+                                <img src="{% static 'assets/images/Hero.png' %}" 
+                                     alt="Dashboard Preview" 
+                                     class="img-fluid rounded-4 shadow-lg"
+                                     onerror="this.src='{% static 'assets/images/Hero.png' %}'">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
-
-
-    <!-- Plans Section (darker background) -->
-    <section id="plans" class="py-16 bg-blue-900/90">
-        <div class="container mx-auto px-4 md:px-16">
-            <h2 class="text-3xl font-bold text-center mb-4 text-white animate__animated animate__fadeInDown">Choose Your Plan</h2>
-            <p class="text-center text-blue-200 mb-10 animate__animated animate__fadeInDown animate__delay-1s">Select your tier, size, and billing frequency</p>
+    
+    <style>
+        /* Hero Section Styles */
+        .hero-section {
+            background: white;
+            padding: 120px 0 80px;
+            overflow: hidden;
+        }
+        
+        /* Feature Icons */
+        .hero-icons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .icon-badge {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+            animation: float 3s ease-in-out infinite;
+            transition: transform 0.3s ease;
+        }
+        
+        .icon-badge:hover {
+            transform: translateY(-10px) scale(1.1);
+        }
+        
+        .icon-badge.icon-green {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+            animation-delay: 0.5s;
+        }
+        
+        .icon-badge.icon-red {
+            background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
+            box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
+            animation-delay: 1s;
+        }
+        
+        .icon-badge i {
+            font-size: 2rem;
+            color: white;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+        
+        /* Hero Content */
+        .hero-content {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: #6c757d;
+            line-height: 1.6;
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+        
+        /* Hero Buttons */
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn-hero-primary {
+            background: linear-gradient(135deg, #4169E1 0%, #1E90FF 100%);
+            color: white;
+            padding: 0.875rem 2.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border: none;
+            box-shadow: 0 8px 20px rgba(65, 105, 225, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-hero-primary:hover {
+            background: linear-gradient(135deg, #1E90FF 0%, #4169E1 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px rgba(65, 105, 225, 0.4);
+            color: white;
+        }
+        
+        .btn-hero-secondary {
+            background: white;
+            color: #1a1a2e;
+            padding: 0.875rem 2.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-hero-secondary:hover {
+            background: #f8f9fa;
+            border-color: #4169E1;
+            color: #4169E1;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Dashboard Preview */
+        .dashboard-preview {
+            margin-top: 4rem;
+            perspective: 1000px;
+            width: 100%;
+        }
+        
+        .dashboard-mockup {
+            position: relative;
+            width: 100%;
+            margin: 0 auto;
+            animation: fadeInUp 1s ease-out;
+        }
+        
+        .dashboard-mockup img {
+            width: 100%;
+            border: none;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease;
+        }
+        
+        .dashboard-mockup:hover img {
+            transform: translateY(-10px) rotateX(2deg);
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 100px 0 60px;
+            }
             
-            <!-- Billing Frequency Tabs -->
-            <div class="flex justify-center gap-4 mb-12 flex-wrap">
-                <button class="billing-tab px-6 py-2 rounded-full font-medium transition active text-white" data-frequency="monthly">
-                    📅 Monthly
-                </button>
-                <button class="billing-tab px-6 py-2 rounded-full font-medium transition text-white" data-frequency="quarterly">
-                    📊 Quarterly (Save 5%)
-                </button>
-                <button class="billing-tab px-6 py-2 rounded-full font-medium transition text-white" data-frequency="annually">
-                    🎯 Annually (Save 15%)
-                </button>
-            </div>
+            .hero-title {
+                font-size: 2rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1rem;
+            }
+            
+            .icon-badge {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .icon-badge i {
+                font-size: 1.5rem;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .btn-hero-primary,
+            .btn-hero-secondary {
+                width: 100%;
+                max-width: 300px;
+                margin: 0 auto;
+            }
+            
+            .dashboard-preview {
+                margin-top: 2rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .hero-title {
+                font-size: 1.75rem;
+            }
+            
+            .hero-icons {
+                gap: 1rem;
+            }
+            
+            .icon-badge {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .icon-badge i {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
 
-            <!-- Plans Grid by Tier -->
-            {% for tier_name, tier_label in tier_choices %}
-            <div class="mb-16">
-                <h3 class="text-2xl font-bold text-white mb-8 text-center">{{ tier_label }} Plans</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {% for size_name, size_label in size_choices %}
-                    <div class="plan-card flex-1 max-w-sm mx-auto bg-white/90 rounded-xl shadow-lg border border-gray-200 p-8 text-center hover:shadow-2xl transition animate__animated animate__zoomIn" data-tier="{{ tier_name }}" data-size="{{ size_name }}">
-                        <div class="plan-size-icon text-4xl mb-3">
-                            {% if size_name == 'starter' %}⭐{% elif size_name == 'large' %}🚀{% else %}👑{% endif %}
+    <!-- Benefits/Features Section -->
+    <section class="benefits-section py-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="benefit-card text-center">
+                        <div class="benefit-icon mb-3">
+                            <i class="bi bi-funnel"></i>
                         </div>
-                        <h4 class="text-xl font-semibold mb-2 text-[#00004d]">{{ tier_label }} {{ size_label }}</h4>
-                        <div class="pricing-display mb-4">
-                            <div class="text-4xl font-bold text-[#00004d] mb-1">₦<span class="plan-price">--</span></div>
-                            <div class="text-sm text-gray-600"><span class="billing-period">per month</span></div>
-                        </div>
-                        
-                        <!-- Features based on tier and size -->
-                        <ul class="text-gray-700 mb-6 space-y-2 text-sm h-40 overflow-y-auto">
-                            <li>✔ <strong class="plan-users">1</strong> User</li>
-                            <li>✔ <strong class="plan-branches">1</strong> Branch</li>
-                            <li>✔ <strong class="plan-products">100</strong> Products</li>
-                            <li>✔ Basic Analytics</li>
-                            {% if tier_name != 'basic' %}
-                                <li>✔ Advanced Reports</li>
-                                <li>✔ API Access</li>
-                            {% endif %}
-                            {% if tier_name == 'premium' %}
-                                <li>✔ Custom Branding</li>
-                                <li>✔ Priority Support</li>
-                                <li>✔ Dedicated Account Manager</li>
-                            {% endif %}
-                        </ul>
-                        
-                        <!-- Coupon Input -->
-                        <div class="mb-3">
-                            <input type="text" class="form-control coupon-input text-sm" placeholder="Coupon (optional)" data-tier="{{ tier_name }}" data-size="{{ size_name }}">
-                            <small class="text-muted d-block mt-1">
-                                <span class="original-price text-xs">Original: ₦<span class="base-price">0</span></span>
-                            </small>
-                        </div>
-                        
-                        <button class="select-plan-btn inline-block bg-[#00004d] text-white px-6 py-2 rounded-full font-medium hover:bg-blue-900 transition w-full" onclick="selectPlan('{{ tier_name }}', '{{ size_name }}')">
-                            <span class="btn-text text-white">Get Started</span>
-                        </button>
+                        <h5 class="benefit-title mb-3">Full Visibility</h5>
+                        <p class="benefit-text">See sales, stock, and activity across all locations in real time.</p>
                     </div>
-                    {% endfor %}
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="benefit-card text-center">
+                        <div class="benefit-icon mb-3">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <h5 class="benefit-title mb-3">No Stock Loss</h5>
+                        <p class="benefit-text">Avoid inventory mistakes that lead to waste or shortages.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="benefit-card text-center">
+                        <div class="benefit-icon mb-3">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <h5 class="benefit-title mb-3">Less Manual Work</h5>
+                        <p class="benefit-text">Spend less time fixing errors and more time running the business.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="benefit-card text-center">
+                        <div class="benefit-icon mb-3">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <h5 class="benefit-title mb-3">Operation Reliability</h5>
+                        <p class="benefit-text">A system you can rely on every day, not just for reports.</p>
+                    </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
     </section>
 
-    <!-- Stats Section (centralized and padded) -->
-    <section class="py-16 bg-blue-100">
-        <div class="container mx-auto px-4 md:px-16">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                <div class="animate__animated animate__fadeInLeft">
-                    <div class="text-5xl font-bold text-[#00004d] mb-2"><i class="bi bi-building"></i></div>
-                    <h3 class="text-3xl font-bold text-[#00004d] mb-1">2,500+</h3>
-                    <p class="text-gray-700 text-lg">Organizations</p>
+    <!-- For Businesses Section -->
+    <section id="businesses" class="for-businesses-section py-5">
+        <div class="container">
+            <div class="row align-items-center">
+                <!-- Left Content -->
+                <div class="col-lg-5 mb-4 mb-lg-0">
+                    <div class="business-content">
+                        <p class="business-label text-uppercase mb-3">For Businesses</p>
+                        <h2 class="business-title mb-4">Built for Modern<br>Retail Businesses</h2>
+                        <p class="business-description">Designed for inventory-driven businesses operating across stores, teams, and locations.</p>
+                    </div>
                 </div>
-                <div class="animate__animated animate__fadeInUp animate__delay-1s">
-                    <div class="text-5xl font-bold text-[#00004d] mb-2"><i class="bi bi-people-fill"></i></div>
-                    <h3 class="text-3xl font-bold text-[#00004d] mb-1">12,000+</h3>
-                    <p class="text-gray-700 text-lg">Staffs</p>
-                </div>
-                <div class="animate__animated animate__fadeInRight animate__delay-2s">
-                    <div class="text-5xl font-bold text-[#00004d] mb-2"><i class="bi bi-box-seam"></i></div>
-                    <h3 class="text-3xl font-bold text-[#00004d] mb-1">50,000+</h3>
-                    <p class="text-gray-700 text-lg">Products</p>
+
+                <!-- Right Content - Image Cards -->
+                <div class="col-lg-7">
+                    <div class="business-carousel-wrapper">
+                        <div id="businessCarousel" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                <div class="carousel-item active">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="business-card">
+                                                <img src="{% static 'assets/images/retail-store.jpg' %}" alt="Retail Stores" class="business-card-img">
+                                                <div class="business-card-overlay">
+                                                    <h5 class="business-card-title">Retail Stores</h5>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="business-card">
+                                                <img src="{% static 'assets/images/grocery-store.jpg' %}" alt="Grocery & Supermarkets" class="business-card-img">
+                                                <div class="business-card-overlay">
+                                                    <h5 class="business-card-title">Grocery &<br>Supermarkets</h5>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="business-card">
+                                                <img src="{% static 'assets/images/pharmacy.jpg' %}" alt="Pharmacies" class="business-card-img">
+                                                <div class="business-card-overlay">
+                                                    <h5 class="business-card-title">Pharmacies</h5>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Carousel Controls -->
+                        <div class="carousel-controls mt-4 text-center">
+                            <button class="carousel-control-btn me-2" type="button" data-bs-target="#businessCarousel" data-bs-slide="prev">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <button class="carousel-control-btn" type="button" data-bs-target="#businessCarousel" data-bs-slide="next">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 3D/Illustration Section -->
-    <section class="py-16 bg-gradient-to-r from-blue-50 to-white flex flex-col items-center justify-center">
-        <div class="w-full flex flex-col md:flex-row items-center justify-center gap-8 px-4 md:px-16">
-            <div id="lottie-animation" class="w-72 h-72 md:w-96 md:h-96"></div>
-            <div class="max-w-lg text-center md:text-left">
-                <h3 class="text-3xl font-bold text-[#00004d] mb-4 animate__animated animate__fadeInRight">Modern, Interactive &amp; Engaging</h3>
-                <p class="text-gray-700 text-lg animate__animated animate__fadeInRight animate__delay-1s">
-                    Our platform leverages the latest technology and design trends to deliver a delightful experience for your team and customers.
+    <style>
+        /* Benefits Section */
+        .benefits-section {
+            background: white;
+            padding: 4rem 0;
+        }
+
+        .benefit-card {
+            padding: 2rem 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .benefit-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .benefit-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .benefit-icon i {
+            font-size: 1.75rem;
+            color: #1a1a2e;
+        }
+
+        .benefit-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .benefit-text {
+            font-size: 0.95rem;
+            color: #6c757d;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* For Businesses Section */
+        .for-businesses-section {
+            background: white;
+            padding: 5rem 0;
+        }
+
+        .business-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #6c757d;
+            letter-spacing: 1px;
+        }
+
+        .business-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.2;
+        }
+
+        .business-description {
+            font-size: 1rem;
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .business-card {
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            height: 300px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .business-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .business-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .business-card-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+            padding: 2rem 1.5rem 1.5rem;
+        }
+
+        .business-card-title {
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .carousel-controls {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .carousel-control-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .carousel-control-btn:hover {
+            background: #4169E1;
+            border-color: #4169E1;
+            color: white;
+        }
+
+        .carousel-control-btn i {
+            font-size: 1.25rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            /* Typography Scale Reduction */
+            body {
+                font-weight: 400 !important;
+            }
+            
+            h1, .hero-title {
+                font-size: 2.1rem !important; /* Reduced from 3rem */
+                line-height: 1.2 !important;
+                font-weight: 600 !important;
+            }
+            
+            h2, .section-title, .business-title {
+                font-size: 1.75rem !important; /* Reduced from 2.5rem */
+                line-height: 1.3 !important;
+                font-weight: 600 !important;
+            }
+            
+            h3, h4, h5 {
+                font-weight: 600 !important;
+            }
+            
+            .business-card-title {
+                font-size: 1.1rem;
+                font-weight: 500;
+            }
+
+            p, .hero-subtitle, .section-description {
+                font-size: 1rem !important;
+                font-weight: 400 !important;
+            }
+
+            /* Scrollable Business Section on Mobile */
+            .business-carousel-wrapper .carousel-inner {
+                overflow: visible;
+            }
+
+            .business-carousel-wrapper .carousel-item {
+                display: block;
+                margin-right: 0;
+            }
+
+            .business-carousel-wrapper .row {
+                display: flex;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 1rem;
+                scrollbar-width: none; /* Firefox */
+                -ms-overflow-style: none; /* IE 10+ */
+                margin-right: -15px; /* Pull to edge */
+                padding-right: 15px;
+            }
+            
+            .business-carousel-wrapper .row::-webkit-scrollbar {
+                display: none; /* Safari and Chrome */
+            }
+
+            .business-carousel-wrapper .col-md-4 {
+                flex: 0 0 85%; /* Card width */
+                max-width: 85%;
+                margin-right: 15px;
+            }
+            
+            .business-card {
+                height: 240px;
+            }
+            
+            /* Hide carousel controls on mobile */
+            .carousel-controls {
+                display: none;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .business-title {
+                font-size: 1.75rem;
+            }
+            
+            .business-card {
+                height: 200px;
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+
+    <!-- Sales & POS Features Section -->
+    <section class="sales-pos-section py-5">
+        <div class="container">
+            <!-- Section Header -->
+            <div class="text-center mb-5">
+                <p class="section-label text-uppercase mb-2">Sales Operations</p>
+                <h2 class="section-title mb-3">Sales & POS that powers<br>your entire system</h2>
+                <p class="section-description mx-auto">Every transaction updates your business instantly. Sales, pricing, and<br class="d-none d-md-block">inventory stay connected in real time—without manual work.</p>
+            </div>
+
+            <!-- Content -->
+            <div class="row align-items-center mt-5">
+                <!-- Left Side - Checkout Image -->
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    <div class="checkout-image-wrapper">
+                        <img src="{% static 'assets/images/checkout-mockup.png' %}" 
+                             alt="Checkout System" 
+                             class="img-fluid checkout-image"
+                             onerror="this.src='{% static 'assets/images/hero1.jpg' %}'">
+                    </div>
+                </div>
+
+                <!-- Right Side - Features List -->
+                <div class="col-lg-6">
+                    <div class="features-list">
+                        <!-- Feature 1 -->
+                        <div class="feature-item mb-5 active" data-feature="0" data-image="{% static 'assets/images/checkout-mockup.png' %}">
+                            <div class="feature-progress mb-3">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title mb-3">Fast Point of Sale</h5>
+                            <p class="feature-description">Process sales instantly with automatic inventory and profit updates at checkout.</p>
+                        </div>
+
+                        <!-- Feature 2 -->
+                        <div class="feature-item mb-5" data-feature="1" data-image="{% static 'assets/images/smart-cart.png' %}">
+                            <div class="feature-progress mb-3">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title mb-3">Smart Cart & Pricing</h5>
+                            <p class="feature-description">Adjust quantities, pricing, and discounts with real-time calculations before checkout.</p>
+                        </div>
+
+                        <!-- Feature 3 -->
+                        <div class="feature-item mb-5" data-feature="2" data-image="{% static 'assets/images/digital-receipts.png' %}">
+                            <div class="feature-progress mb-3">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title mb-3">Digital & Print Receipts</h5>
+                            <p class="feature-description">Generate professional receipts instantly—available digitally or print-ready, with full history saved.</p>
+                        </div>
+
+                        <!-- Feature 4 -->
+                        <div class="feature-item" data-feature="3" data-image="{% static 'assets/images/sales-tracking.png' %}">
+                            <div class="feature-progress mb-3">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title mb-3">Real-Time Sales Tracking</h5>
+                            <p class="feature-description">Monitor sales totals, transactions, and revenue across all branches as they happen.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Inventory Accuracy Section -->
+    <section id="features" class="inventory-section">
+        <div class="container">
+            <div class="row mb-5">
+                <!-- Left Side - Heading -->
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    <div class="d-inline-block mb-3">
+                        <span class="inventory-badge">INVENTORY TRACKING</span>
+                    </div>
+                    <h2 class="section-title fw-bold text-dark mt-2">Inventory accuracy<br>without the guesswork</h2>
+                </div>
+
+                <!-- Right Side - Description & Button -->
+                <div class="col-lg-6 d-flex flex-column justify-content-center ps-lg-5">
+                    <p class="section-description mb-4">Quicksales connects sales, pricing, and inventory in real time so nothing slips through the cracks.</p>
+                    <div>
+                        <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-4" style="background-color: #2563EB; border: none; font-size: 0.95rem; font-weight: 600; border-radius: 12px;">Start free trial</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Image Display -->
+            <div class="row justify-content-center mb-5">
+                <div class="col-12">
+                    <div class="inventory-dashboard-wrapper">
+                        <!-- Background Pattern/Shape -->
+                        <div class="dashboard-bg-shape"></div>
+                        <!-- Dashboard Image -->
+                        <img src="{% static 'assets/images/hero1.jpg' %}" 
+                             alt="Inventory Dashboard" 
+                             class="img-fluid dashboard-floating-img"
+                             onerror="this.src='{% static 'assets/images/hero1.jpg' %}'">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="row mt-5 g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="inventory-feature-item">
+                        <div class="feature-header">
+                            <div class="feature-icon">
+                                <i class="bi bi-funnel"></i>
+                            </div>
+                            <h6 class="feature-title">Live Stock Tracking</h6>
+                        </div>
+                        <p class="feature-desc">Track product quantities and availability per branch in real time.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <div class="inventory-feature-item">
+                        <div class="feature-header">
+                            <div class="feature-icon">
+                                <i class="bi bi-graph-up-arrow"></i>
+                            </div>
+                            <h6 class="feature-title">Physical Count & Variance</h6>
+                        </div>
+                        <p class="feature-desc">Compare physical counts with system data to identify shrinkage instantly.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <div class="inventory-feature-item">
+                        <div class="feature-header">
+                            <div class="feature-icon">
+                                <i class="bi bi-pause-btn"></i>
+                            </div>
+                            <h6 class="feature-title">Smart Reorder Alerts</h6>
+                        </div>
+                        <p class="feature-desc">Get notified automatically when stock reaches reorder levels.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                    <div class="inventory-feature-item">
+                        <div class="feature-header">
+                            <div class="feature-icon">
+                                <i class="bi bi-clipboard-data"></i>
+                            </div>
+                            <h6 class="feature-title">Restock & Cost Control</h6>
+                        </div>
+                        <p class="feature-desc">Track restocks, update costs, and keep profit margins accurate.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        /* Inventory Section Refined */
+        .inventory-section {
+            background: #ffffff;
+            padding: 6rem 0;
+            overflow: hidden;
+        }
+
+        .inventory-badge {
+            display: inline-block;
+            background-color: #F3F4F6;
+            color: #4B5563;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .section-title {
+            font-size: 2.75rem;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+        
+        .section-description {
+            color: #4B5563;
+            font-size: 1.15rem;
+            line-height: 1.6;
+        }
+
+        .inventory-dashboard-wrapper {
+            border-radius: 24px;
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .dashboard-bg-shape {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent);
+            background-size: 100px 100px;
+            opacity: 0.5;
+        }
+
+        .dashboard-floating-img {
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            position: relative;
+            z-index: 2;
+            background: white;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .inventory-feature-item {
+            padding-right: 1rem;
+        }
+        
+        .inventory-feature-item .feature-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .inventory-feature-item .feature-icon {
+            color: #374151; /* Dark grey */
+            font-size: 1.2rem;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+            flex-shrink: 0;
+        }
+        
+        .inventory-feature-item .feature-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+        
+        .inventory-feature-item .feature-desc {
+            font-size: 0.9rem;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .inventory-dashboard-wrapper {
+                padding: 2rem;
+            }
+            .section-title {
+                font-size: 2rem;
+            }
+        }
+    </style>
+
+    <style>
+        /* Sales & POS Section */
+        .sales-pos-section {
+            background: #F7F7F7;
+            padding: 5rem 0;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6c757d;
+            letter-spacing: 2px;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            line-height: 1.2;
+        }
+
+        .section-description {
+            font-size: 1rem;
+            color: #6c757d;
+            line-height: 1.6;
+            max-width: 700px;
+        }
+
+        /* Checkout Image */
+        .checkout-image-wrapper {
+            position: relative;
+        }
+
+        .checkout-image {
+            width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .checkout-image:hover {
+            transform: translateY(-10px);
+        }
+
+        /* Features List */
+        .features-list {
+            padding-left: 2rem;
+        }
+
+        .feature-item {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:not(.active) .feature-title,
+        .feature-item:not(.active) .feature-description {
+            color: #9ca3af;
+        }
+
+        .feature-progress {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            opacity: 1;
+        }
+
+        .feature-item.active .feature-progress {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #1a1a2e 0%, #4169E1 100%);
+            width: 100%;
+            transition: width 5s linear;
+        }
+
+        .feature-item:not(.active) .progress-bar {
+            width: 0%;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1a1a2e;
+            transition: color 0.3s ease;
+        }
+
+        .feature-description {
+            font-size: 1rem;
+            color: #6c757d;
+            line-height: 1.6;
+            transition: color 0.3s ease;
+        }
+
+        /* Responsive */
+        @media (max-width: 991.98px) {
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .features-list {
+                padding-left: 0;
+                margin-top: 2rem;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .section-title {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+
+    <!-- Multi-Branch Operations Section -->
+    <section id="multi-branch" class="multi-branch-section py-5">
+        <div class="container">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <span class="inventory-badge mb-3">MULTI BRANCH OPERATIONS</span>
+                <h2 class="section-title fw-bold text-dark mb-3">Control Teams, Branches &<br>Performance at Scale</h2>
+                <p class="section-description mx-auto" style="max-width: 700px;">
+                    Manage people, locations, and performance from one system as your business grows.
                 </p>
             </div>
-        </div>
-    </section>
 
-    <!-- Newsletter Section -->
-    <section id="newsletter" class="py-16 bg-white">
-        <div class="container mx-auto px-4 md:px-16">
-            <h2 class="text-3xl font-bold text-center mb-6 text-[#00004d] animate__animated animate__fadeInDown">Subscribe to our Newsletter</h2>
-            <div class="max-w-xl mx-auto">
-                <form class="flex flex-col sm:flex-row items-center gap-3 animate__animated animate__fadeInUp">
-                    <input type="email" class="flex-1 px-5 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="Enter your email" required>
-                    <button type="submit" class="bg-[#00004d] text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-900 transition">Subscribe</button>
-                </form>
+            <div class="row align-items-center mt-5">
+                <!-- Left Side - Feature List -->
+                <div class="col-lg-5 mb-4 mb-lg-0 order-2 order-lg-1">
+                    <div class="branch-features-list">
+                        <!-- Feature 1 -->
+                        <div class="branch-feature-item mb-4 active" data-index="0" data-image="{% static 'assets/images/Pos1.png' %}">
+                            <div class="feature-line-progress mb-2">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title">Multi-Branch Management</h5>
+                            <p class="feature-description">Manage multiple store locations with independent sales, inventory, and performance views.</p>
+                        </div>
+
+                         <!-- Feature 2 -->
+                        <div class="branch-feature-item mb-4" data-index="1" data-image="{% static 'assets/images/Pos1.png' %}">
+                            <div class="feature-line-progress mb-2">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title">Role-Based Staff Access</h5>
+                            <p class="feature-description">Assign permissions by role to protect sensitive data and streamline operations.</p>
+                        </div>
+
+                         <!-- Feature 3 -->
+                        <div class="branch-feature-item mb-4" data-index="2" data-image="{% static 'assets/images/Pos1.png' %}">
+                            <div class="feature-line-progress mb-2">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title">Staff Performance Insights</h5>
+                            <p class="feature-description">Track sales and transactions per staff member to drive accountability and growth.</p>
+                        </div>
+
+                         <!-- Feature 4 -->
+                        <div class="branch-feature-item mb-4" data-index="3" data-image="{% static 'assets/images/Pos1.png' %}">
+                            <div class="feature-line-progress mb-2">
+                                <div class="progress-bar"></div>
+                            </div>
+                            <h5 class="feature-title">Reports & Data Exports</h5>
+                            <p class="feature-description">Generate sales, profit, and audit reports instantly—exportable in CSV or PDF.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side - Image Display -->
+                <div class="col-lg-7 ps-lg-5 order-1 order-lg-2 mb-4 mb-lg-0">
+                     <div class="branch-image-wrapper">
+                        <img src="{% static 'assets/images/Pos1.png' %}" 
+                             alt="Branch Management" 
+                             class="img-fluid branch-image"
+                             id="branch-feature-image"
+                             onerror="this.src='{% static 'assets/images/hero1.jpg' %}'">
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
+    <style>
+        /* Multi-Branch Section Styles */
+        .multi-branch-section {
+            background-color: #fafafa;
+        }
 
-    <!-- Contact + Footer Section -->
-    <section id="contact" class="py-16 bg-slate-800">
-        <div class="container mx-auto px-4 md:px-16">
-            {% comment %} <h2 class="text-3xl font-bold text-center mb-6 text-white animate__animated animate__fadeInDown">Contact Us</h2> {% endcomment %}
-            {% comment %} <div class="max-w-lg mx-auto animate__animated animate__fadeInUp animate__delay-1s">
-                <form class="space-y-4">
-                    <div class="animate__animated animate__fadeInLeft animate__delay-2s">
-                        <label for="name" class="block mb-1 font-medium text-[#00004d]">Name</label>
-                        <input type="text" id="name" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="Your Name">
-                    </div>
-                    <div class="animate__animated animate__fadeInRight animate__delay-3s">
-                        <label for="email" class="block mb-1 font-medium text-[#00004d]">Email</label>
-                        <input type="email" id="email" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="you@example.com">
-                    </div>
-                    <div class="animate__animated animate__fadeInUp animate__delay-4s">
-                        <label for="message" class="block mb-1 font-medium text-[#00004d]">Message</label>
-                        <textarea id="message" rows="4" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00004d]" placeholder="Your message"></textarea>
-                    </div>
-                    <button type="submit" class="w-full bg-[#00004d] text-white py-3 rounded-lg font-semibold hover:bg-blue-900 transition animate__animated animate__pulse animate__infinite">Send Message</button>
-                </form>
-            </div> {% endcomment %}
-            <!-- Footer content inside contact section -->
-            <div class="mt-16 text-center font-semibold text-white animate__animated animate__fadeInUp animate__delay-2s">
-                <!-- Logo in footer -->
-                <div class="flex justify-center mb-4">
-                    <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo" class="h-16 w-auto mx-auto animate__animated animate__fadeInDown">
-                </div>
-                <div class="flex justify-center space-x-4 mb-3 animate__animated animate__fadeInUp animate__delay-3s">
-                    <a href="https://twitter.com/" target="_blank" aria-label="Twitter" class="hover:text-blue-400 animate__animated animate__bounceIn"><i class="bi bi-twitter"></i></a>
-                    <a href="https://facebook.com/" target="_blank" aria-label="Facebook" class="hover:text-blue-600 animate__animated animate__bounceIn animate__delay-1s"><i class="bi bi-facebook"></i></a>
-                    <a href="https://linkedin.com/" target="_blank" aria-label="LinkedIn" class="hover:text-blue-700 animate__animated animate__bounceIn animate__delay-2s"><i class="bi bi-linkedin"></i></a>
-                    <a href="https://instagram.com/" target="_blank" aria-label="Instagram" class="hover:text-pink-500 animate__animated animate__bounceIn animate__delay-3s"><i class="bi bi-instagram"></i></a>
-                </div>
-                <p class="mb-2 animate__animated animate__fadeInUp animate__delay-4s">
-                    <strong>Contact:</strong>
-                    <a href="mailto:info@marvexquicksales.com" class="underline hover:text-blue-200 text-white">info@marvexquicksales.com</a>
-                    &nbsp;|&nbsp;
-                    <span>+2349013828344</span>
+        .branch-feature-item {
+            cursor: pointer;
+            padding: 0.5rem 0;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .branch-feature-item.active {
+            /* No border change */
+        }
+        
+        .branch-feature-item .feature-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            transition: color 0.3s ease;
+        }
+        
+        .branch-feature-item.active .feature-title {
+            color: #111827;
+        }
+
+        .branch-feature-item .feature-description {
+            font-size: 0.95rem;
+            color: #6B7280;
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+        }
+        
+        .branch-feature-item.active .feature-description {
+            color: #4B5563;
+        }
+
+        .feature-line-progress {
+            background: #E5E7EB;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            display: block; /* Always visible track */
+            opacity: 0.3; /* Dimmed when inactive */
+        }
+        
+        .branch-feature-item.active .feature-line-progress {
+            opacity: 1;
+        }
+        
+        .feature-line-progress .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #2563EB;
+            transition: width 5s linear;
+        }
+
+        .branch-image-wrapper {
+            background: transparent;
+            padding: 0;
+            position: relative;
+            min-height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .branch-image {
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 450px; /* Constrain width */
+            background: white;
+            transition: opacity 0.3s ease;
+            position: relative;
+            z-index: 2;
+        }
+    </style>
+
+    <!-- More Features Section -->
+    <section id="more-features" class="more-features-section py-5">
+        <div class="container">
+            <!-- Header -->
+            <div class="mb-5">
+                <span class="inventory-badge mb-3">MORE FEATURES</span>
+                <h2 class="section-title fw-bold text-dark mt-2" style="max-width: 800px;">Run Your Business End-to-End<br>With Proper Documentation</h2>
+                <p class="section-description mt-3" style="max-width: 700px;">
+                    Keep clear records of sales, inventory changes, staff activity, and business operations.
                 </p>
-                <p class="mb-0 animate__animated animate__fadeInUp animate__delay-5s">&copy; <span id="year"></span> Marvex Quicksales. All rights reserved.</p>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="row g-4 g-lg-5 mb-5 pb-5">
+                <!-- 1. Transaction Records -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="more-feature-item">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-funnel"></i>
+                        </div>
+                        <h6 class="feature-title mb-2">Transaction Records</h6>
+                        <p class="feature-desc">Every sale, restock, and adjustment is logged with timestamps for easy reference.</p>
+                    </div>
+                </div>
+
+                <!-- 2. Inventory Change History -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="more-feature-item">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <h6 class="feature-title mb-2">Inventory Change History</h6>
+                        <p class="feature-desc">Track what changed, when it changed, and why—across products and branches.</p>
+                    </div>
+                </div>
+
+                <!-- 3. Audit-Ready Reports -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="more-feature-item">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-pause-btn"></i>
+                        </div>
+                        <h6 class="feature-title mb-2">Audit-Ready Reports</h6>
+                        <p class="feature-desc">Generate clear records for sales, stock counts, and adjustments whenever needed.</p>
+                    </div>
+                </div>
+
+                <!-- 4. Staff Activity Logs -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="more-feature-item">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-person-video2"></i> <!-- bi-list-task was bi-people -->
+                        </div>
+                        <h6 class="feature-title mb-2">Staff Activity Logs</h6>
+                        <p class="feature-desc">Maintain visibility into staff actions without manual supervision.</p>
+                    </div>
+                </div>
+
+                <!-- 5. Branch-Level Records -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="more-feature-item">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-diagram-3"></i>
+                        </div>
+                        <h6 class="feature-title mb-2">Branch-Level Records</h6>
+                        <p class="feature-desc">Keep organized documentation for each location without mixing data.</p>
+                    </div>
+                </div>
+
+                <!-- 6. Exportable Business Data -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="more-feature-item">
+                        <div class="feature-icon mb-3">
+                            <i class="bi bi-database-check"></i>
+                        </div>
+                        <h6 class="feature-title mb-2">Exportable Business Data</h6>
+                        <p class="feature-desc">Download records in CSV or PDF formats for sharing, review, or compliance.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CTA Banner -->
+            <div class="cta-banner mt-5">
+                <div class="row align-items-center">
+                    <div class="col-md-7">
+                        <h2 class="cta-title">Get Started with QuickSales today!</h2>
+                    </div>
+                    <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                        <a href="{% url 'register' %}" class="btn btn-light btn-lg cta-btn">Get Started</a>
+                    </div>
+                </div>
+                <!-- Simple overlay shapes (pseudo elements in CSS) -->
             </div>
         </div>
     </section>
+
+    <style>
+        .more-features-section {
+            background-color: #FDFDFD; /* Very light grey/white */
+        }
+        
+        .more-feature-item .feature-icon {
+            color: #374151; /* Dark grey */
+            font-size: 1.2rem;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .more-feature-item .feature-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        .more-feature-item .feature-desc {
+            font-size: 0.95rem;
+            color: #6B7280;
+            line-height: 1.5;
+        }
+
+        /* CTA Banner */
+        .cta-banner {
+            background-color: #2563EB; /* Blue base */
+            background: linear-gradient(100deg, #2563EB 0%, #1D4ED8 100%);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.3);
+        }
+        
+        /* Decorative Shapes for CTA */
+        .cta-banner::before {
+            content: "";
+            position: absolute;
+            top: -50px;
+            right: 15%;
+            width: 100px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.1);
+            transform: rotate(20deg);
+        }
+        
+        .cta-banner::after {
+            content: "";
+            position: absolute;
+            bottom: -50px;
+            right: 25%;
+            width: 80px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.1);
+            transform: rotate(20deg);
+        }
+        
+        .cta-title {
+            color: white;
+            font-weight: 700;
+            margin: 0;
+            font-size: 2rem;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .cta-btn {
+            color: #111827;
+            font-weight: 600;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            position: relative;
+            z-index: 2;
+            border: none;
+        }
+        
+        .cta-btn:hover {
+            background-color: #f3f4f6;
+            color: #2563EB;
+        }
+        
+        @media (max-width: 768px) {
+            .cta-banner {
+                padding: 2rem 1rem;
+                text-align: center;
+            }
+            .cta-title {
+               font-size: 1.5rem; 
+            }
+            .text-md-end {
+                text-align: center !important;
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const branchItems = document.querySelectorAll('.branch-feature-item');
+            const branchImage = document.querySelector('#branch-feature-image');
+            
+            if (!branchItems.length || !branchImage) return;
+            
+            let currentIndex = 0;
+            let cycleInterval;
+            
+            function setActiveBranch(index) {
+                branchItems.forEach(item => {
+                    item.classList.remove('active');
+                    // Reset progress bar - keep it VISIBLE but reset width
+                    const bar = item.querySelector('.feature-line-progress .progress-bar');
+                    if(bar) {
+                        bar.style.width = '0%';
+                        // Do NOT toggle display, relying on CSS .feature-line-progress { display: block }
+                    }
+                });
+                
+                const activeItem = branchItems[index];
+                activeItem.classList.add('active');
+                
+                // Animate progress
+                const bar = activeItem.querySelector('.feature-line-progress .progress-bar');
+                
+                if(bar) {
+                    // Force reflow
+                    void bar.offsetWidth;
+                    setTimeout(() => {
+                        bar.style.width = '100%';
+                    }, 50);
+                }
+                
+                // Update Image
+                const newImg = activeItem.getAttribute('data-image');
+                if(newImg) {
+                    branchImage.style.opacity = '0.5';
+                    setTimeout(() => {
+                        branchImage.src = newImg;
+                        branchImage.style.opacity = '1';
+                    }, 300);
+                }
+            }
+            
+            function startBranchCycle() {
+                if(cycleInterval) clearInterval(cycleInterval);
+                setActiveBranch(currentIndex);
+                cycleInterval = setInterval(() => {
+                    currentIndex = (currentIndex + 1) % branchItems.length;
+                    setActiveBranch(currentIndex);
+                }, 5000);
+            }
+            
+            branchItems.forEach((item, index) => {
+                item.addEventListener('click', () => {
+                    currentIndex = index;
+                    setActiveBranch(currentIndex);
+                    if(cycleInterval) clearInterval(cycleInterval);
+                    cycleInterval = setInterval(() => {
+                        currentIndex = (currentIndex + 1) % branchItems.length;
+                        setActiveBranch(currentIndex);
+                    }, 5000);
+                });
+            });
+            
+            // Initialization
+            setTimeout(startBranchCycle, 500);
+        });
+    </script>
+
+    
+
+    
+
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing-section py-5">
+        <div class="container">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <div class="d-inline-block mb-3">
+                    <span class="inventory-badge fw-bold">PRICING</span>
+                </div>
+                <h2 class="text-center fw-bold text-dark mb-3 hero-title" style="font-size: 3.5rem;">Get started with our<br>starter plans</h2>
+                <p class="text-muted lead mb-5">Flexible plans built to support growing businesses</p>
+            </div>
+
+            <div class="row g-4 justify-content-center">
+                {% for plan in starter_plans %}
+                <div class="col-lg-4 col-md-6">
+                    <div class="card h-100 p-4 border-0 rounded-4 pricing-card {% if plan.tier == 'growth' %}bg-dark-blue text-white{% else %}bg-white border text-dark{% endif %} shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="fw-bold mb-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark-blue{% endif %} text-capitalize">{{ plan.tier }}</h5>
+                            
+                            <div class="mb-2">
+                                <span class="display-5 fw-bold">₦{{ plan.price|intcomma }}</span>
+                                <span class="fs-6 opacity-75">/ per month</span>
+                            </div>
+                            
+                            <p class="mb-4 text-sm opacity-75">
+                                {% if plan.tier == 'basic' %}For small brands{% endif %}
+                                {% if plan.tier == 'growth' %}For mid sized organizations{% endif %}
+                                {% if plan.tier == 'premium' %}For large sized organizations{% endif %}
+                            </p>
+
+                            <a href="{% url 'register' %}?plan={{ plan.id }}" class="btn btn-lg w-100 fw-bold mb-4 rounded-3 {% if plan.tier == 'growth' %}btn-primary{% else %}btn-light-grey{% endif %}">
+                                {% if plan.tier == 'basic' %}Start 7 days trial{% else %}Get Started{% endif %}
+                            </a>
+
+                            <div class="features-list mt-2">
+                                <ul class="list-unstyled mb-0 d-grid gap-2">
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                        <span>
+                                            {% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %} 
+                                            {% if plan.max_users == 1 %}user{% else %}users{% endif %}
+                                        </span>
+                                    </li>
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                        <span>{{ plan.max_branches }} Branch{% if plan.max_branches > 1 %}es{% endif %}</span>
+                                    </li>
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                        <span>Over {{ plan.max_products }} products catalogue</span>
+                                    </li>
+                                    
+                                    {% if plan.tier == 'basic' %}
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-dark"></i>
+                                        <span>Basic Analytics</span>
+                                    </li>
+                                    {% endif %}
+
+                                    {% if plan.tier == 'growth' %}
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-white"></i>
+                                        <span>Basic Analytics</span>
+                                    </li>
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-white"></i>
+                                        <span>Advanced Reporting</span>
+                                    </li>
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-white"></i>
+                                        <span>API access</span>
+                                    </li>
+                                    {% endif %}
+
+                                    {% if plan.tier == 'premium' %}
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-dark"></i>
+                                        <span>Advanced Analytics</span>
+                                    </li>
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-dark"></i>
+                                        <span>Advanced Reporting</span>
+                                    </li>
+                                    <li class="d-flex align-items-center">
+                                        <i class="bi bi-check-lg me-2 text-dark"></i>
+                                        <span>API access</span>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .pricing-section {
+            background-color: #FDFDFD;
+        }
+
+        .bg-dark-blue {
+            background-color: #021024 !important; /* Deep Navy */
+        }
+        
+        .text-dark-blue {
+            color: #021024 !important;
+        }
+
+        .btn-light-grey {
+            background-color: #F3F4F6;
+            color: #111827;
+            border: 1px solid #E5E7EB;
+        }
+        
+        .btn-light-grey:hover {
+            background-color: #E5E7EB;
+            color: #000;
+        }
+
+        .pricing-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
+        }
+    </style>
+
+    <!-- FAQ Section -->
+    <section id="faqs" class="faq-section py-5 mb-5">
+        <div class="container">
+            <div class="row">
+                <!-- Left Side: Header -->
+                <div class="col-lg-5 mb-5 mb-lg-0">
+                    <div class="d-inline-block mb-3">
+                        <span class="inventory-badge fw-bold">FAQS</span>
+                    </div>
+                    <h2 class="hero-title fw-bold text-dark-blue mb-4" style="font-size: 3rem;">Questions about<br>QuickSales</h2>
+                    <p class="text-muted lead pe-lg-5" style="font-size: 1.1rem; line-height: 1.6;">
+                        Everything you need to know about the product and billing. Can’t find the answer you’re looking for? Please chat to our friendly team.
+                    </p>
+                </div>
+
+                <!-- Right Side: Accordion -->
+                <div class="col-lg-7 ps-lg-5">
+                    <div class="accordion custom-accordion" id="faqAccordion">
+                        <!-- Q1 (Highlighted Card Style) -->
+                        <div class="accordion-item border-0 mb-3 bg-transparent">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                    Is there a free trial available?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
+                                    Yes, you can try us for free for 30 days. If you want, we’ll provide you with a free, personalized 30-minute onboarding call to get you up and running as soon as possible.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Q2 -->
+                        <div class="accordion-item border-0 mb-3 bg-transparent">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    Can I change my plan later?
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
+                                    Yes, you can upgrade or downgrade your plan at any time from your account settings. Changes will be applied immediately or at the start of the next billing cycle depending on the change.
+                                </div>
+                            </div>
+                        </div>
+
+                         <!-- Q3 -->
+                        <div class="accordion-item border-0 mb-3 bg-transparent">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    What is your cancellation policy?
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
+                                    You can cancel your subscription at any time. Your access will remain active until the end of your current billing period, after which you won't be charged again.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Q4 -->
+                         <div class="accordion-item border-0 mb-3 bg-transparent">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                    Can other info be added to an invoice?
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
+                                    Yes, you can customize your invoices with your company logo, tax ID, and specific terms in your organization settings.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Q5 -->
+                         <div class="accordion-item border-0 mb-3 bg-transparent">
+                            <h2 class="accordion-header" id="headingFive">
+                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                                    How does billing work?
+                                </button>
+                            </h2>
+                            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
+                                    We offer monthly billing cycles. You can pay securely via credit card or bank transfer. Invoices are generated automatically for each payment.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Q6 -->
+                         <div class="accordion-item border-0 mb-3 bg-transparent">
+                            <h2 class="accordion-header" id="headingSix">
+                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+                                    How do I change my account email?
+                                </button>
+                            </h2>
+                            <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
+                                    You can update your email address in your profile settings. A verification link will be sent to your new email to confirm the change.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        .faq-section {
+            background-color: #FDFDFD;
+        }
+
+        .custom-accordion .accordion-button:not(.collapsed) {
+            background-color: white;
+            color: #021024;
+            box-shadow: none;
+        }
+        
+        /* Plus/Minus Icons using SVG data URIs */
+        .custom-accordion .accordion-button::after {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'/%3e%3cline x1='12' y1='8' x2='12' y2='16'/%3e%3cline x1='8' y1='12' x2='16' y2='12'/%3e%3c/svg%3e");
+            background-size: 1.5rem;
+            width: 1.5rem;
+            height: 1.5rem;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .custom-accordion .accordion-button:not(.collapsed)::after {
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'/%3e%3cline x1='8' y1='12' x2='16' y2='12'/%3e%3c/svg%3e");
+             transform: rotate(0deg); /* No rotation needed if swapping svg */
+        }
+
+        .custom-accordion .accordion-button {
+            font-size: 1.05rem;
+        }
+
+        .custom-accordion .accordion-button:focus {
+            box-shadow: none;
+            border-color: rgba(0,0,0,.125);
+        }
+        
+        /* For items other than the first one (which is card style), remove border radius and padding to match list style */
+        .custom-accordion .accordion-item:not(:first-child) .accordion-button {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Footer Styles */
+        .footer-cta-section {
+            background-color: #021024;
+        }
+        
+        .main-footer {
+            background-color: #021024;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .footer-logo {
+            filter: brightness(0) invert(1);
+        }
+        
+        .social-icon-circle {
+            width: 40px; 
+            height: 40px; 
+            background-color: white; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+        }
+    </style>
+
+    <!-- Pre-Footer CTA -->
+    <section class="footer-cta-section py-5 text-center text-white">
+        <div class="container py-5">
+             <h2 class="display-4 fw-bold mb-4">Increases sales, revenue &<br>operations with QuickSales</h2>
+             <p class="lead mb-5 text-white-50">Improve how your business sells, operates, and<br>manages stock every day with QuickSales</p>
+             <a href="{% url 'register' %}" class="btn bg-primary text-white btn-lg px-5 py-3 rounded-2 fw-bold border-0">Get started today</a>
+        </div>
+    </section>
+
+    <!-- Main Footer -->
+    <footer class="main-footer pt-5 pb-5 text-white">
+        <div class="container pt-4">
+            <div class="row gy-5">
+                <!-- Logo Column -->
+                <div class="col-lg-4 col-md-6 pe-lg-5">
+                    <div class="mb-4">
+                         <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex QuickSales" class="footer-logo mb-3" style="height: 100px;">
+                    </div>
+                </div>
+
+                <!-- About Links -->
+                <div class="col-lg-2 col-md-6 offset-lg-1">
+                    <h5 class="fw-bold mb-4">About</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-3"><a href="#businesses" class="text-decoration-none text-white-50 hover-text-white">For Businesses</a></li>
+                        <li class="mb-3"><a href="#faqs" class="text-decoration-none text-white-50 hover-text-white">FAQs</a></li>
+                        <li class="mb-3"><a href="#pricing" class="text-decoration-none text-white-50 hover-text-white">Pricing</a></li>
+                    </ul>
+                </div>
+
+                <!-- Features Links -->
+                <div class="col-lg-2 col-md-6">
+                    <h5 class="fw-bold mb-4">Features</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-3"><a href="#more-features" class="text-decoration-none text-white-50 hover-text-white">Sales & POS</a></li>
+                        <li class="mb-3"><a href="#features" class="text-decoration-none text-white-50 hover-text-white">Inventory tracking</a></li>
+                        <li class="mb-3"><a href="#multi-branch" class="text-decoration-none text-white-50 hover-text-white">Multi Branch Operations</a></li>
+                    </ul>
+                </div>
+
+                <!-- Support Column -->
+                <div class="col-lg-3 col-md-6">
+                    <h5 class="fw-bold mb-4">Support</h5>
+                    <ul class="list-unstyled">
+                         <li class="mb-3 d-flex align-items-center">
+                            <div class="social-icon-circle me-3 flex-shrink-0">
+                                <i class="bi bi-send-fill text-dark"></i>
+                            </div>
+                            <span class="text-white-50">quicksales@support.com</span>
+                        </li>
+                        <li class="d-flex align-items-center">
+                            <div class="social-icon-circle me-3 flex-shrink-0">
+                                <i class="bi bi-whatsapp text-success" style="font-size: 1.2rem;"></i>
+                            </div>
+                             <span class="text-white-50">+234 6589 7648</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+  
+
+
+
+    
+
+
+   
+    
     <!-- Remove the standalone footer below if present -->
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
     <script>
-        // Mobile nav toggle
-        document.getElementById('nav-toggle').onclick = function() {
-            var menu = document.getElementById('mobile-menu');
-            menu.classList.toggle('hidden');
-        };
         // Dynamic year for footer
-        document.getElementById('year').textContent = new Date().getFullYear();
+        const yearEl = document.getElementById('year');
+        if (yearEl) {
+            yearEl.textContent = new Date().getFullYear();
+        }
 
         // Lottie animation
         const lottieDiv = document.getElementById('lottie-animation');
@@ -370,19 +2103,35 @@
             document.querySelectorAll('.plan-card').forEach(card => {
                 const tier = card.dataset.tier;
                 const size = card.dataset.size;
+                
+                // Skip if tier or size is invalid
+                if (!tier || !size || !planPricing[tier] || !planPricing[tier][size]) {
+                    return;
+                }
+                
                 const basePrice = planPricing[tier][size];
                 const finalPrice = Math.round(basePrice * billingMultipliers[frequency]);
                 
-                // Update price display
-                card.querySelector('.plan-price').textContent = finalPrice.toLocaleString('en-NG');
-                card.querySelector('.billing-period').textContent = billingLabels[frequency];
-                card.querySelector('.base-price').textContent = basePrice.toLocaleString('en-NG');
+                // Update price display with safety checks
+                const priceEl = card.querySelector('.plan-price');
+                const periodEl = card.querySelector('.billing-period');
+                const basePriceEl = card.querySelector('.base-price');
+                
+                if (priceEl) priceEl.textContent = finalPrice.toLocaleString('en-NG');
+                if (periodEl) periodEl.textContent = billingLabels[frequency];
+                if (basePriceEl) basePriceEl.textContent = basePrice.toLocaleString('en-NG');
                 
                 // Update features
                 const features = planFeatures[tier];
-                card.querySelector('.plan-users').textContent = features.users;
-                card.querySelector('.plan-branches').textContent = features.branches;
-                card.querySelector('.plan-products').textContent = features.products;
+                if (features) {
+                    const usersEl = card.querySelector('.plan-users');
+                    const branchesEl = card.querySelector('.plan-branches');
+                    const productsEl = card.querySelector('.plan-products');
+                    
+                    if (usersEl) usersEl.textContent = features.users;
+                    if (branchesEl) branchesEl.textContent = features.branches;
+                    if (productsEl) productsEl.textContent = features.products;
+                }
             });
         }
 
@@ -515,5 +2264,81 @@
         // Initialize with default monthly pricing
         updatePrices('monthly');
     </script>
+    
+        <!-- Bootstrap Bundle -->
+        <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
+
+        <!-- Sales Features Auto-Cycle Script -->
+        <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                        const items = document.querySelectorAll('.feature-item');
+                        const image = document.querySelector('.checkout-image');
+
+                        if (!items.length || !image) return;
+
+                        let current = 0;
+                        let timer = null;
+
+                        const activate = (index) => {
+                                items.forEach((item) => {
+                                        item.classList.remove('active');
+                                        const bar = item.querySelector('.progress-bar');
+                                        if (bar) {
+                                                bar.style.width = '0%';
+                                                // Force reflow to restart animation
+                                                void bar.offsetWidth;
+                                        }
+                                });
+
+                                const item = items[index];
+                                item.classList.add('active');
+
+                                const bar = item.querySelector('.progress-bar');
+                                if (bar) {
+                                        setTimeout(() => {
+                                                bar.style.width = '100%';
+                                        }, 50);
+                                }
+
+                                const src = item.getAttribute('data-image');
+                                if (src) {
+                                        image.style.opacity = '0.5';
+                                        setTimeout(() => {
+                                                image.src = src;
+                                                image.style.opacity = '1';
+                                        }, 300);
+                                }
+                        };
+
+                        const startCycle = () => {
+                                if (timer) clearInterval(timer);
+                                activate(current);
+                                timer = setInterval(() => {
+                                        current = (current + 1) % items.length;
+                                        activate(current);
+                                }, 5000);
+                        };
+
+                        items.forEach((item, index) => {
+                                item.addEventListener('click', () => {
+                                        current = index;
+                                        activate(current);
+                                        startCycle();
+                                });
+                        });
+
+                        const list = document.querySelector('.features-list');
+                        if (list) {
+                                list.addEventListener('mouseenter', () => {
+                                        if (timer) clearInterval(timer);
+                                });
+                                list.addEventListener('mouseleave', () => {
+                                        startCycle();
+                                });
+                        }
+
+                        startCycle();
+                });
+        </script>
 </body>
 </html>

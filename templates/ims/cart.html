@@ -14,7 +14,8 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="mb-2"><b>Open Sales Sessions</b></h6>
-                                <div class="btn-group" role="group">
+                                <!-- Online Mode: Show session buttons -->
+                                <div class="btn-group" role="group" id="onlineSalesGroup" style="display: block;">
                                     {% for open_sale in open_sales %}
                                         <a href="{% url 'switch_sale' branch.id open_sale.id %}" 
                                            class="btn btn-sm {% if active_sale_id and active_sale_id == open_sale.id|stringformat:'s' %}btn-primary text-white{% else %}btn-outline-primary{% endif %}">
@@ -27,21 +28,38 @@
                                         <span class="text-muted">No open sales</span>
                                     {% endfor %}
                                 </div>
+                                <!-- Offline Mode: Show offline-only message -->
+                                <div id="offlineSalesGroup" style="display: none;">
+                                    <span class="text-warning">📱 <strong>Offline Mode</strong> - Single sale session</span>
+                                </div>
                             </div>
                             <div>
-                                <a href="{% url 'create_new_sale' branch.id %}" class="btn btn-success btn-sm">
-                                    <i class="fas fa-plus"></i> New Sale
-                                </a>
-                                {% if sale %}
-                                <a href="#" 
-                                   class="btn btn-danger btn-sm"
-                                   data-bs-toggle="modal" 
-                                   data-bs-target="#cancelSaleModal"
-                                   data-sale-id="{{ sale.id }}"
-                                   data-branch-id="{{ branch.id }}">
-                                    <i class="fas fa-times"></i> Cancel Current
-                                </a>
-                                {% endif %}
+                                <!-- Online Mode Buttons -->
+                                <div id="onlineButtons" style="display: block;">
+                                    <a href="{% url 'create_new_sale' branch.id %}" class="btn btn-success btn-sm">
+                                        <i class="fas fa-plus"></i> New Sale
+                                    </a>
+                                    {% if sale %}
+                                    <a href="#" 
+                                       class="btn btn-danger btn-sm"
+                                       data-bs-toggle="modal" 
+                                       data-bs-target="#cancelSaleModal"
+                                       data-sale-id="{{ sale.id }}"
+                                       data-branch-id="{{ branch.id }}">
+                                        <i class="fas fa-times"></i> Cancel Current
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                <!-- Offline Mode Buttons -->
+                                <div id="offlineButtons" style="display: none !important;">
+                                    <button class="btn btn-success btn-sm" id="offlineNewSaleBtn" style="display: inline-block !important;">
+                                        <i class="fas fa-plus"></i> Add New Sale
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" id="offlineCancelBtn" style="display: inline-block !important;">
+                                        <i class="fas fa-times"></i> Cancel Sale
+                                    </button>
+                                </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -146,19 +164,122 @@
 </div>
 
 <script>
+// Offline Mode UI Manager
+class OfflineModeUI {
+  constructor() {
+    this.onlineGroup = document.getElementById('onlineSalesGroup');
+    this.offlineGroup = document.getElementById('offlineSalesGroup');
+    this.onlineButtons = document.getElementById('onlineButtons');
+    this.offlineButtons = document.getElementById('offlineButtons');
+    this.offlineNewBtn = document.getElementById('offlineNewSaleBtn');
+    this.offlineCancelBtn = document.getElementById('offlineCancelBtn');
+    
+    console.log('🔧 OfflineModeUI initialized with elements:', {
+      onlineGroup: !!this.onlineGroup,
+      offlineGroup: !!this.offlineGroup,
+      onlineButtons: !!this.onlineButtons,
+      offlineButtons: !!this.offlineButtons,
+      offlineNewBtn: !!this.offlineNewBtn,
+      offlineCancelBtn: !!this.offlineCancelBtn
+    });
+    
+    if (this.allElementsExist()) {
+      this.init();
+    } else {
+      console.error('❌ Some UI elements are missing!');
+    }
+  }
+  
+  allElementsExist() {
+    return this.onlineGroup && this.offlineGroup && this.onlineButtons && 
+           this.offlineButtons && this.offlineNewBtn && this.offlineCancelBtn;
+  }
+  
+  init() {
+    // Initial update
+    this.updateUI();
+    
+    // Setup event listeners
+    this.setupEventListeners();
+    
+    // Poll every 2 seconds
+    setInterval(() => this.updateUI(), 2000);
+    
+    console.log('✅ OfflineModeUI setup complete');
+  }
+  
+  setupEventListeners() {
+    // Online/offline events
+    window.addEventListener('online', () => {
+      console.log('✅ Online event - updating UI and refreshing in 2 seconds');
+      this.updateUI();
+      setTimeout(() => location.reload(), 2000);
+    });
+    
+    window.addEventListener('offline', () => {
+      console.log('📡 Offline event - updating UI');
+      this.updateUI();
+    });
+    
+    // Button listeners
+    this.offlineNewBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.handleAddNewSale();
+    });
+    
+    this.offlineCancelBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.handleCancelSale();
+    });
+  }
+  
+  updateUI() {
+    const isOffline = !navigator.onLine;
+    console.log(`🔄 UpdateUI: isOffline=${isOffline}`);
+    
+    if (isOffline) {
+      // Show offline UI
+      this.onlineGroup.style.display = 'none';
+      this.offlineGroup.style.display = 'block';
+      this.onlineButtons.style.display = 'none';
+      this.offlineButtons.style.display = 'block';
+      console.log('📱 Switched to offline mode');
+    } else {
+      // Show online UI
+      this.onlineGroup.style.display = 'block';
+      this.offlineGroup.style.display = 'none';
+      this.onlineButtons.style.display = 'block';
+      this.offlineButtons.style.display = 'none';
+      console.log('🌐 Switched to online mode');
+    }
+  }
+  
+  async handleAddNewSale() {
+    console.log('➕ Add New Sale clicked');
+    location.reload();
+  }
+  
+  async handleCancelSale() {
+    console.log('❌ Cancel Sale clicked');
+    const confirmed = confirm('Are you sure you want to cancel the current sale? This cannot be undone.');
+    if (!confirmed) return;
+    location.reload();
+  }
+}
+
+// Start DOMContentLoaded initialization
 document.addEventListener('DOMContentLoaded', function() {
   const cancelSaleModal = document.getElementById('cancelSaleModal');
   const confirmCancelBtn = document.getElementById('confirmCancelBtn');
   
-  // When modal is shown, capture the sale data
-  cancelSaleModal.addEventListener('show.bs.modal', function(event) {
-    const button = event.relatedTarget;
-    const saleId = button.getAttribute('data-sale-id');
-    const branchId = button.getAttribute('data-branch-id');
-    
-    // Set the href for the confirm button
-    confirmCancelBtn.href = `/ims/sale/${branchId}/cancel/${saleId}/`;
-  });
+  if (cancelSaleModal && confirmCancelBtn) {
+    cancelSaleModal.addEventListener('show.bs.modal', function(event) {
+      const button = event.relatedTarget;
+      const saleId = button.getAttribute('data-sale-id');
+      const branchId = button.getAttribute('data-branch-id');
+      confirmCancelBtn.href = `/ims/sale/${branchId}/cancel/${saleId}/`;
+    });
+  }
 });
 </script>
 

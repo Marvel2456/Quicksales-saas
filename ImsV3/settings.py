@@ -30,6 +30,11 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', cast=bool, default=False)
 
+# Internal IPs for django-debug-toolbar
+INTERNAL_IPS = [
+    "127.0.0.1",
+    "localhost",
+]
 
 ALLOWED_HOSTS = get_list(config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.lvh.me'))
 CSRF_TRUSTED_ORIGINS = get_list(config('CSRF_TRUSTED_ORIGINS', default=''))
@@ -54,6 +59,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'cloudinary',
+    'cloudinary_storage',
     # "procrastinate.contrib.django",
     'django_celery_beat',
     'django_celery_results',
@@ -63,6 +70,10 @@ INSTALLED_APPS = [
     'pages.apps.PagesConfig',
     'simple_history',
 ]
+
+# Add django-debug-toolbar in development
+if ENV == 'development':
+    INSTALLED_APPS.append('debug_toolbar')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -82,6 +93,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
+
+# Add debug toolbar middleware in development
+if ENV == 'development':
+    MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'ImsV3.urls'
 
@@ -125,13 +140,19 @@ if config('DB_NAME', default=None):
             'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
+            'OPTIONS': {
+                'connect_timeout': 10,
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 5,
+            }
         }
     }
     # Production database SSL configuration
     if ENV == 'production':
-        DATABASES['default']['OPTIONS'] = {
-            'sslmode': 'require',
-        }
+        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 else:
     DATABASES = {
         'default': {
@@ -153,6 +174,46 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 
 # Celery Beat Configuration (for scheduled tasks)
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# ============================================================================
+# CACHING CONFIGURATION - Redis Cache for Performance
+# ============================================================================
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,  # Don't crash if Redis is down
+        },
+        'KEY_PREFIX': 'quicksales',
+        'TIMEOUT': 300,  # Default 5-minute cache timeout
+    }
+}
+
+# Cache sessions in Redis (reduces database load)
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+# ============================================================================
+# CACHE TIMEOUT SETTINGS (in seconds)
+# ============================================================================
+CACHE_TIMEOUTS = {
+    'organization': 600,  # 10 minutes
+    'user_profile': 300,  # 5 minutes
+    'subscription': 1800,  # 30 minutes
+    'branch': 600,  # 10 minutes
+    'product_list': 300,  # 5 minutes
+    'inventory': 300,  # 5 minutes
+    'sales_summary': 60,  # 1 minute (updates frequently)
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -204,13 +265,25 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / "ImsV3/static"]
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+WHITENOISE_MANIFEST_STRICT = False
 
 
 
 # media files
 
-MEDIA_ROOT = BASE_DIR/ 'media'
+MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
+
+CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
+if CLOUDINARY_URL:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field

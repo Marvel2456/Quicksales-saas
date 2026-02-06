@@ -25,13 +25,36 @@
     <link rel="stylesheet" href="{% static 'assets/css/jquery-ui.theme.min.css' %}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     
+    <!-- Toast Notifications CSS -->
+    <style>
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+    </style>
 </head> 
 
 <body class="app">
     <header class="app-header fixed-top">
         {% include 'partials/_navbar.html' %}
         {% include 'partials/_sidebar.html' %}
-        
     </header>
     <div class="app-wrapper">
         {% include 'ims/message.html' %}
@@ -241,6 +264,75 @@
                 }
             });
         }
+
+        // Area Chart - Revenue vs Profit (Daily)
+        const areaCtx = document.getElementById('revenueVsProfitChart');
+        console.log('areaCtx:', areaCtx);
+        console.log('daily_labels:', {{ daily_labels|safe }});
+        console.log('daily_revenue_values:', {{ daily_revenue_values|safe }});
+        console.log('daily_profit_values:', {{ daily_profit_values|safe }});
+        
+        if (areaCtx) {
+            const dailyLabels = {{ daily_labels|safe }};
+            const dailyRevenue = {{ daily_revenue_values|safe }};
+            const dailyProfit = {{ daily_profit_values|safe }};
+            
+            console.log('dailyLabels:', dailyLabels);
+            console.log('dailyRevenue:', dailyRevenue);
+            console.log('dailyProfit:', dailyProfit);
+            
+            if (dailyLabels && dailyLabels.length > 0) {
+                console.log('Chart conditions met, initializing...');
+                try {
+                    const areaChart = new Chart(areaCtx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: dailyLabels,
+                            datasets: [
+                                {
+                                    label: 'Daily Revenue ($)',
+                                    data: dailyRevenue,
+                                    borderColor: 'rgba(75, 192, 75, 1)',
+                                    backgroundColor: 'rgba(75, 192, 75, 0.1)',
+                                    borderWidth: 2,
+                                    tension: 0.4,
+                                    fill: true
+                                },
+                                {
+                                    label: 'Daily Profit ($)',
+                                    data: dailyProfit,
+                                    borderColor: 'rgba(255, 159, 64, 1)',
+                                    backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                                    borderWidth: 2,
+                                    tension: 0.4,
+                                    fill: true
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                    console.log('Chart created successfully');
+                } catch (error) {
+                    console.error('Error creating chart:', error);
+                }
+            } else {
+                console.log('No daily data available for Revenue vs Profit chart');
+            }
+        }
       
       </script>
       
@@ -251,7 +343,10 @@
     <!-- Page Specific JS -->
     <script src="{% static 'assets/js/htmx.min.js' %}"></script>
     <script src="{% static 'assets/js/app.js' %}"></script>
+    
+    <!-- Cart and UI scripts -->
     <script src="{% static 'assets/js/cart.js' %}"></script>
+    <script src="{% static 'assets/js/checkout.js' %}"></script>
     <script src="{% static 'assets/js/jquery-3.4.1.js' %}"></script>
     <script src="{% static 'assets/js/jquery-ui.min.js' %}"></script>
 
@@ -296,6 +391,7 @@
         }
         const csrftoken = getCookie('csrftoken');
     </script>
+
 
 </body>
 </html>

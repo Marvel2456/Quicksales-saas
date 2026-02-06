@@ -149,11 +149,16 @@ def loginUser(request):
                 return redirect('login')
 
             login(request, user)
+            log_org = user.organization or organization
+            log_branch = user.branch
+            if log_branch is None and log_org is not None:
+                log_branch = log_org.branch_set.first()
+
             ActivityLog.objects.create(
                 staff=user,
-                organization=organization,
-                branch=user.branch,
-                activity={'Login successful'}
+                organization=log_org,
+                branch=log_branch,
+                activity='Login successful'
             )
 
             # Create notification for owner when staff members log in

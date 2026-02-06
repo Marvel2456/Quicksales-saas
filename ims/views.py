@@ -10,6 +10,7 @@ from django.core.paginator import Paginator
 from account.decorators import role_required
 from django.db import models
 from account.models import CustomUser
+from ims.view_caching import cached_view
 
 # Create your views here
 
@@ -37,6 +38,7 @@ def branchReport(request):
 
 
 
+@cached_view(timeout=900, key_prefix='report')
 @role_required(roles=['owner'])
 @login_required
 # @is_unsubscribed

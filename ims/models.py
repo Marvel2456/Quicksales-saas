@@ -8,16 +8,19 @@ import uuid
 # Create your models here.
 class Category(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
     category_name = models.CharField(max_length=200)
     last_updated = models.DateField(auto_now=True,)
-    date_created = models.DateTimeField(auto_now_add=True,)
+    date_created = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         verbose_name_plural = "categories"
         constraints = [
             models.UniqueConstraint(fields=["organization", "category_name"], name="unique_category_per_org"),
+        ]
+        indexes = [
+            models.Index(fields=['organization', '-date_created']),
         ]
     
     def __str__(self):
@@ -25,16 +28,16 @@ class Category(models.Model):
 
 class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
-    product_name = models.CharField(max_length=150, blank=True, null=True)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    product_name = models.CharField(max_length=150, blank=True, null=True, db_index=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, db_index=True)
     brand = models.CharField(max_length=150, blank=True, null=True)
-    product_code = models.CharField(max_length=100)
+    product_code = models.CharField(max_length=100, db_index=True)
     batch_no = models.CharField(max_length=20, blank=True, null=True)
     unit = models.CharField(max_length=50, blank=True, null=True)
     updated_at = models.DateField(auto_now=True,)
-    created_at = models.DateTimeField(auto_now_add=True,)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     profit = models.FloatField(blank=True, null=True)
     
     def __str__(self):
@@ -44,12 +47,16 @@ class Product(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["organization", "product_name"], name="unique_product_per_org"),
         ]
+        indexes = [
+            models.Index(fields=['organization', 'category']),
+            models.Index(fields=['product_code']),
+        ]
 
 class Inventory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='products')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, db_index=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='products', db_index=True)
     quantity = models.IntegerField(default=0)
     quantity_available = models.IntegerField(default=0)
     reorder_level = models.IntegerField(default=0, blank=True, null=False)
@@ -57,7 +64,7 @@ class Inventory(models.Model):
         ('Available', 'Item is currently available'),
         ('Restocking', 'Currently out of stock'),
     )
-    status = models.CharField(max_length=20, choices=choices, default="Available", blank=True, null=True)
+    status = models.CharField(max_length=20, choices=choices, default="Available", blank=True, null=True, db_index=True)
     cost_price = models.FloatField(blank=True, null=True)
     sale_price = models.FloatField(blank=True, null=True)
     quantity_restocked = models.IntegerField(default=0, blank=True, null=True)
@@ -67,11 +74,16 @@ class Inventory(models.Model):
     variance = models.IntegerField(default=0)
     available = models.IntegerField(default=0, blank=True, null=True)
     last_updated = models.DateField(auto_now=True,)
-    date_created = models.DateTimeField(auto_now_add=True,)
+    date_created = models.DateTimeField(auto_now_add=True, db_index=True)
     history = HistoricalRecords()
 
     class Meta:
         verbose_name_plural = "inventories"
+        indexes = [
+            models.Index(fields=['organization', 'branch']),
+            models.Index(fields=['product', 'branch']),
+            models.Index(fields=['status']),
+        ]
 
     def __str__(self):
         return self.product.product_name
@@ -97,24 +109,32 @@ class Inventory(models.Model):
 
 class Sale(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
-    staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, db_index=True)
+    staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
     total_profit = models.FloatField(default=0, blank=True, null=True)
     final_total_price = models.FloatField(default=0, blank=True, null=True)
     discount =  models.FloatField(default=0, blank=True, null=True)
-    date_added = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    date_added = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_index=True)
     date_updated = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    transaction_id = models.CharField(max_length=100, null=True)
+    transaction_id = models.CharField(max_length=100, null=True, db_index=True)
     choices = (
         ('Cash', 'Cash'),
         ('Transfer', 'Transfer'),
         ('POS', 'POS'),
     )
-    method = models.CharField(max_length=50, choices=choices,default="Cash", blank=True, null=True)
-    completed = models.BooleanField(default=False)
+    method = models.CharField(max_length=50, choices=choices,default="Cash", blank=True, null=True, db_index=True)
+    completed = models.BooleanField(default=False, db_index=True)
     cancelled = models.BooleanField(default=False)
     history = HistoricalRecords()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['organization', '-date_added']),
+            models.Index(fields=['branch', 'completed']),
+            models.Index(fields=['staff', '-date_added']),
+            models.Index(fields=['method', '-date_added']),
+        ]
 
     def __str__(self):
         return str(self.transaction_id)
@@ -148,15 +168,21 @@ class Sale(models.Model):
 
 class SalesItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE)
-    inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, blank=True, null=True)
-    sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, blank=True, null=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, db_index=True)
+    inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
+    sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
     total = models.FloatField(default=0)
     cost_total = models.FloatField(default=0)
     quantity = models.IntegerField(default=0, blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True, blank=True, null=True)
     history = HistoricalRecords()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['sale', '-last_updated']),
+            models.Index(fields=['organization', 'branch']),
+        ]
     
     def __str__(self):
         return str(self.inventory)
@@ -186,19 +212,25 @@ class Supplier(models.Model):
 
 class ErrorTicket(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
-    staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_created')
-    assigned_to = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_assigned')
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    staff = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_created', db_index=True)
+    assigned_to = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='error_tickets_assigned', db_index=True)
     title = models.CharField(max_length=150, blank=True, null=True)
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
     description = models.TextField(blank=True, null=True)
     choices = (
         ('Pending', 'Pending'),
         ('Seen', 'Seen'),
     )
-    status = models.CharField(max_length=50, choices=choices,default="Pending", blank=True, null=True)
-    date_added = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    status = models.CharField(max_length=50, choices=choices,default="Pending", blank=True, null=True, db_index=True)
+    date_added = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_index=True)
     date_updated = models.DateTimeField(auto_now=True, blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['organization', 'status']),
+            models.Index(fields=['assigned_to', '-date_added']),
+        ]
 
     def __str__(self):
         return str(self.title)
@@ -206,10 +238,15 @@ class ErrorTicket(models.Model):
 
 class TicketComment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
-    ticket = models.ForeignKey(ErrorTicket, on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    ticket = models.ForeignKey(ErrorTicket, on_delete=models.CASCADE, related_name='comments', db_index=True)
+    author = models.ForeignKey(CustomUser, on_delete=models.CASCADE, db_index=True)
     content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['ticket', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Comment by {self.author.email} on {self.ticket.title}"

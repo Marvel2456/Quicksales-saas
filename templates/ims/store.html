@@ -33,7 +33,12 @@
             {% for inventory in inventory_page %}
             {% comment %} {% if inventory.branch == user.branch %} {% endcomment %}
             <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
-                <div class="app-card app-card-doc shadow-sm  h-100 {% if inventory.store_quantity <= 0 %}opacity-50{% endif %}">
+                <div class="app-card app-card-doc shadow-sm  h-100 {% if inventory.store_quantity <= 0 %}opacity-50{% endif %}"
+                     data-inventory-id="{{ inventory.id }}"
+                     data-product-name="{{ inventory.product.product_name }}"
+                     data-cost-price="{{ inventory.cost_price }}"
+                     data-selling-price="{{ inventory.selling_price }}"
+                     data-store-quantity="{{ inventory.store_quantity }}">
                     <div class="app-card-thumb-holder p-3">
                         {% if inventory.store_quantity > 0 %}
                             <a class="btn add-cart"
