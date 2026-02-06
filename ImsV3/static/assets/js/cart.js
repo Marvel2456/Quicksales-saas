@@ -6,24 +6,15 @@ for (let i = 0; i < updateCart.length; i++) {
         let action = this.dataset.action
         let url = this.dataset.url
 
-        console.log('inventoryId:', inventoryId, 'action:', action, 'url:', url, 'Online:', navigator.onLine)
+        console.log('inventoryId:', inventoryId, 'action:', action, 'url:', url)
         
         UpdateUserCart(inventoryId, action, url)
     })
 }
 
 function UpdateUserCart(inventoryId, action, url){
-    console.log('UpdateUserCart called. Online:', navigator.onLine)
+    console.log('UpdateUserCart called')
 
-    // Check if offline
-    if (!navigator.onLine) {
-        console.log('⚠️ Offline - saving to cart locally');
-        handleOfflineCart(inventoryId, action);
-        return;
-    }
-
-    // Online - use normal fetch
-    console.log('Online - sending to server:', url);
     fetch(url, {
         method:'POST',
         headers:{
@@ -39,59 +30,11 @@ function UpdateUserCart(inventoryId, action, url){
     })
     .catch((error) => {
         console.error('❌ Cart update failed:', error);
-        // Fallback to offline save if network error
-        handleOfflineCart(inventoryId, action);
+        alert('Failed to update cart. Please try again.');
     });
 }
 
-async function handleOfflineCart(inventoryId, action) {
-    console.log('🔄 Waiting for offline manager to be ready...');
-    let attempts = 0;
-    const maxAttempts = 100;
-    
-    const interval = setInterval(async () => {
-        attempts++;
-        
-        const isReady = typeof offlineManager !== 'undefined' && 
-                       offlineManager !== null && 
-                       offlineManager.db !== null && 
-                       offlineManager.db !== undefined;
-        
-        console.log(`📊 Attempt ${attempts}/${maxAttempts} - Offline Manager Ready: ${isReady}`);
-        
-        if (isReady) {
-            clearInterval(interval);
-            console.log('✅ Offline manager is ready, saving item to IndexedDB');
-            
-            try {
-                await offlineManager.addToOfflineCart(inventoryId, action);
-                console.log('✅ Item successfully added to offline cart');
-                updateCartCount();
-                showOfflineNotification('✅ Item added to cart (offline)', false);
-            } catch (error) {
-                console.error('❌ Error adding item to offline cart:', error);
-                showOfflineNotification('❌ Error: ' + error.message, true);
-            }
-        } else if (attempts >= maxAttempts) {
-            clearInterval(interval);
-            console.error('❌ Timeout: Offline manager did not initialize after 10 seconds');
-            showOfflineNotification('❌ Offline system not ready. Please refresh the page.', true);
-        }
-    }, 100);
-}
-
-function updateCartCount() {
-    if (typeof offlineManager !== 'undefined' && offlineManager.db) {
-        offlineManager.getCartCount().then((count) => {
-            const cartElement = document.getElementById('addCart');
-            if (cartElement) {
-                cartElement.innerHTML = `${count}`;
-            }
-        });
-    }
-}
-
-function showOfflineNotification(message, isError = false) {
+function showNotification(message, isError = false) {
     const alertDiv = document.createElement('div');
     alertDiv.className = isError ? 'alert alert-danger' : 'alert alert-success';
     alertDiv.textContent = message;
@@ -125,20 +68,6 @@ function updateQuantity(e){
 
     const data = {invent_id: inventoryId, val: inputvalue};
 
-    // Check if offline
-    if (!navigator.onLine) {
-        console.log('⚠️ Offline - updating cart locally');
-        if (typeof offlineManager !== 'undefined' && offlineManager.db) {
-            offlineManager.updateCartQuantity(inventoryId, inputvalue).then(() => {
-                showOfflineNotification('Quantity updated (offline)');
-            }).catch((error) => {
-                console.error('❌ Failed to update quantity offline:', error);
-                showOfflineNotification('Failed to update quantity', true);
-            });
-        }
-        return;
-    }
-
     fetch(url, {
         method:'POST',
         headers:{
@@ -158,10 +87,6 @@ function updateQuantity(e){
     })
     .catch((error) => {
         console.error('❌ Quantity update failed:', error);
-        if (typeof offlineManager !== 'undefined' && offlineManager.db) {
-            offlineManager.updateCartQuantity(inventoryId, inputvalue).then(() => {
-                showOfflineNotification('Quantity queued for sync');
-            });
-        }
+        alert('Failed to update quantity. Please try again.');
     });
 }
