@@ -21,33 +21,82 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            echo "🚀 Starting deployment..."
+            set -e  # Exit on any error
+            
+            echo "================================"
+            echo "🚀 QUICKSALES DEPLOYMENT STARTED"
+            echo "================================"
+            echo "Time: $(date)"
+            echo "Host: $(hostname)"
+            echo ""
             
             # Navigate to project directory
+            echo "📁 Navigating to project directory..."
             cd ~/Quicksales-saas
+            pwd
+            echo ""
+            
+            # Show current git status
+            echo "📊 Current Git Status:"
+            git branch
+            git log -1 --oneline
+            echo ""
             
             # Pull latest code from GitHub
-            echo "📥 Pulling latest code..."
+            echo "📥 Pulling latest code from GitHub..."
             git pull origin main
+            echo "✓ Code updated successfully"
+            echo ""
+            
+            # Stop containers
+            echo "🛑 Stopping existing containers..."
+            docker-compose down
+            echo "✓ Containers stopped"
+            echo ""
             
             # Rebuild and restart containers
             echo "🔨 Building and starting containers..."
-            docker-compose down
+            echo "   This may take a few minutes..."
             docker-compose up -d --build
+            echo "✓ Containers built and started"
+            echo ""
             
             # Wait for services to be ready
-            sleep 5
+            echo "⏳ Waiting for services to initialize..."
+            sleep 10
+            echo ""
+            
+            # Show container status
+            echo "📦 Container Status:"
+            docker-compose ps
+            echo ""
             
             # Run database migrations
-            echo "🗄️ Running database migrations..."
-            docker-compose exec -T web python manage.py migrate
+            echo "🗄️  Running database migrations..."
+            docker-compose exec -T web python manage.py migrate --noinput
+            echo "✓ Migrations completed"
+            echo ""
             
             # Collect static files
             echo "📦 Collecting static files..."
             docker-compose exec -T web python manage.py collectstatic --noinput
+            echo "✓ Static files collected"
+            echo ""
+            
+            # Check web container logs for errors
+            echo "🔍 Checking for errors in web container..."
+            docker-compose logs --tail=20 web | grep -i error || echo "✓ No errors found"
+            echo ""
             
             # Clean up unused Docker images
-            echo "🧹 Cleaning up Docker images..."
+            echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
+            echo "✓ Cleanup completed"
+            echo ""
             
-            echo "✅ Deployment completed successfully!"
+            echo "================================"
+            echo "✅ DEPLOYMENT COMPLETED!"
+            echo "================================"
+            echo "Time: $(date)"
+            echo "Application: http://marvexqs.com"
+            echo ""
