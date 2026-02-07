@@ -27,25 +27,34 @@ jobs:
             echo "Host: $(hostname)"
             echo ""
             
-            # Navigate to project directory
-            echo "📁 Navigating to project directory..."
-            cd ~/Quicksales-saas
-            pwd
+            # Navigate to home directory
+            echo "📁 Preparing deployment..."
+            cd ~
             echo ""
             
-            # Update code from GitHub
-            echo "📥 Pulling latest code from GitHub..."
-            if [ ! -d ".git" ]; then
-              echo "Git repository not found, cloning..."
-              cd ~
-              rm -rf Quicksales-saas
-              git clone https://github.com/Marvel2456/Quicksales-saas.git
-              cd Quicksales-saas
-            else
-              git fetch origin main
-              git reset --hard origin/main
+            # Backup .env file if it exists
+            if [ -f "Quicksales-saas/.env" ]; then
+              echo "💾 Backing up .env file..."
+              cp Quicksales-saas/.env /tmp/.env.backup
+              echo "✓ .env backed up"
             fi
-            echo "✓ Code updated to latest from main branch"
+            echo ""
+            
+            # Update code from GitHub (fresh clone)
+            echo "📥 Fetching latest code from GitHub..."
+            rm -rf Quicksales-saas
+            git clone https://github.com/Marvel2456/Quicksales-saas.git
+            cd Quicksales-saas
+            echo "✓ Code fetched successfully"
+            echo ""
+            
+            # Restore .env file
+            if [ -f "/tmp/.env.backup" ]; then
+              echo "📋 Restoring .env file..."
+              cp /tmp/.env.backup .env
+              rm /tmp/.env.backup
+              echo "✓ .env restored"
+            fi
             echo ""
             
             # Rebuild and restart containers
