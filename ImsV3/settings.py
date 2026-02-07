@@ -44,7 +44,7 @@ CSRF_TRUSTED_ORIGINS = get_list(config('CSRF_TRUSTED_ORIGINS', default=''))
 ENV = config('ENV', default='development')  # 'production' or 'development'
 
 if ENV == 'production':
-    DOMAIN = "yourdomain.com"
+    DOMAIN = "marvexqs.com"
 else:
     DOMAIN = "lvh.me:8000"
 

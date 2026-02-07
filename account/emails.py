@@ -8,13 +8,19 @@ from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
 
 
+def get_protocol():
+    """Return https for production, http for development"""
+    return 'https' if settings.ENV == 'production' else 'http'
+
+
 
 def send_verification_email(user, organization):
     token = default_token_generator.make_token(user)
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     domain = f"{organization.slug}.{settings.DOMAIN}"
+    protocol = get_protocol()
 
-    verification_url = f"http://{domain}/account/verify-email/{uid}/{token}/"
+    verification_url = f"{protocol}://{domain}/account/verify-email/{uid}/{token}/"
 
     subject = _("Verify your Marvex account")
     html_message = render_to_string('account/emails/verify_email.html', {
@@ -127,7 +133,8 @@ def send_staff_invitation_email(user, organization, branch, password, login_url)
 
 
 def send_staff_welcome_email(user, raw_password):
-    login_url = f"http://{user.organization.slug}.{settings.DOMAIN}/account/login/"
+    protocol = get_protocol()
+    login_url = f"{protocol}://{user.organization.slug}.{settings.DOMAIN}/account/login/"
     subject = f"Welcome to {user.organization.name}"
     message = (
         f"Hello {user.get_full_name()},\n\n"
@@ -152,6 +159,7 @@ def send_subscription_success_email(user, organization, subscription):
     """
     subject = _("Subscription Activated Successfully")
     
+    protocol = get_protocol()
     context = {
         'user': user,
         'organization': organization,
@@ -159,7 +167,7 @@ def send_subscription_success_email(user, organization, subscription):
         'plan_name': subscription.plan.name,
         'start_date': subscription.start_date.strftime('%B %d, %Y'),
         'end_date': subscription.end_date.strftime('%B %d, %Y'),
-        'dashboard_url': f"http://{organization.slug}.{settings.DOMAIN}/",
+        'dashboard_url': f"{protocol}://{organization.slug}.{settings.DOMAIN}/",
     }
     
     html_message = render_to_string('account/emails/subscription_success_email.html', context)
@@ -182,8 +190,9 @@ def send_ticket_created_email(ticket, assigned_to, organization):
     Send email notification when a ticket is created and assigned to someone
     """
     subject = f"New Support Ticket: {ticket.title}"
+    protocol = get_protocol()
     
-    ticket_url = f"http://{organization.slug}.{settings.DOMAIN}/ims/ticket/{ticket.id}/"
+    ticket_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/ims/ticket/{ticket.id}/"
     
     context = {
         'ticket': ticket,
