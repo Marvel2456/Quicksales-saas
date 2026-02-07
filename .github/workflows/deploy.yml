@@ -13,6 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       
+      - name: Copy code to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "."
+          target: "~/Quicksales-saas"
+          rm: false
+          strip_components: 0
+          overwrite: true
+      
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -36,42 +49,37 @@ jobs:
             pwd
             echo ""
             
-            # Show current git status
-            echo "📊 Current Git Status:"
-            git branch
-            git log -1 --oneline
-            echo ""
-            
-            # Pull latest code from GitHub
-            echo "📥 Pulling latest code from GitHub..."
-            git pull origin main
-            echo "✓ Code updated successfully"
-            echo ""
-            
-            # Stop containers
-            echo "🛑 Stopping existing containers..."
-            docker compose down
-            echo "✓ Containers stopped"
-            echo ""
-            
             # Rebuild and restart containers
             echo "🔨 Building and starting containers..."
             docker compose down
             docker compose up -d --build
+            echo "✓ Containers built and started"
+            echo ""
             
             # Wait for services to be ready
+            echo "⏳ Waiting for services to initialize..."
             sleep 10
+            echo ""
+            
+            # Show container status
+            echo "📦 Container Status:"
+            docker compose ps
+            echo ""
             
             # Run database migrations
             echo "🗄️ Running database migrations..."
-            docker compose exec -T web python manage.py migrate
+            docker compose exec -T web python manage.py migrate --noinput
+            echo "✓ Migrations completed"
+            echo ""
             
             # Collect static files
             echo "📦 Collecting static files..."
             docker compose exec -T web python manage.py collectstatic --noinput
+            echo "✓ Static files collected"
+            echo ""
             
             # Clean up unused Docker images
-            echo "🧹 Cleaning up unused Docker images..."
+            echo "🧹 Cleaning up Docker images..."
             docker image prune -f
             echo "✓ Cleanup completed"
             echo ""
@@ -80,5 +88,5 @@ jobs:
             echo "✅ DEPLOYMENT COMPLETED!"
             echo "================================"
             echo "Time: $(date)"
-            echo "Application: http://marvexqs.com"
+            echo "Application: https://marvexqs.com"
             echo ""
