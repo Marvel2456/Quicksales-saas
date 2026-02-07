@@ -48,6 +48,9 @@ if ENV == 'production':
 else:
     DOMAIN = "lvh.me:8000"
 
+# Admin URL path (customize for security in production)
+ADMIN_URL = config('ADMIN_URL', default='admin/')
+
 # Application definition
 
 INSTALLED_APPS = [
