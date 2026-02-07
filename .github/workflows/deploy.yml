@@ -25,7 +25,6 @@ jobs:
           rm: false
           strip_components: 0
           overwrite: true
-          exclude: ".git,.env*,env/,db.sqlite3,staticfiles/,media/"
       
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
