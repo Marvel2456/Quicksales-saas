@@ -35,29 +35,59 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            echo "🚀 Starting deployment..."
+            set -e  # Exit on any error
+            
+            echo "================================"
+            echo "🚀 QUICKSALES DEPLOYMENT STARTED"
+            echo "================================"
+            echo "Time: $(date)"
+            echo "Host: $(hostname)"
+            echo ""
             
             # Navigate to project directory
+            echo "📁 Navigating to project directory..."
             cd ~/Quicksales-saas
+            pwd
+            echo ""
             
             # Rebuild and restart containers
             echo "🔨 Building and starting containers..."
             docker compose down
             docker compose up -d --build
+            echo "✓ Containers built and started"
+            echo ""
             
             # Wait for services to be ready
+            echo "⏳ Waiting for services to initialize..."
             sleep 10
+            echo ""
+            
+            # Show container status
+            echo "📦 Container Status:"
+            docker compose ps
+            echo ""
             
             # Run database migrations
             echo "🗄️ Running database migrations..."
-            docker compose exec -T web python manage.py migrate
+            docker compose exec -T web python manage.py migrate --noinput
+            echo "✓ Migrations completed"
+            echo ""
             
             # Collect static files
             echo "📦 Collecting static files..."
             docker compose exec -T web python manage.py collectstatic --noinput
+            echo "✓ Static files collected"
+            echo ""
             
             # Clean up unused Docker images
             echo "🧹 Cleaning up Docker images..."
             docker image prune -f
+            echo "✓ Cleanup completed"
+            echo ""
             
-            echo "✅ Deployment completed successfully!"
+            echo "================================"
+            echo "✅ DEPLOYMENT COMPLETED!"
+            echo "================================"
+            echo "Time: $(date)"
+            echo "Application: https://marvexqs.com"
+            echo ""
