@@ -10,7 +10,7 @@ def subscription_context(request):
     """
     Add subscription information to all template contexts.
     """
-    if not request.user.is_authenticated:
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
         return {}
     
     if not hasattr(request.user, 'organization') or not request.user.organization:

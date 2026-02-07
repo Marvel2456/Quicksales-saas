@@ -186,3 +186,7 @@ cython_debug/
 media/
 staticfiles/
 .DS_Store
+
+# Docker compose variants (use docker-compose.yml only)
+docker-compose.*.yml
+!docker-compose.yml

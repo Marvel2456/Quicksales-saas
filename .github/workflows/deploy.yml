@@ -21,14 +21,38 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            echo "🚀 Starting deployment..."
+            set -e  # Exit on any error
+            
+            echo "================================"
+            echo "🚀 QUICKSALES DEPLOYMENT STARTED"
+            echo "================================"
+            echo "Time: $(date)"
+            echo "Host: $(hostname)"
+            echo ""
             
             # Navigate to project directory
+            echo "📁 Navigating to project directory..."
             cd ~/Quicksales-saas
+            pwd
+            echo ""
+            
+            # Show current git status
+            echo "📊 Current Git Status:"
+            git branch
+            git log -1 --oneline
+            echo ""
             
             # Pull latest code from GitHub
-            echo "📥 Pulling latest code..."
+            echo "📥 Pulling latest code from GitHub..."
             git pull origin main
+            echo "✓ Code updated successfully"
+            echo ""
+            
+            # Stop containers
+            echo "🛑 Stopping existing containers..."
+            docker compose down
+            echo "✓ Containers stopped"
+            echo ""
             
             # Rebuild and restart containers
             echo "🔨 Building and starting containers..."
@@ -47,7 +71,14 @@ jobs:
             docker compose exec -T web python manage.py collectstatic --noinput
             
             # Clean up unused Docker images
-            echo "🧹 Cleaning up Docker images..."
+            echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
+            echo "✓ Cleanup completed"
+            echo ""
             
-            echo "✅ Deployment completed successfully!"
+            echo "================================"
+            echo "✅ DEPLOYMENT COMPLETED!"
+            echo "================================"
+            echo "Time: $(date)"
+            echo "Application: http://marvexqs.com"
+            echo ""
