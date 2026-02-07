@@ -13,18 +13,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       
-      - name: Copy code to VPS
-        uses: appleboy/scp-action@v0.1.7
+      - name: Deploy code to VPS using rsync
+        uses: burnett01/rsync-deployments@6.0.0
         with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          source: "."
-          target: "~/Quicksales-saas"
-          rm: false
-          strip_components: 0
-          overwrite: true
+          switches: -avzr --delete --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' --exclude='env/' --exclude='.env*' --exclude='db.sqlite3' --exclude='staticfiles/' --exclude='media/' --exclude='.DS_Store'
+          path: ./
+          remote_path: ~/Quicksales-saas/
+          remote_host: ${{ secrets.HOSTINGER_HOST }}
+          remote_user: ${{ secrets.HOSTINGER_USER }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
       
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
