@@ -42,6 +42,10 @@ jobs:
             
             # Update code from GitHub (fresh clone)
             echo "📥 Fetching latest code from GitHub..."
+            # Remove root-owned static files via a container to avoid permission errors
+            if [ -d "Quicksales-saas/staticfiles" ]; then
+              docker run --rm -v "$HOME/Quicksales-saas:/work" alpine:3.19 sh -c "rm -rf /work/staticfiles"
+            fi
             rm -rf Quicksales-saas
             git clone https://github.com/Marvel2456/Quicksales-saas.git
             cd Quicksales-saas
