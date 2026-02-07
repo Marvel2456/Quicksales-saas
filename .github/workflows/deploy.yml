@@ -32,19 +32,19 @@ jobs:
             
             # Rebuild and restart containers
             echo "🔨 Building and starting containers..."
-            docker-compose down
-            docker-compose up -d --build
+            docker compose down
+            docker compose up -d --build
             
             # Wait for services to be ready
-            sleep 5
+            sleep 10
             
             # Run database migrations
             echo "🗄️ Running database migrations..."
-            docker-compose exec -T web python manage.py migrate
+            docker compose exec -T web python manage.py migrate
             
             # Collect static files
             echo "📦 Collecting static files..."
-            docker-compose exec -T web python manage.py collectstatic --noinput
+            docker compose exec -T web python manage.py collectstatic --noinput
             
             # Clean up unused Docker images
             echo "🧹 Cleaning up Docker images..."
