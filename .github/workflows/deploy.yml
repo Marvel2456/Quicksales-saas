@@ -10,19 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Deploy code to VPS using rsync
-        uses: burnett01/rsync-deployments@6.0.0
-        with:
-          switches: -avzr --delete --exclude='.git' --exclude='*.pyc' --exclude='__pycache__' --exclude='env/' --exclude='.env*' --exclude='db.sqlite3' --exclude='staticfiles/' --exclude='media/' --exclude='.DS_Store'
-          path: ./
-          remote_path: ~/Quicksales-saas/
-          remote_host: ${{ secrets.HOSTINGER_HOST }}
-          remote_user: ${{ secrets.HOSTINGER_USER }}
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -44,6 +31,21 @@ jobs:
             echo "📁 Navigating to project directory..."
             cd ~/Quicksales-saas
             pwd
+            echo ""
+            
+            # Update code from GitHub
+            echo "📥 Pulling latest code from GitHub..."
+            if [ ! -d ".git" ]; then
+              echo "Git repository not found, cloning..."
+              cd ~
+              rm -rf Quicksales-saas
+              git clone https://github.com/Marvel2456/Quicksales-saas.git
+              cd Quicksales-saas
+            else
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+            echo "✓ Code updated to latest from main branch"
             echo ""
             
             # Rebuild and restart containers
