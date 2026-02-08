@@ -14,7 +14,7 @@ from .decorators import role_required, check_branch_limit
 from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 from django.conf import settings
-from .emails import send_welcome_email, send_verification_email
+from .emails import send_welcome_email, send_verification_email, get_protocol
 from django.http import HttpResponse
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.tokens import default_token_generator
@@ -124,8 +124,8 @@ def verifyEmail(request, uidb64, token):
             user.save()
 
             # generate subdomain login URL
-            # login_url = f"http://{user.organization.slug}.lvh.me:8000/login/"
-            login_url = f"http://{user.organization.slug}.{settings.DOMAIN}/login/"
+            protocol = get_protocol()
+            login_url = f"{protocol}://{user.organization.slug}.{settings.DOMAIN}/account/login/"
 
             # Send welcome email after verification
             send_welcome_email(user, login_url)
