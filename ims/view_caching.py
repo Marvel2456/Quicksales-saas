@@ -15,6 +15,7 @@ Key Features:
 from django.views.decorators.cache import cache_page
 from django.core.cache import cache
 from django.utils.decorators import decorator_from_middleware_with_args
+from django.conf import settings
 from functools import wraps
 from django.http import HttpRequest
 from datetime import timedelta
@@ -70,6 +71,9 @@ def cached_view(timeout=300, key_prefix=None):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            # Disable caching in development to avoid stale templates/assets
+            if getattr(settings, 'ENV', 'development') == 'development':
+                return view_func(request, *args, **kwargs)
             # Don't cache if user is not authenticated or request has specific parameters
             if not request.user.is_authenticated:
                 return view_func(request, *args, **kwargs)

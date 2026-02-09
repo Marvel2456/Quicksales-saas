@@ -12728,6 +12728,18 @@ button.close:focus {
     background: #fff
 }
 
+.app-btn-success {
+    color: #fff;
+    text-decoration: none
+}
+
+.app-btn-success:hover,
+.app-btn-success:active,
+.app-btn-success:focus {
+    color: #fff;
+    text-decoration: none
+}
+
 .btn-light {
     background: #f5f6fe;
     color: #02296e
@@ -12890,6 +12902,14 @@ button.close:focus {
 .app-utility-item .icon-badge.icon-badge {
     background: #ec776c;
     border: 2px solid #fff
+}
+
+.app-utility-item .cart-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 10px;
+    padding: 2px 6px
 }
 
 .app-notifications-dropdown .dropdown-menu {
@@ -13589,7 +13609,14 @@ button.close:focus {
 }
 
 .app-card-doc .app-doc-title a {
-    color: #252930
+    color: #252930;
+    text-decoration: none
+}
+
+.app-card-doc .app-doc-title a:hover,
+.app-card-doc .app-doc-title a:focus {
+    color: #02296e;
+    text-decoration: none
 }
 
 .app-card-doc .app-doc-title.truncate {
