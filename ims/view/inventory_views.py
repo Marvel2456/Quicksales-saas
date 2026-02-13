@@ -101,13 +101,14 @@ def inventory_list(request, pk):
 # @is_unsubscribed
 def branchInventory(request):
     """Admin branch inventory view - optimized with select_related"""
+    organization = request.user.organization
     # Use select_related for efficient loading
     inventory_qs = Inventory.objects.select_related(
         'product', 'branch', 'organization'
-    ).order_by('branch')
+    ).filter(organization=organization).order_by('branch')
     
-    product = Product.objects.select_related('category', 'branch').all()
-    branch = Branch.objects.select_related('organization').all()
+    product = Product.objects.select_related('category', 'branch').filter(organization=organization)
+    branch = Branch.objects.select_related('organization').filter(organization=organization)
     
     # Apply filters if provided
     product_contains_query = request.GET.get('product')
@@ -148,7 +149,8 @@ def branchInventory(request):
 
 @role_required(roles=['owner'])
 def inventory(request, pk):
-    inventory = Inventory.objects.get(id=pk)
+    organization = request.user.organization
+    inventory = get_object_or_404(Inventory, id=pk, organization=organization)
 
     context = {
         'inventory':inventory

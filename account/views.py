@@ -552,11 +552,20 @@ def session_check(request):
     """Check if user's session is still valid (for debugging idle timeout)"""
     from django.http import JsonResponse
     from datetime import datetime
-    
+
+    if request.user.is_authenticated:
+        # Refresh session expiry on active use
+        request.session.modified = True
+        request.session.set_expiry(600)
+        return JsonResponse({
+            'authenticated': True,
+            'user': request.user.email,
+            'session_key': request.session.session_key,
+            'expiry_seconds': request.session.get_expiry_age(),
+            'timestamp': datetime.now().isoformat()
+        })
+
     return JsonResponse({
-        'authenticated': request.user.is_authenticated,
-        'user': request.user.email if request.user.is_authenticated else None,
-        'session_key': request.session.session_key,
-        'session_expiry': datetime.fromtimestamp(request.session.get_expiry_age()).isoformat() if request.session else None,
+        'authenticated': False,
         'timestamp': datetime.now().isoformat()
-    })
+    }, status=401)

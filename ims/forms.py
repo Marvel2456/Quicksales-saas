@@ -50,17 +50,28 @@ class UserForm(ModelForm):
         }
 
 class ProductForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        self.branch = kwargs.pop('branch', None)
+        super().__init__(*args, **kwargs)
+
+        self.fields['product_name'].widget.attrs['class'] = 'input'
+        self.fields['category'].widget.attrs['class'] = 'form-select'
+        self.fields['brand'].widget.attrs['class'] = 'input'
+        self.fields['unit'].widget.attrs['class'] = 'input'
+        self.fields['batch_no'].widget.attrs['class'] = 'input'
+
+        if self.branch:
+            self.fields['category'].queryset = Category.objects.filter(
+                organization=self.organization,
+                branch=self.branch
+            )
+        elif self.organization:
+            self.fields['category'].queryset = Category.objects.filter(organization=self.organization)
+
     class Meta:
        model = Product
        fields = ('product_name', 'category', 'brand', 'unit', 'batch_no')
-
-       def __init__(self, *args, **kwargs):
-           super(ProductForm, self).__init__(*args, **kwargs)
-           self.fields['product_name'].widget.attrs['class'] = 'input'
-           self.fields['category'].widget.attrs['class'] = 'select'
-           self.fields['brand'].widget.attrs['class'] = 'input'
-           self.fields['unit'].widget.attrs['class'] = 'input'
-           self.fields['batch_no'].widget.attrs['class'] = 'input'
        
        widgets = {
            'category': forms.Select(attrs={'class':'form-select'})
@@ -70,10 +81,18 @@ class ProductForm(ModelForm):
         super(ProductForm, self).clean()
 
         product_name = self.cleaned_data.get('product_name')
-        for product in Product.objects.all():
-            if product.product_name == product_name:
-                self._errors['product_name'] = self.error_class([
-                'The product you tried to create already exists'])
+        if not product_name:
+            return self.cleaned_data
+
+        product_qs = Product.objects.all()
+        if self.organization:
+            product_qs = product_qs.filter(organization=self.organization)
+        if self.branch:
+            product_qs = product_qs.filter(branch=self.branch)
+
+        if product_qs.filter(product_name__iexact=product_name).exists():
+            self._errors['product_name'] = self.error_class([
+            'The product you tried to create already exists'])
 
         return self.cleaned_data   
     
@@ -82,11 +101,14 @@ class ProductForm(ModelForm):
 class EditProductForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         organization = kwargs.pop('organization', None)
+        branch = kwargs.pop('branch', None)
         super().__init__(*args, **kwargs)
 
         if organization:
             # Ensure the product’s current category is always available in queryset
             qs = Category.objects.filter(organization=organization)
+            if branch:
+                qs = qs.filter(branch=branch)
 
             if self.instance and self.instance.category_id:
                 qs = qs | Category.objects.filter(id=self.instance.category_id)
@@ -131,6 +153,11 @@ class EditProductForm(forms.ModelForm):
         
 
 class CategoryForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        self.branch = kwargs.pop('branch', None)
+        super().__init__(*args, **kwargs)
+
     class Meta:
         model = Category
         fields = ('category_name',)
@@ -139,11 +166,18 @@ class CategoryForm(ModelForm):
         super(CategoryForm, self).clean()
 
         category_name = self.cleaned_data.get('category_name')
+        if not category_name:
+            return self.cleaned_data
 
-        for category in Category.objects.all():
-            if category.category_name == category_name:
-                self._errors['category_name'] = self.error_class([
-                'The category you tried to create already exists'])
+        category_qs = Category.objects.all()
+        if self.organization:
+            category_qs = category_qs.filter(organization=self.organization)
+        if self.branch:
+            category_qs = category_qs.filter(branch=self.branch)
+
+        if category_qs.filter(category_name__iexact=category_name).exists():
+            self._errors['category_name'] = self.error_class([
+            'The category you tried to create already exists'])
 
         return self.cleaned_data   
 

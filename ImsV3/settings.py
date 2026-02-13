@@ -297,11 +297,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # LOGIN_REDIRECT_URL = 'index'
 LOGIN_URL = 'login'  # Points to account:login URL
 
-# Session settings: auto-logout after 10 minutes of inactivity
-SESSION_COOKIE_AGE = 600  # 10 minutes
-SESSION_SAVE_EVERY_REQUEST = False  # Disabled - use client-side idle detection instead
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-
 # Subdomain settings
 # DOMAIN = "yourdomain.com"
 
@@ -364,7 +359,7 @@ LOGGING = {
 
 # Session Configuration - Logout after 10 minutes of inactivity
 SESSION_COOKIE_AGE = 600  # 10 minutes in seconds
-SESSION_SAVE_EVERY_REQUEST = False  # Disabled - use client-side idle detection
+SESSION_SAVE_EVERY_REQUEST = True  # Refresh expiry on each request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Expire session when browser closes
 
 if ENV == 'production':
