@@ -1,3 +1,6 @@
+// Get CSRF token from meta tag (since CSRF_COOKIE_HTTPONLY=True blocks cookie access)
+const csrftoken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
 let updateCart = document.getElementsByClassName('add-cart')
 
 for (let i = 0; i < updateCart.length; i++) {
@@ -8,30 +11,45 @@ for (let i = 0; i < updateCart.length; i++) {
         let url = this.dataset.url
 
         console.log('inventoryId:', inventoryId, 'action:', action, 'url:', url)
+        console.log('csrftoken:', csrftoken)
         
         UpdateUserCart(inventoryId, action, url)
     })
 }
 
 function UpdateUserCart(inventoryId, action, url){
-    console.log('UpdateUserCart called')
+    console.log('UpdateUserCart called with:', {inventoryId, action, url, csrftoken})
+
+    if (!csrftoken) {
+        console.error('❌ CSRF token not found')
+        showNotification('Security error: CSRF token missing. Please refresh the page.', true)
+        return
+    }
 
     fetch(url, {
         method:'POST',
+        credentials: 'include',
         headers:{
             'Content-Type':'application/json',
-            'X-CSRFToken':csrftoken,
+            'X-CSRFToken': csrftoken,
         },
         body:JSON.stringify({'inventoryId':inventoryId, 'action':action})
     })
     .then(res => {
+        console.log('Response status:', res.status)
         if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
+            return res.text().then(text => {
+                throw new Error(`HTTP ${res.status}: ${text}`)
+            })
         }
-        return res.json();
+        return res.json()
     })
     .then((data) =>{
-        console.log('data:', data)
+        console.log('Cart data:', data)
+        if (data.error) {
+            showNotification(data.error, true)
+            return
+        }
         // Update cart count if element exists
         const cartBadge = document.getElementById('addCart')
         if (cartBadge) {
@@ -42,7 +60,7 @@ function UpdateUserCart(inventoryId, action, url){
     })
     .catch((error) => {
         console.error('❌ Cart update failed:', error);
-        showNotification('Failed to add item to cart. Please try again.', true);
+        showNotification(`Failed to add item to cart: ${error.message}`, true);
     });
 }
 
@@ -82,23 +100,31 @@ function updateQuantity(e){
 
     fetch(url, {
         method:'POST',
+        credentials: 'include',
         headers:{
             'Content-Type':'application/json',
             'X-CSRFToken':csrftoken,
         },
         body:JSON.stringify(data)
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`HTTP ${res.status}: ${text}`)
+            })
+        }
+        return res.json()
+    })
     .then((data) =>{
         console.log('Success:', data);
         document.getElementById('sub_total').innerHTML = `${data.sub_total.toFixed(1)}`
         document.getElementById('final_total').innerHTML = `<b>Total:</b><div><i class="fa-solid fa-naira-sign"></i>${data.final_total.toFixed(1)}</div>`
         document.getElementById('sum_quantity').innerHTML = `<b>Item:</b><div>${data.total_quantity}</div>`
         document.getElementById('addCart').innerHTML = `${data.total_quantity}`
-        location.reload()
+        showNotification('Quantity updated successfully')
     })
     .catch((error) => {
         console.error('❌ Quantity update failed:', error);
-        alert('Failed to update quantity. Please try again.');
+        showNotification(`Failed to update quantity: ${error.message}`, true);
     });
 }
