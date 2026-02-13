@@ -1,7 +1,8 @@
 let updateCart = document.getElementsByClassName('add-cart')
 
 for (let i = 0; i < updateCart.length; i++) {
-    updateCart[i].addEventListener('click', function(){
+    updateCart[i].addEventListener('click', function(e){
+        e.preventDefault()
         let inventoryId = this.dataset.inventory
         let action = this.dataset.action
         let url = this.dataset.url
@@ -23,14 +24,25 @@ function UpdateUserCart(inventoryId, action, url){
         },
         body:JSON.stringify({'inventoryId':inventoryId, 'action':action})
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+    })
     .then((data) =>{
         console.log('data:', data)
-        document.getElementById('addCart').innerHTML = `${data.qty}`
+        // Update cart count if element exists
+        const cartBadge = document.getElementById('addCart')
+        if (cartBadge) {
+            cartBadge.innerHTML = `${data.qty}`
+        }
+        // Show success notification
+        showNotification('Item added to cart successfully')
     })
     .catch((error) => {
         console.error('❌ Cart update failed:', error);
-        alert('Failed to update cart. Please try again.');
+        showNotification('Failed to add item to cart. Please try again.', true);
     });
 }
 
