@@ -14,6 +14,7 @@ from account.decorators import role_required
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from ims.view_caching import cached_view
+from django.core.cache import cache
 
 
 
@@ -80,6 +81,9 @@ def inventory_list(request, pk):
             invenvtory_instance.status = 'Available'
             invenvtory_instance.save()
             messages.success(request, 'successfully created')
+            # Invalidate inventory list cache for this organization
+            for key_pattern in cache.keys(f"inventory_list:org:{organization.id}:*"):
+                cache.delete(key_pattern)
             return redirect('inventorys', pk=branch.id)
 
     context = {

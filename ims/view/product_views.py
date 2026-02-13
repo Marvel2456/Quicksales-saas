@@ -15,6 +15,7 @@ from account.decorators import role_required, check_product_limit
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from ims.view_caching import cached_view
+from django.core.cache import cache
 
 
 # Helper function to create notifications
@@ -89,6 +90,9 @@ def product_category(request, pk):
             product_instance.organization = organization
             product_instance.save()
             messages.success(request, 'successfully created')
+            # Invalidate product list cache for this organization
+            for key_pattern in cache.keys(f"product_list:org:{organization.id}:*"):
+                cache.delete(key_pattern)
             return redirect('products', pk=branch.id)
         
     context = {
