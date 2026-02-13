@@ -50,15 +50,12 @@ def branch_category(request):
 def category_list(request, pk):
     organization = request.user.organization
     branch = Branch.objects.get(organization=organization, id=pk)
-    category = Category.objects.filter(branch=branch).all()
-    paginator = Paginator(Category.objects.all(), 3)
+    category_qs = Category.objects.filter(branch=branch, organization=organization)
     page = request.GET.get('page')
-    category_page = paginator.get_page(page)
-    nums = "a" *category_page.paginator.num_pages
     category_contains = request.GET.get('category_name')
-    form = CategoryForm()
+    form = CategoryForm(organization=organization, branch=branch)
     if request.method == "POST":
-        form = CategoryForm(request.POST)
+        form = CategoryForm(request.POST, organization=organization, branch=branch)
         if form.is_valid():
             category_instance = form.save(commit=False)
             category_instance.branch = branch
@@ -67,15 +64,19 @@ def category_list(request, pk):
             messages.success(request, 'successfully created')
             return redirect('category_list', pk=branch.id)
             
-    if category_contains != '' and category_contains is not None:
-        category_page = category.filter(category_name__icontains=category_contains)
+    if category_contains:
+        category_qs = category_qs.filter(category_name__icontains=category_contains)
+
+    paginator = Paginator(category_qs, 3)
+    category_page = paginator.get_page(page)
+    nums = "a" * category_page.paginator.num_pages
 
     context = {
-        'category':category,
-        'form':form,
-        'category_page':category_page,
-        'nums':nums,
-        'branch':branch
+        'category': category_qs,
+        'form': form,
+        'category_page': category_page,
+        'nums': nums,
+        'branch': branch
     }
     return render(request, 'ims/category.html', context)
 
@@ -84,7 +85,8 @@ def category_list(request, pk):
 @login_required
 # @is_unsubscribed
 def category(request, pk):
-    category = Category.objects.get(id=pk)
+    organization = request.user.organization
+    category = get_object_or_404(Category, id=pk, organization=organization)
 
     context = {
         'category':category

@@ -105,6 +105,22 @@
         {% include 'modals/change_password.html' %}
         {% include 'modals/edit_profile.html' %}
         {% include 'modals/edit_organization_branding.html' %}
+
+        <div class="modal fade" id="session-expired-modal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Session Expired</h5>
+                    </div>
+                    <div class="modal-body">
+                        Your session has expired due to inactivity. You will be redirected to login.
+                    </div>
+                    <div class="modal-footer">
+                        <a class="btn app-btn-primary" href="{% url 'logout' %}">Login again</a>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         {% include 'partials/_footer.html' %}
     </div>
@@ -414,6 +430,93 @@
             return cookieValue;
         }
         const csrftoken = getCookie('csrftoken');
+    </script>
+    <script>
+        (function () {
+            const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
+            if (!isAuthenticated) {
+                return;
+            }
+
+            const idleLimitMs = 10 * 60 * 1000;
+            const checkIntervalMs = 30 * 1000;
+            const keepAliveThrottleMs = 60 * 1000;
+            const sessionCheckUrl = "{% url 'session_check' %}";
+            const logoutUrl = "{% url 'logout' %}";
+            let lastActivity = Date.now();
+            let lastPing = 0;
+            let modalShown = false;
+
+            function showSessionExpired() {
+                if (modalShown) {
+                    return;
+                }
+                modalShown = true;
+                const modalEl = document.getElementById('session-expired-modal');
+                if (modalEl && window.bootstrap) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+                        backdrop: 'static',
+                        keyboard: false
+                    });
+                    modal.show();
+                } else {
+                    alert('Your session has expired due to inactivity. You will be redirected to login.');
+                }
+                setTimeout(function () {
+                    window.location.href = logoutUrl;
+                }, 3000);
+            }
+
+            function pingSession() {
+                const now = Date.now();
+                if (now - lastPing < keepAliveThrottleMs) {
+                    return;
+                }
+                lastPing = now;
+                fetch(sessionCheckUrl, { credentials: 'same-origin' })
+                    .then(function (res) {
+                        if (!res.ok) {
+                            showSessionExpired();
+                            return null;
+                        }
+                        return res.json();
+                    })
+                    .then(function (data) {
+                        if (data && data.authenticated === false) {
+                            showSessionExpired();
+                        }
+                    })
+                    .catch(function () {
+                        // Ignore transient network errors
+                    });
+            }
+
+            function trackActivity() {
+                lastActivity = Date.now();
+                pingSession();
+            }
+
+            function checkIdle() {
+                if (Date.now() - lastActivity >= idleLimitMs) {
+                    showSessionExpired();
+                    return;
+                }
+                pingSession();
+            }
+
+            const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+            activityEvents.forEach(function (eventName) {
+                window.addEventListener(eventName, trackActivity, { passive: true });
+            });
+
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) {
+                    trackActivity();
+                }
+            });
+
+            setInterval(checkIdle, checkIntervalMs);
+        })();
     </script>
 
 

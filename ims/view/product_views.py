@@ -80,9 +80,9 @@ def product_category(request, pk):
     products_page = paginator.get_page(page)
     nums = "a" * products_page.paginator.num_pages
     
-    form = ProductForm()
+    form = ProductForm(organization=organization, branch=branch)
     if request.method == "POST":
-        form = ProductForm(request.POST)
+        form = ProductForm(request.POST, organization=organization, branch=branch)
         if form.is_valid():
             product_instance = form.save(commit=False)
             product_instance.branch = branch
@@ -105,7 +105,8 @@ def product_category(request, pk):
 @cached_view(timeout=600, key_prefix='product_detail')
 @role_required(roles=['owner'])
 def product(request, pk):
-    products = Product.objects.get(id=pk)
+    organization = request.user.organization
+    products = get_object_or_404(Product, id=pk, organization=organization)
 
     context = {
         'products':products
@@ -125,16 +126,19 @@ def edit_product(request, pk):
     )
 
     if request.method == 'POST':
-        form = EditProductForm(request.POST, instance=product, organization=organization)
+        form = EditProductForm(request.POST, instance=product, organization=organization, branch=product.branch)
         if form.is_valid():
             updated_product = form.save()
             messages.success(request, 'Successfully updated')
             return redirect('products', pk=updated_product.branch.id)
     else:
-        form = EditProductForm(instance=product, organization=organization)
+        form = EditProductForm(instance=product, organization=organization, branch=product.branch)
 
     # Use select_related for categories
-    categories = Category.objects.filter(organization=organization).select_related('branch', 'organization')
+    categories = Category.objects.filter(
+        organization=organization,
+        branch=product.branch
+    ).select_related('branch', 'organization')
 
     context = {
         'form': form,

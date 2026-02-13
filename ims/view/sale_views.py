@@ -57,7 +57,8 @@ def store(request, pk):
     
     # Filter inventory for this branch with select_related for product
     inventory_qs = Inventory.objects.filter(
-        branch=branch
+        branch=branch,
+        organization=organization
     ).select_related('product', 'branch').order_by('-last_updated')
     
     # Apply product filter if provided
@@ -94,7 +95,10 @@ def cart(request, pk):
         branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
         
         # Use prefetch_related for efficient inventory queries
-        inventory = Inventory.objects.filter(branch=branch).select_related('product', 'branch')
+        inventory = Inventory.objects.filter(
+            branch=branch,
+            organization=organization
+        ).select_related('product', 'branch')
 
         sale = None
         items = []
@@ -158,7 +162,10 @@ def checkout(request, pk):
         # Use select_related to fetch branch efficiently
         branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
         # Use select_related for inventory
-        inventory = Inventory.objects.filter(branch=branch).select_related('product', 'branch')
+        inventory = Inventory.objects.filter(
+            branch=branch,
+            organization=organization
+        ).select_related('product', 'branch')
 
         # Get active sale from session
         active_sale_id = request.session.get(f'active_sale_{branch.id}')
@@ -215,6 +222,7 @@ def updateCart(request, pk):
     # Fix: Use get directly with branch instead of filter(branch_id=branch)
     inventory = Inventory.objects.select_related('product', 'branch').get(
         branch=branch,
+        organization=organization,
         id=inventoryId
     )
     
@@ -254,9 +262,10 @@ def updateCart(request, pk):
         request.session.modified = True  # Ensure session is saved
 
     saleItem, created = SalesItem.objects.get_or_create(
-        sale=sale, 
-        branch=branch, 
+        sale=sale,
+        branch=branch,
         inventory=inventory,
+        organization=organization,
         defaults={'organization': organization}
     )
 
@@ -289,7 +298,11 @@ def updateQuantity(request, pk):
         return JsonResponse({'error': 'Branch not found'}, status=404)
 
     try:
-        inventory = Inventory.objects.select_related('product', 'branch').get(branch=branch, id=inventory_Id)
+        inventory = Inventory.objects.select_related('product', 'branch').get(
+            branch=branch,
+            organization=organization,
+            id=inventory_Id
+        )
     except Inventory.DoesNotExist:
         return JsonResponse({'error': 'Inventory not found'}, status=404)
 
@@ -309,7 +322,13 @@ def updateQuantity(request, pk):
     except Sale.DoesNotExist:
         return JsonResponse({'error': 'Active sale not found'}, status=404)
     
-    saleItem, _ = SalesItem.objects.select_related('sale', 'inventory', 'branch').get_or_create(sale=sale, branch=branch, inventory=inventory)
+    saleItem, _ = SalesItem.objects.select_related('sale', 'inventory', 'branch').get_or_create(
+        sale=sale,
+        branch=branch,
+        inventory=inventory,
+        organization=organization,
+        defaults={'organization': organization}
+    )
 
     saleItem.quantity = input_value
     saleItem.save()
@@ -474,7 +493,8 @@ def sales(request, pk):
     
     # Use select_related for staff to optimize foreign key access
     sale_qs = Sale.objects.filter(
-        branch=branch
+        branch=branch,
+        organization=organization
     ).select_related('staff', 'branch', 'organization').order_by('-date_updated')
     
     # Get filter parameters
@@ -513,7 +533,10 @@ def sales(request, pk):
 def sale_pdf(request, pk):
     organization = request.user.organization
     branch = Branch.objects.get(organization=organization, id=pk)
-    sale_qs = Sale.objects.filter(branch=branch).order_by('-date_updated')
+    sale_qs = Sale.objects.filter(
+        branch=branch,
+        organization=organization
+    ).order_by('-date_updated')
 
     # Apply same filters as sales list view
     start_date = request.GET.get('start_date')
@@ -579,7 +602,7 @@ def export_sales_csv(request, pk):
     writer = csv.writer(response)
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
-    sale_qs = Sale.objects.filter(branch=branch)
+    sale_qs = Sale.objects.filter(branch=branch, organization=organization)
     
     # Apply filters from request
     start_date = request.GET.get('start_date')
@@ -613,7 +636,7 @@ def export_profit_csv(request, pk):
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
     
-    sale = Sale.objects.filter(branch = branch)
+    sale = Sale.objects.filter(branch=branch, organization=organization)
 
     if start_date_contains:
         sale = sale.filter(date_updated__date__gte=start_date_contains)
@@ -758,7 +781,8 @@ def reciept(request, pk):
 def profitData(request, pk):
     profits = []
 
-    sale = Sale.objects.get(id = pk)
+    organization = request.user.organization
+    sale = get_object_or_404(Sale, id=pk, organization=organization)
     items = sale.salesitem_set.all()
 
     for i in items:
