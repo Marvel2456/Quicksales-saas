@@ -216,7 +216,9 @@ def createBranch(request):
     if request.method == 'POST':
         form = CreateBranchForm(request.POST)
         if form.is_valid():
-            new_branch = form.save()
+            new_branch = form.save(commit=False)
+            new_branch.organization = organization
+            new_branch.save()
             messages.success(request, 'Branch Created Successfully')
 
             # Notify owner about new branch creation
@@ -240,13 +242,18 @@ def createBranch(request):
 @login_required(login_url='login')
 def editBranch(request):
     if request.method == 'POST':
-        branch = Branch.objects.get(id = request.POST.get('id'))
-        if branch != None:
-            form = EditBranchForm(request.POST, instance = branch)
-            if form.is_valid():
-                form.save()
-                messages.success(request, 'Successfully Updated')
-                return redirect('branch')
+        organization = request.user.organization
+        if not organization:
+            messages.error(request, 'You do not belong to any organization.')
+            return redirect('login')
+
+        branch = get_object_or_404(Branch, id=request.POST.get('id'), organization=organization)
+        form = EditBranchForm(request.POST, instance=branch)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Successfully Updated')
+            return redirect('branch')
+    return redirect('branch')
             
 
 # def edit_branch(request, pk):
@@ -268,11 +275,16 @@ def editBranch(request):
 @login_required(login_url='login')
 def deleteBranch(request):
     if request.method == 'POST':
-        branch = Branch.objects.get(id = request.POST.get('id'))
-        if branch != None:
-            branch.delete()
-            messages.success(request, 'Successfully Deleted')
-            return redirect('branch')
+        organization = request.user.organization
+        if not organization:
+            messages.error(request, 'You do not belong to any organization.')
+            return redirect('login')
+
+        branch = get_object_or_404(Branch, id=request.POST.get('id'), organization=organization)
+        branch.delete()
+        messages.success(request, 'Successfully Deleted')
+        return redirect('branch')
+    return redirect('branch')
 
 # @login_required(login_url='login')
 # def branchView(request, pk):
