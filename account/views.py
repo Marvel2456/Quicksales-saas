@@ -5,6 +5,7 @@ from django.views import View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.forms import SetPasswordForm
 from .models import CustomUser, ActivityLog, Branch, Organization, Notification
 from subscriptions.models import Subscription, Plan
 from .forms import *
@@ -14,9 +15,10 @@ from .decorators import role_required, check_branch_limit
 from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 from django.conf import settings
-from .emails import send_welcome_email, send_verification_email, get_protocol
+from .emails import send_welcome_email, send_verification_email, get_protocol, send_password_reset_email
 from django.http import HttpResponse
-from django.utils.http import urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
 from .tasks import deactivate_subscription
 from django.utils.timezone import make_aware
@@ -201,6 +203,80 @@ def logoutUser(request):
     logout(request)
     
     return redirect('login')
+
+
+def forgot_password(request):
+    form = PasswordResetRequestForm()
+
+    if request.method == 'POST':
+        form = PasswordResetRequestForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            user = CustomUser.objects.filter(email__iexact=email, is_active=True).first()
+
+            if user:
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                protocol = get_protocol()
+
+                domain = request.get_host()
+                if settings.ENV == 'production' and user.organization and settings.DOMAIN:
+                    domain = f"{user.organization.slug}.{settings.DOMAIN}"
+
+                reset_link = f"{protocol}://{domain}/account/reset-password/{uid}/{token}/"
+                send_password_reset_email(user, reset_link)
+
+            messages.success(
+                request,
+                'If an account with that email exists, a reset link has been sent.'
+            )
+            return redirect('password_reset_sent')
+
+    return render(request, 'account/forgot_password.html', {'form': form})
+
+
+def password_reset_sent(request):
+    return render(request, 'account/password_reset_sent.html')
+
+
+def reset_password(request, uidb64, token):
+    user = None
+    validlink = False
+
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = CustomUser.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+        user = None
+
+    if user and default_token_generator.check_token(user, token):
+        validlink = True
+
+    if not validlink:
+        return render(
+            request,
+            'account/password_reset_confirm.html',
+            {'validlink': False, 'form': None}
+        )
+
+    if request.method == 'POST':
+        form = PasswordResetConfirmForm(user, request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your password has been reset. Please log in.')
+            return redirect('password_reset_complete')
+    else:
+        form = PasswordResetConfirmForm(user)
+
+    return render(
+        request,
+        'account/password_reset_confirm.html',
+        {'validlink': True, 'form': form}
+    )
+
+
+def password_reset_complete(request):
+    return render(request, 'account/password_reset_complete.html')
 
 @login_required(login_url='login')
 @check_branch_limit

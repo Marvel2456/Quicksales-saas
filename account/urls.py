@@ -5,6 +5,10 @@ from .views import OwnerRegisterView
 urlpatterns = [
     path('login/', views.loginUser, name='login'),
     path('logout/', views.logoutUser, name='logout'),
+    path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('reset-password/sent/', views.password_reset_sent, name='password_reset_sent'),
+    path('reset-password/<uidb64>/<token>/', views.reset_password, name='reset_password'),
+    path('reset-password/complete/', views.password_reset_complete, name='password_reset_complete'),
     path('branch/', views.createBranch, name='branch'),
     path('editbranch/', views.editBranch, name='editbranch'),
     path('deletebranch/', views.deleteBranch, name='deletebranch'),
