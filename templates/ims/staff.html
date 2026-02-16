@@ -61,7 +61,12 @@
                                     </div>    
                                     {% for staff in staff_page %}
                                     <tr>
-                                        <td class="cell"><span class="truncate"><a href="{% url 'staff_detail' staff.id %}">{{staff.email}}</a></span></td>
+                                        <td class="cell">
+                                            <div class="email-cell-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                                                <i class="fa-solid fa-envelope" style="color: #2f5ef0; font-size: 14px; flex-shrink: 0;"></i>
+                                                <a href="" style="color: #2f5ef0; text-decoration: none; word-break: break-all; font-weight: 500; transition: color 0.2s ease;" onmouseover="this.style.color='#1e40af'" onmouseout="this.style.color='#2f5ef0'">{{staff.email}}</a>
+                                            </div>
+                                        </td>
                                         <td class="cell">{{staff.first_name}} {{staff.last_name}}</td>
                                         <td class="cell"><span class="note">{{staff.phone_number}}</span></td>
                                         <td class="cell"><span class="note">{{staff.role}}</span></td>

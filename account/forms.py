@@ -1,5 +1,6 @@
 from django.forms import ModelForm
 from django import forms
+from django.contrib.auth.forms import SetPasswordForm
 from .models import Branch, CustomUser, ActivityLog, Organization
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
@@ -58,3 +59,30 @@ class EditBranchForm(ModelForm):
     class Meta:
         model = Branch
         fields = ['name', 'address']
+
+
+class PasswordResetRequestForm(forms.Form):
+    email = forms.EmailField(
+        label='Email',
+        max_length=254,
+        widget=forms.EmailInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter your business email',
+                'autocomplete': 'email',
+            }
+        ),
+    )
+
+
+class PasswordResetConfirmForm(SetPasswordForm):
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        self.fields['new_password1'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'New password',
+        })
+        self.fields['new_password2'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Confirm new password',
+        })
