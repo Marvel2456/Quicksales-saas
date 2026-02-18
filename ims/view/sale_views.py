@@ -558,6 +558,7 @@ def sales(request, pk):
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
     rep_contains_query = request.GET.get('rep')
+    status_filter = request.GET.get('status')
 
     # Apply filters to queryset before pagination
     if start_date_contains and start_date_contains != '':
@@ -568,6 +569,15 @@ def sales(request, pk):
 
     if rep_contains_query and rep_contains_query != '':
         sale_qs = sale_qs.filter(staff__first_name__icontains=rep_contains_query)
+
+    # Apply status filter
+    if status_filter and status_filter != '':
+        if status_filter == 'completed':
+            sale_qs = sale_qs.filter(completed=True, cancelled=False)
+        elif status_filter == 'cancelled':
+            sale_qs = sale_qs.filter(cancelled=True)
+        elif status_filter == 'open':
+            sale_qs = sale_qs.filter(completed=False, cancelled=False)
 
     # Now paginate the filtered queryset
     paginator = Paginator(sale_qs, 10)
@@ -583,6 +593,7 @@ def sales(request, pk):
         'start_date': start_date_contains,
         'end_date': end_date_contains,
         'rep': rep_contains_query,
+        'status': status_filter,
     }
     return render(request, 'ims/sales.html', context)
 
@@ -599,6 +610,7 @@ def sale_pdf(request, pk):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     rep = request.GET.get('rep')
+    status = request.GET.get('status')
 
     if start_date and start_date != '':
         sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
@@ -606,6 +618,15 @@ def sale_pdf(request, pk):
         sale_qs = sale_qs.filter(date_updated__date__lte=end_date)
     if rep and rep != '':
         sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+    
+    # Apply status filter
+    if status and status != '':
+        if status == 'completed':
+            sale_qs = sale_qs.filter(completed=True, cancelled=False)
+        elif status == 'cancelled':
+            sale_qs = sale_qs.filter(cancelled=True)
+        elif status == 'open':
+            sale_qs = sale_qs.filter(completed=False, cancelled=False)
 
     # Aggregate totals
     agg = sale_qs.aggregate(
@@ -624,6 +645,7 @@ def sale_pdf(request, pk):
             'start_date': start_date,
             'end_date': end_date,
             'rep': rep,
+            'status': status,
         },
         'summary': {
             'total_sales': total_sales,
@@ -665,6 +687,7 @@ def export_sales_csv(request, pk):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     rep = request.GET.get('rep')
+    status = request.GET.get('status')
     
     if start_date and start_date != '':
         sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
@@ -674,6 +697,15 @@ def export_sales_csv(request, pk):
     
     if rep and rep != '':
         sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+    
+    # Apply status filter
+    if status and status != '':
+        if status == 'completed':
+            sale_qs = sale_qs.filter(completed=True, cancelled=False)
+        elif status == 'cancelled':
+            sale_qs = sale_qs.filter(cancelled=True)
+        elif status == 'open':
+            sale_qs = sale_qs.filter(completed=False, cancelled=False)
     
     for sale in sale_qs:
         writer.writerow([sale.staff, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
