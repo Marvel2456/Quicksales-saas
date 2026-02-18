@@ -201,7 +201,8 @@ def loginUser(request):
 
 def logoutUser(request):
     logout(request)
-    
+    if request.GET.get('reason') == 'session_expired':
+        messages.info(request, 'Your session expired. Please login again.')
     return redirect('login')
 
 
@@ -481,42 +482,43 @@ def force_password_change(request):
     # If user doesn't need to change password, redirect to dashboard
     if not request.user.must_change_password:
         return redirect('dashboard')
-    
+
+    form = SetPasswordForm(request.user, request.POST or None)
+    form.fields['new_password1'].widget.attrs.update({
+        'class': 'form-control',
+        'placeholder': 'Enter new password',
+        'autocomplete': 'new-password',
+    })
+    form.fields['new_password2'].widget.attrs.update({
+        'class': 'form-control',
+        'placeholder': 'Confirm new password',
+        'autocomplete': 'new-password',
+    })
+
     if request.method == 'POST':
-        new_password1 = request.POST.get('new_password1')
-        new_password2 = request.POST.get('new_password2')
-        
-        # Check if passwords match
-        if new_password1 != new_password2:
-            messages.error(request, "Passwords do not match.")
-            return render(request, 'account/force_password_change.html')
-        
-        # Check password length
-        if len(new_password1) < 8:
-            messages.error(request, "Password must be at least 8 characters long.")
-            return render(request, 'account/force_password_change.html')
-        
-        # Set the new password
-        request.user.set_password(new_password1)
-        request.user.must_change_password = False
-        request.user.save()
-        
-        # Important: Update the session to prevent logout
-        from django.contrib.auth import update_session_auth_hash
-        update_session_auth_hash(request, request.user)
-        
-        # Log the activity
-        ActivityLog.objects.create(
-            staff=request.user,
-            organization=request.user.organization,
-            branch=request.user.branch,
-            activity='Password changed on first login'
-        )
-        
-        messages.success(request, "Your password has been changed successfully. Welcome to Quicksales!")
-        return redirect('dashboard')
-    
-    return render(request, 'account/force_password_change.html')
+        if form.is_valid():
+            form.save()
+            request.user.must_change_password = False
+            request.user.save(update_fields=['must_change_password'])
+
+            # Important: Update the session to prevent logout
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+
+            # Log the activity
+            ActivityLog.objects.create(
+                staff=request.user,
+                organization=request.user.organization,
+                branch=request.user.branch,
+                activity='Password changed on first login'
+            )
+
+            messages.success(request, "Your password has been changed successfully. Welcome to Quicksales!")
+            return redirect('dashboard')
+
+        messages.error(request, "Please correct the errors below.")
+
+    return render(request, 'account/force_password_change.html', {'form': form})
 
 
 @login_required(login_url='login')

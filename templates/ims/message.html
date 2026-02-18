@@ -40,13 +40,26 @@
         {% endfor %}
     </div>
     <script>
-        // Auto-dismiss alerts after 4 seconds, stagger multiple
         document.querySelectorAll('[id^="msg-"]').forEach(function(alert, index) {
+            const closeBtn = alert.querySelector('.btn-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function () {
+                    alert.remove();
+                });
+            }
+
+            // Auto-dismiss alerts after 4 seconds, stagger multiple
             setTimeout(function() {
                 try {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                } catch (e) { /* ignore */ }
+                    if (window.bootstrap && bootstrap.Alert) {
+                        const bsAlert = new bootstrap.Alert(alert);
+                        bsAlert.close();
+                    } else {
+                        alert.remove();
+                    }
+                } catch (e) {
+                    alert.remove();
+                }
             }, 4000 + (index * 400));
         });
     </script>

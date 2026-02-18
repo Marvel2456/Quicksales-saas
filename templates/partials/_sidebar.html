@@ -4,7 +4,13 @@
     <div class="sidepanel-inner d-flex flex-column">
         <a href="#" id="sidepanel-close" class="sidepanel-close d-xl-none">&times;</a>
         <div class="app-branding">
-            <a class="app-logo" href="."><span class="logo-text">Quicksales</span></a>
+            {% if request.user.role == 'sales' %}
+                <a class="app-logo" href="{% url 'branchdash' request.user.branch.id %}"><span class="logo-text">Quicksales</span></a>
+            {% elif request.user.role == 'manager' %}
+                <a class="app-logo" href="{% url 'branchdash' request.user.branch.id %}"><span class="logo-text">Quicksales</span></a>
+            {% else %}
+                <a class="app-logo" href="{% url 'index' %}"><span class="logo-text">Quicksales</span></a>
+            {% endif %}
 
         </div><!--//app-branding-->  
         

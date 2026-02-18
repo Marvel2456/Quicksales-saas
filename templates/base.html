@@ -443,7 +443,7 @@
             const checkIntervalMs = 30 * 1000;
             const keepAliveThrottleMs = 60 * 1000;
             const sessionCheckUrl = "{% url 'session_check' %}";
-            const logoutUrl = "{% url 'logout' %}";
+            const logoutUrl = "{% url 'logout' %}?reason=session_expired";
             let lastActivity = Date.now();
             let lastPing = 0;
             let modalShown = false;
@@ -453,19 +453,9 @@
                     return;
                 }
                 modalShown = true;
-                const modalEl = document.getElementById('session-expired-modal');
-                if (modalEl && window.bootstrap) {
-                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
-                        backdrop: 'static',
-                        keyboard: false
-                    });
-                    modal.show();
-                } else {
-                    alert('Your session has expired due to inactivity. You will be redirected to login.');
-                }
                 setTimeout(function () {
                     window.location.href = logoutUrl;
-                }, 3000);
+                }, 300);
             }
 
             function pingSession() {

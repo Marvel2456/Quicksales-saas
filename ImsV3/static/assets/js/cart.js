@@ -117,8 +117,13 @@ function updateQuantity(e){
     })
     .then((data) =>{
         console.log('Success:', data);
-        document.getElementById('sub_total').innerHTML = `${data.sub_total.toFixed(1)}`
-        document.getElementById('final_total').innerHTML = `<b>Total:</b><div><i class="fa-solid fa-naira-sign"></i>${data.final_total.toFixed(1)}</div>`
+        // Update the specific subtotal for this inventory item
+        const subTotalElement = document.getElementById(`sub_total_${inventoryId}`);
+        if (subTotalElement) {
+            subTotalElement.innerHTML = `${data.sub_total.toFixed(2)}`
+        }
+        // Update the cart totals
+        document.getElementById('final_total').innerHTML = `<b>Total:</b><div><i class="fa-solid fa-naira-sign"></i>${data.final_total.toFixed(2)}</div>`
         document.getElementById('sum_quantity').innerHTML = `<b>Item:</b><div>${data.total_quantity}</div>`
         document.getElementById('addCart').innerHTML = `${data.total_quantity}`
         showNotification('Quantity updated successfully')
@@ -126,5 +131,56 @@ function updateQuantity(e){
     .catch((error) => {
         console.error('❌ Quantity update failed:', error);
         showNotification(`Failed to update quantity: ${error.message}`, true);
+    });
+}
+// Delete item from cart handler
+let deleteButtons = document.getElementsByClassName('delete-item')
+for(let i = 0; i < deleteButtons.length; i++){
+    deleteButtons[i].addEventListener('click', deleteCartItem)   
+}
+
+function deleteCartItem(e){
+    e.preventDefault()
+    let inventoryId = e.target.closest('button').dataset.inventory
+    let url = e.target.closest('button').dataset.url
+
+    const data = {invent_id: inventoryId};
+
+    fetch(url, {
+        method:'POST',
+        credentials: 'include',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRFToken':csrftoken,
+        },
+        body:JSON.stringify(data)
+    })
+    .then(res => {
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`HTTP ${res.status}: ${text}`)
+            })
+        }
+        return res.json()
+    })
+    .then((data) =>{
+        console.log('Item deleted successfully:', data);
+        // Remove the product row from the DOM
+        const productRow = e.target.closest('.row');
+        const hrElement = productRow.nextElementSibling;
+        productRow.remove();
+        if (hrElement && hrElement.tagName === 'HR') {
+            hrElement.remove();
+        }
+        
+        // Update the cart totals
+        document.getElementById('final_total').innerHTML = `<b>Total:</b><div><i class="fa-solid fa-naira-sign"></i>${data.final_total.toFixed(2)}</div>`
+        document.getElementById('sum_quantity').innerHTML = `<b>Item:</b><div>${data.total_quantity}</div>`
+        document.getElementById('addCart').innerHTML = `${data.total_quantity}`
+        showNotification('Item removed from cart successfully')
+    })
+    .catch((error) => {
+        console.error('❌ Delete failed:', error);
+        showNotification(`Failed to remove item from cart: ${error.message}`, true);
     });
 }

@@ -21,7 +21,7 @@ from ims.view_caching import cached_view
 # Write your views here.
 
 
-@cached_view(timeout=120, key_prefix='branch_dashboard')
+# @cached_view(timeout=120, key_prefix='branch_dashboard')
 @role_required(roles=['owner'])
 @login_required(login_url='login')
 def branchDasboard(request):
@@ -76,7 +76,7 @@ def branchDasboard(request):
     }
     return render(request, 'ims/branchdash.html', context)
 
-@cached_view(timeout=120, key_prefix='dashboard')
+# @cached_view(timeout=120, key_prefix='dashboard')
 @login_required(login_url=('login'))
 # @is_unsubscribed
 

@@ -15,7 +15,7 @@ from ims.view.audit_views import (
 )
 from ims.view.sale_views import (
     sale_complete, checkout, reciept, branchStore, store, sales, sale_pdf, branchSales,
-    updateCart, updateQuantity, cart, export_sales_csv, export_profit_csv, profitData,
+    updateCart, updateQuantity, deleteCartItem, cart, export_sales_csv, export_profit_csv, profitData,
     create_new_sale, switch_sale, cancel_sale
 )
 from ims.view.team_views import (staffs, staff, edit_staff, delete_staff, record, 
@@ -88,6 +88,7 @@ urlpatterns = [
     # Sale URLs
     path('update_cart/<uuid:pk>/', updateCart, name='update_cart'),
     path('update_quantity/<uuid:pk>/', updateQuantity, name='update_quantity'),
+    path('delete_cart_item/<uuid:pk>/', deleteCartItem, name='delete_cart_item'),
     path('cart/<uuid:pk>/', cart, name='cart'),
     path('completed/<uuid:pk>/', sale_complete, name='completed'),
     path('checkout/<uuid:pk>/', checkout, name='checkout'),

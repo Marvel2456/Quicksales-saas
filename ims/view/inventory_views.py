@@ -42,7 +42,7 @@ def branch_inventory(request):
 
 
 
-@cached_view(timeout=300, key_prefix='inventory_list')
+# @cached_view(timeout=300, key_prefix='inventory_list')
 @role_required(roles=['owner', 'manager'])
 @login_required
 # @is_unsubscribed
@@ -182,43 +182,6 @@ def edit_inventory(request, pk):
         'inventory': inventory,
     }
     return render(request, context)
-
-
-# def adminRestock(request):
-#     if request.method == 'POST':
-#         inventory = Inventory.objects.get(id = request.POST.get('id'))
-#         if inventory != None:
-#             form  = AdminRestockForm(request.POST, instance=inventory)
-#             if form.is_valid():
-#                 form.save(commit=False)
-#                 inventory.quantity += inventory.quantity_restocked
-#                 inventory.save()
-#                 messages.success(request, 'successfully updated')
-#                 return redirect('branchinv')
-
-# @role_required(roles=['owner'])
-# def edit_product(request, pk):
-#     organization = request.user.organization
-#     product = get_object_or_404(Product, id=pk, organization=organization)
-
-#     if request.method == 'POST':
-#         form = EditProductForm(request.POST, instance=product)
-#         if form.is_valid():
-#             updated_product = form.save()
-#             messages.success(request, 'Successfully updated')
-#             return redirect('products', pk=updated_product.branch.id)
-#     else:
-#         form = EditProductForm(instance=product)
-
-#     categories = Category.objects.filter(organization=organization)
-
-#     context = {
-#         'form': form,
-#         'product': product,
-#         'categories': categories,
-#     }
-#     return render(request, context)
-
 
 
 @role_required(roles=['owner', 'manager'])
