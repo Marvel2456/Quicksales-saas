@@ -52,7 +52,7 @@ def branch_product(request):
     }
     return render(request, 'ims/branch_product.html', context)
 
-@cached_view(timeout=300, key_prefix='product_list')
+# @cached_view(timeout=300, key_prefix='product_list')
 @role_required(roles=['owner', 'manager'])
 @login_required
 @check_product_limit
@@ -106,7 +106,7 @@ def product_category(request, pk):
     return render(request, 'ims/products.html', context)
 
 
-@cached_view(timeout=600, key_prefix='product_detail')
+# @cached_view(timeout=600, key_prefix='product_detail')
 @role_required(roles=['owner'])
 def product(request, pk):
     organization = request.user.organization
@@ -151,16 +151,6 @@ def edit_product(request, pk):
     }
     return render(request, 'modals/modal_edit_product.html', context)
 
-
-
-# @role_required(roles=['owner'])
-# def delete_product(request):
-#     if request.method == 'POST':
-#         product = Product.objects.get(id = request.POST.get('id'))
-#         if product != None:
-#             product.delete()
-#             messages.success(request, "Succesfully deleted")
-#             return redirect('products')
         
 
 @role_required(roles=['owner'])

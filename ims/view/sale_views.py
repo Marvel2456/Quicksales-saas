@@ -346,6 +346,63 @@ def updateQuantity(request, pk):
     return JsonResponse(context, safe=False)
 
 
+@login_required(login_url='login')
+def deleteCartItem(request, pk):
+    """Delete a specific item from the active sale cart"""
+    data = json.loads(request.body)
+    inventory_Id = data['invent_id']
+    
+    organization = request.user.organization
+    staff = request.user
+    try:
+        branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
+    except Branch.DoesNotExist:
+        return JsonResponse({'error': 'Branch not found'}, status=404)
+
+    try:
+        inventory = Inventory.objects.select_related('product', 'branch').get(
+            branch=branch,
+            organization=organization,
+            id=inventory_Id
+        )
+    except Inventory.DoesNotExist:
+        return JsonResponse({'error': 'Inventory not found'}, status=404)
+
+    # Get active sale from session
+    active_sale_id = request.session.get(f'active_sale_{branch.id}')
+    if not active_sale_id:
+        return JsonResponse({'error': 'No active sale'}, status=400)
+
+    try:
+        sale = Sale.objects.select_related('staff', 'branch', 'organization').get(
+            id=active_sale_id,
+            staff=staff,
+            branch=branch,
+            completed=False,
+            cancelled=False,
+        )
+    except Sale.DoesNotExist:
+        return JsonResponse({'error': 'Active sale not found'}, status=404)
+
+    try:
+        saleItem = SalesItem.objects.get(
+            sale=sale,
+            branch=branch,
+            inventory=inventory,
+            organization=organization
+        )
+        saleItem.delete()
+    except SalesItem.DoesNotExist:
+        return JsonResponse({'error': 'Item not found in cart'}, status=404)
+
+    context = {
+        'branch': str(branch.id),
+        'final_total': sale.get_cart_total,
+        'total_quantity': sale.get_cart_items,
+    }
+
+    return JsonResponse(context, safe=False)
+
 
 def sale_complete(request, pk):
     transaction_id = datetime.now().timestamp()

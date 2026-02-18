@@ -105,6 +105,7 @@
                                     <div style="flex: 1;"><h6><b>Price</b></h6></div>
                                     <div style="flex: 2;"><h6><b>Quantity</b></h6></div>
                                     <div style="flex: 1;"><h6><b>Total</b></h6></div>
+                                    <div style="flex: 0.5;"><h6><b>Action</b></h6></div>
                                
                             </div><hr>
 
@@ -126,7 +127,15 @@
 
                                             </h6>
                                         </div>
-                                        <div style="flex: 1;"><h6 id="sub_total">{{item.get_total}}</h6></div>
+                                        <div style="flex: 1;"><h6 id="sub_total_{{ item.inventory.id }}">{{item.get_total}}</h6></div>
+                                        <div style="flex: 0.5;">
+                                            <button class="btn btn-sm btn-danger delete-item"
+                                                    data-inventory="{{ item.inventory.id }}"
+                                                    data-url="{% url 'delete_cart_item' branch.id %}"
+                                                    title="Remove item from cart">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
                                     
                                 </div><hr>
                             {% endfor %}

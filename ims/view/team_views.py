@@ -63,6 +63,15 @@ def staffs(request, pk):
     if request.method == 'POST':
         form = StaffCreateForm(request.POST)
         if form.is_valid():
+            # Check if email already exists in this organization
+            email = form.cleaned_data.get('email')
+            if CustomUser.objects.filter(organization=organization, email=email).exists():
+                messages.error(
+                    request,
+                    f"A staff member with email '{email}' already exists in this organization."
+                )
+                return redirect('staff', pk=branch.id)
+            
             staff_user = form.save(commit=False)
             staff_user.organization = organization
             staff_user.branch = branch
@@ -107,6 +116,12 @@ def staffs(request, pk):
                     is_read=False
                 )
             
+            return redirect('staff', pk=branch.id)
+        else:
+            # If form is not valid, add error messages
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
             return redirect('staff', pk=branch.id)
 
     staff_contains = request.GET.get('username')
@@ -177,11 +192,12 @@ def edit_staff(request):
 @role_required(roles=['owner'])
 def delete_staff(request):
     if request.method == 'POST':
-        staff = CustomUser.objects.get(id = request.POST.get('id')) 
+        staff = CustomUser.objects.get(id=request.POST.get('id'))
+        branch = staff.branch
         if staff != None:
             staff.delete()
-            messages.success(request, "Succesfully deleted")
-            return redirect('staff')
+            messages.success(request, "Staff member successfully deleted")
+            return redirect('staff', pk=branch.id)
 
 
 
