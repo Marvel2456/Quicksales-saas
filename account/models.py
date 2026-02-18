@@ -85,12 +85,18 @@ class Organization(models.Model):
 class Branch(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_index=True)
-    name = models.CharField(max_length=200, blank=True, null=True, db_index=True)
+    name = models.CharField(max_length=200, blank=False, null=False, default="Main Branch", db_index=True)
     address = models.CharField(max_length=250, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         verbose_name_plural = "branches"
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'name'],
+                name='unique_branch_name_per_organization'
+            ),
+        ]
         indexes = [
             models.Index(fields=['organization', '-created_at']),
         ]
