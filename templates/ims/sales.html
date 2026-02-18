@@ -20,16 +20,22 @@
                                     <input type="text" id="search-orders" name="rep" class="form-control search-orders" placeholder="Sales Rep">
                                 </div>
                                 <div class="col-auto">
-                                    <label for="start_date">Start Date</label>
-                                    <div class="input-group mb-3 date" id="datepicker">
-                                        <input type="text" class="form-control" name="start_date" id="due" placeholder="yy-mm-dd" aria-describedby="basic-addon2" {% if request.GET.start_date %}value="{{ request.GET.start_date }}"{% endif %}>
+                                    <select class="form-select" name="status" id="status" style="min-width: 150px;">
+                                        <option value="">All Statuses</option>
+                                        <option value="open" {% if request.GET.status == 'open' %}selected{% endif %}>Open</option>
+                                        <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                                        <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                    </select>
+                                </div>
+                                <div class="col-auto">
+                                    <div class="input-group date" id="datepicker">
+                                        <input type="text" class="form-control" name="start_date" id="due" placeholder="Start Date" aria-describedby="basic-addon2" {% if request.GET.start_date %}value="{{ request.GET.start_date }}"{% endif %}>
                                         <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
                                     </div>
                                 </div>
                                 <div class="col-auto">
-                                    <label for="end_date">End Date</label>
-                                    <div class="input-group mb-3 date" id="datepicker">
-                                        <input type="text" class="form-control" name="end_date" id="due2" placeholder="yy-mm-dd" aria-describedby="basic-addon2" {% if request.GET.end_date %}value="{{ request.GET.end_date }}"{% endif %}>
+                                    <div class="input-group date" id="datepicker">
+                                        <input type="text" class="form-control" name="end_date" id="due2" placeholder="End Date" aria-describedby="basic-addon2" {% if request.GET.end_date %}value="{{ request.GET.end_date }}"{% endif %}>
                                         <span class="input-group-text" id="basic-addon2"><i class="fa-solid fa-calendar"></i></span>
                                     </div>
                                 </div> 
@@ -110,15 +116,15 @@
                       <nav aria-label="Page navigation example">
                         <ul class="pagination" style="color:yellow;">
                             {% if sale_page.has_previous %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">previous</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">previous</a></li>
                             {% endif %}
                             {% for i in nums %}
                             <span class="current">
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">{{forloop.counter}}</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">{{forloop.counter}}</a></li>
                             </span>
                             {% endfor %}
                             {% if sale_page.has_next %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">next</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}{% if request.GET.rep %}&rep={{ request.GET.rep }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}">next</a></li>
                             {% endif %}
                         </ul>
                       </nav>
