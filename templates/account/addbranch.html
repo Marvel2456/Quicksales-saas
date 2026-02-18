@@ -16,13 +16,14 @@
           {% block Value-id %}  {% endblock Value-id %}
   
             <div class="mb-3">
-              <label for="branch_name" class="form-label">Name</label>
-              <input name="branch_name" type="text" class="form-control" placeholder="Branch Name" required {% block Value-branch_name %} {% endblock Value-branch_name %}>
-              {% comment %} <div class="m-3" style="color:red;">{{form.pos_name.errors}}</div> {% endcomment %}
+              <label for="id_name" class="form-label">Name</label>
+              <input name="name" type="text" class="form-control" id="id_name" placeholder="Branch Name" required {% block Value-name %} {% endblock Value-name %}>
+              {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>{% endif %}
             </div>
             <div class="mb-3">
-                <label for="branch_address" class="form-label">Address</label>
-                <input name="branch_address" type="text" class="form-control" placeholder="Branch Address" required {% block Value-branch_address %} {% endblock Value-branch_address %}>
+                <label for="id_address" class="form-label">Address</label>
+                <input name="address" type="text" class="form-control" id="id_address" placeholder="Branch Address" required {% block Value-address %} {% endblock Value-address %}>
+                {% if form.address.errors %}<div class="text-danger small mt-1">{{ form.address.errors.0 }}</div>{% endif %}
             </div>
 
             <div class="mt-4 text-center" style="width:100%;">
