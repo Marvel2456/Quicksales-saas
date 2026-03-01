@@ -32,9 +32,9 @@
                                     <div class="item-label mb-2"><strong>Photo</strong></div>
                                     <div class="item-data">
                                         {% if request.user.profile_picture %}
-                                            <img class="profile-image" src="{{ request.user.profile_picture.url }}" alt="{{ request.user.get_full_name }}" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                                            <img class="profile-image rounded-circle" src="{{ request.user.profile_picture.url }}" alt="{{ request.user.get_full_name }}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
                                         {% else %}
-                                            <img class="profile-image" src="{% static 'assets/images/user.png' %}" alt="{{ request.user.get_full_name }}" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                                            <img class="profile-image rounded-circle" src="{% static 'assets/images/user.png' %}" alt="{{ request.user.get_full_name }}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
                                         {% endif %}
                                     </div>
                                 </div><!--//col-->

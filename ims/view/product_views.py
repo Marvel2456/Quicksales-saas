@@ -12,6 +12,7 @@ from django.http import JsonResponse, HttpResponse
 import csv
 import json
 from account.decorators import role_required, check_product_limit
+from account.utils import get_request_branch, get_request_organization
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from ims.view_caching import cached_view
@@ -19,12 +20,13 @@ from django.core.cache import cache
 
 
 # Helper function to create notifications
-def create_notification(user, message, notification_type='info'):
+def create_notification(user, message, notification_type='info', organization=None):
     """Create a notification for a user"""
     Notification.objects.create(
         user=user,
         message=message,
-        notification_type=notification_type
+        notification_type=notification_type,
+        organization=organization
     )
 
 
@@ -33,7 +35,8 @@ def create_notification(user, message, notification_type='info'):
 @role_required(roles=['owner'])
 @login_required
 def branch_product(request):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -58,7 +61,7 @@ def branch_product(request):
 @check_product_limit
 def product_category(request, pk):
     """Product list view - optimized with select_related and proper pagination"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
     
@@ -109,7 +112,7 @@ def product_category(request, pk):
 # @cached_view(timeout=600, key_prefix='product_detail')
 @role_required(roles=['owner'])
 def product(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     products = get_object_or_404(Product, id=pk, organization=organization)
 
     context = {
@@ -121,7 +124,7 @@ def product(request, pk):
 @role_required(roles=['owner'])
 def edit_product(request, pk):
     """Edit product view - optimized with select_related"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     # Use select_related to fetch related branch
     product = get_object_or_404(
         Product.objects.select_related('category', 'branch', 'organization'),
@@ -155,7 +158,7 @@ def edit_product(request, pk):
 
 @role_required(roles=['owner'])
 def delete_product(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     
     if request.method == 'POST':
         product = get_object_or_404(Product, id=pk, organization=organization)
@@ -176,8 +179,8 @@ def upload_product(request):
     import pandas as pd
     import io
     
-    organization = request.user.organization
-    branch = request.user.branch
+    organization = get_request_organization(request)
+    branch = get_request_branch(request, organization)
     if not branch:
         messages.error(request, 'You need an assigned branch to upload products.')
         return redirect('index')
@@ -318,29 +321,29 @@ def upload_product(request):
                     if created_count > 0:
                         msg = f'Successfully created {created_count} product(s).'
                         messages.success(request, msg)
-                        create_notification(request.user, msg, 'success')
+                        create_notification(request.user, msg, 'success', organization)
                     if updated_count > 0:
                         msg = f'Successfully updated {updated_count} product(s).'
                         messages.success(request, msg)
-                        create_notification(request.user, msg, 'success')
+                        create_notification(request.user, msg, 'success', organization)
                     if error_count > 0:
                         warn_msg = f'{error_count} row(s) had errors.'
                         messages.warning(request, warn_msg)
-                        create_notification(request.user, warn_msg, 'warning')
+                        create_notification(request.user, warn_msg, 'warning', organization)
                         for error in errors[:5]:  # Show first 5 errors
                             messages.error(request, error)
-                            create_notification(request.user, error, 'error')
+                            create_notification(request.user, error, 'error', organization)
                         if len(errors) > 5:
                             info_msg = f'...and {len(errors) - 5} more errors'
                             messages.info(request, info_msg)
-                            create_notification(request.user, info_msg, 'info')
+                            create_notification(request.user, info_msg, 'info', organization)
                     
                     return redirect('products', pk=branch.id)
                     
                 except Exception as e:
                     err_msg = f'Error processing file: {str(e)}'
                     messages.error(request, err_msg)
-                    create_notification(request.user, err_msg, 'error')
+                    create_notification(request.user, err_msg, 'error', organization)
                     return redirect('product_upload')
             
             else:

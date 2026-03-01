@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from . forms import *
 from django.core.paginator import Paginator
 from account.decorators import role_required
+from account.utils import get_request_branch, get_request_org_role, get_request_organization
 from django.db import models
 from account.models import CustomUser
 from ims.view_caching import cached_view
@@ -17,7 +18,7 @@ from ims.view_caching import cached_view
 @role_required(roles=['owner'])
 @login_required
 def branchReport(request):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -43,7 +44,7 @@ def branchReport(request):
 @login_required
 # @is_unsubscribed
 def report(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     branch = get_object_or_404(Branch, id=pk, organization=organization)
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
@@ -78,11 +79,13 @@ def report(request, pk):
 @login_required
 # @is_unsubscribed
 def errorTicket(request):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     user = request.user
     
+    user_role = get_request_org_role(request, organization)
+    
     # Role-based filtering
-    if user.role in ['owner', 'manager']:
+    if user_role in ['owner', 'manager']:
         # Owners and managers see all tickets in their organization
         qs = ErrorTicket.objects.filter(organization=organization).order_by('-date_added')
     else:
@@ -107,7 +110,11 @@ def errorTicket(request):
     
     # Get staff members for assignment dropdown
     
-    staff = CustomUser.objects.filter(organization=organization, role__in=['manager', 'sales']).order_by('first_name')
+    staff = CustomUser.objects.filter(
+        memberships__organization=organization,
+        memberships__role__in=['manager', 'sales'],
+        memberships__is_active=True,
+    ).order_by('first_name').distinct()
 
     context = {
         'ticket': ticket_page,
@@ -115,7 +122,7 @@ def errorTicket(request):
         'nums': nums,
         'current_status': status or '',
         'form': form,
-        'can_assign': user.role in ['owner', 'manager'],
+        'can_assign': user_role in ['owner', 'manager'],
         'staff': staff,
     }
 
@@ -124,11 +131,13 @@ def errorTicket(request):
 @login_required
 # @is_unsubscribed
 def Ticket(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     user = request.user
     
+    user_role = get_request_org_role(request, organization)
+    
     # Get ticket with role-based access check
-    if user.role in ['owner', 'manager']:
+    if user_role in ['owner', 'manager']:
         ticket = get_object_or_404(ErrorTicket, id=pk, organization=organization)
     else:
         # Sales staff can only access their own tickets or tickets assigned to them
@@ -143,7 +152,7 @@ def Ticket(request, pk):
     
     form = UpdateTicketForm(instance=ticket, organization=organization)
     comment_form = TicketCommentForm()
-    can_assign = user.role in ['owner', 'manager']
+    can_assign = user_role in ['owner', 'manager']
 
     if request.method == 'POST':
         if 'content' in request.POST:
@@ -181,19 +190,20 @@ def Ticket(request, pk):
 @login_required
 # @is_unsubscribed
 def createTicket(request):
-    form = CreateTicketForm(organization=request.user.organization)
+    organization = get_request_organization(request)
+    form = CreateTicketForm(organization=organization)
     if request.method == 'POST':
-        form = CreateTicketForm(request.POST or None, organization=request.user.organization)
+        form = CreateTicketForm(request.POST or None, organization=organization)
         if form.is_valid():
             ticket = form.save(commit=False)
-            ticket.organization = request.user.organization
+            ticket.organization = organization
             ticket.staff = request.user
-            ticket.branch = request.user.branch
+            ticket.branch = get_request_branch(request, organization)
             ticket.save()
             
             # Send notification email if ticket is assigned to someone
             if ticket.assigned_to:
-                send_ticket_created_email(ticket, ticket.assigned_to, request.user.organization)
+                send_ticket_created_email(ticket, ticket.assigned_to, organization)
             
             messages.success(request, 'Ticket created successfully')
             return redirect('ticket')

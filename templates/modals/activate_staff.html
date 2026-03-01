@@ -1,0 +1,29 @@
+<div class="modal fade" id="activateStaffModal{{staff.user.pk}}" tabindex="-1" aria-labelledby="activateStaffModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="activateStaffModalLabel">Activate Account</h6>
+                <span class=""><i class="fa-solid fa-user-check"></i></span>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <!--Forms begins-->
+            <form action="{% url 'activate_staff' %}" method="POST" class="card p-3 border-dark mt-3"
+                enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="hidden" class="form-control" name="id" value="{{staff.user.id}}" readonly>
+                    </div>
+                    <div class="card card-body form-group align-items-center">
+                        <h5>Are you sure you want to activate {{staff.user.first_name}}'s account?</h5>
+                        <p>
+                            <button type="submit" class="btn btn-success">Activate</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </p>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

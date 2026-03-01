@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'subscriptions.apps.SubscriptionsConfig',
     'pages.apps.PagesConfig',
     'simple_history',
+    'anymail',
 ]
 
 # Add django-debug-toolbar in development
@@ -117,6 +118,8 @@ TEMPLATES = [
                 'subscriptions.context_processors.paystack_public_key',
                 'subscriptions.context_processors.subscription_context',
                 'ims.context_processors.ticket_notifications',
+                'account.context_processors.organization_role',
+                'account.context_processors.active_branch',
                 'account.context_processors.notification_count',
                 'account.context_processors.cart_count',
             ],
@@ -251,15 +254,22 @@ USE_I18N = True
 USE_TZ = True
 
 
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = config('EMAIL_HOST', default=None)
-EMAIL_PORT = config('EMAIL_PORT', cast=int, default=587)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default=None)
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default=None)
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool, default=True)
+# DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@example.com')
+# EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+# EMAIL_HOST = config('EMAIL_HOST', default=None)
+# EMAIL_PORT = config('EMAIL_PORT', cast=int, default=587)
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER', default=None)
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default=None)
+# EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool, default=True)
 
 
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.brevo.EmailBackend')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='info@vextechafrica.com')
+
+# Anymail Brevo (Sendinblue) settings
+ANYMAIL = {
+    "BREVO_API_KEY": config("ANYMAIL_BREVO_API_KEY"),
+}
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/

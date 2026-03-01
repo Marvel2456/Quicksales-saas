@@ -1,4 +1,4 @@
-<div class="modal fade" {% block modal-id %} id="deleteStaffModal{{staff.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="deleteStaffModalLabel" aria-hidden="true">
+<div class="modal fade" {% block modal-id %} id="deleteStaffModal{{staff.user.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="deleteStaffModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -14,12 +14,12 @@
                     {% block Value-id %}
                     <div class="input-group mb-3">
                         {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
-                        <input type="hidden" class="form-control" name="id" value="{{staff.id}}" readonly>
+                        <input type="hidden" class="form-control" name="id" value="{{staff.user.id}}" readonly>
                     </div>
                     {% endblock Value-id %}
 
                     <div class="card card-body form-group align-items-center">
-                        <h5>Want to delete {{staff.first_name}}'s account?</h5>
+                        <h5>Want to delete {{staff.user.first_name}}'s account?</h5>
                         <p>
                             <a href="">
                             <button type="submit" class="btn btn-success">Yes</button>

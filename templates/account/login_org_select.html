@@ -1,0 +1,307 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Select Organization | Quicksales</title>
+
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="shortcut icon" href="{% static 'assets/images/mq.png' %}">
+
+    <!-- Fonts and Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+
+    <!-- App CSS -->
+    <link id="theme-style" rel="stylesheet" href="{% static 'assets/css/portal.css' %}">
+
+    <style>
+        /* Uncut Sans Font Registration */
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Regular.otf' %}") format('opentype');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Medium.otf' %}") format('opentype');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Semibold.otf' %}") format('opentype');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Uncut Sans';
+            src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Bold.otf' %}") format('opentype');
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        :root {
+            --bg-1: #F7F7F7;
+            --bg-2: #F7F7F7;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --primary: #2563EB;
+            --primary-dark: #1d4ed8;
+            --border: #d1d5db;
+            --shadow: 0 24px 48px rgba(17, 24, 39, 0.12);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Uncut Sans', sans-serif !important;
+            color: var(--text);
+            background: var(--bg-1);
+        }
+
+        .auth-shell {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 16px;
+        }
+
+        .auth-card {
+            width: 420px;
+            max-width: 100%;
+            background: var(--card);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            padding: 34px 36px 30px;
+            text-align: center;
+            border: 1px solid #eef1f6;
+        }
+
+        .auth-logo img {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+            margin-bottom: 12px;
+        }
+
+        .auth-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .auth-subtitle {
+            font-size: 13px;
+            color: var(--muted);
+            margin: 8px 0 22px;
+        }
+
+        .org-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            background: #f9fafb;
+        }
+
+        .org-item:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+            transform: translateY(-2px);
+        }
+
+        .org-item.selected {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .org-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .org-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .org-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .org-info {
+            flex: 1;
+        }
+
+        .org-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .org-role {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .radio-check {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .org-item.selected .radio-check {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        .primary-btn {
+            width: 100%;
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 14px;
+        }
+
+        .primary-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .primary-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .back-btn {
+            width: 100%;
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .back-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .auth-footer {
+            margin-top: 18px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .auth-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'ims/message.html' %}
+
+    <main class="auth-shell">
+        <section class="auth-card">
+            <div class="auth-logo">
+                <img src="{% static 'assets/images/mq_logo.png' %}" style="width: 100px; height: 100px;" alt="Quicksales">
+            </div>
+            <h1 class="auth-title">Select Organization</h1>
+            <p class="auth-subtitle">You have access to multiple organizations</p>
+
+            <form method="post" id="org-form">
+                {% csrf_token %}
+                <input type="hidden" name="email" value="{{ email }}">
+                <input type="hidden" name="organization_id" id="selected_org">
+
+                <div id="org-list">
+                    {% for org in organizations %}
+                    <div class="org-item" onclick="selectOrganization('{{ org.id }}', this)">
+                        <div class="org-header">
+                            <div class="org-logo">
+                                {% if org.logo %}
+                                    <img src="{{ org.logo }}" alt="{{ org.name }}">
+                                {% else %}
+                                    <i class="bi bi-building" style="font-size: 16px; color: #9ca3af;"></i>
+                                {% endif %}
+                            </div>
+                            <div class="org-info">
+                                <p class="org-name">{{ org.name }}</p>
+                                <p class="org-role">{{ org.role|upper }}</p>
+                            </div>
+                            <div class="radio-check"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" class="back-btn" onclick="window.location.href='{% url 'login' %}'">
+                    <i class="bi bi-arrow-left me-2"></i>Back
+                </button>
+
+                <button type="submit" class="primary-btn" id="continue-btn" disabled>
+                    Continue <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Don't have an account yet? <a href="{% url 'register' %}">Sign up</a>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let selectedOrgId = null;
+
+        function selectOrganization(orgId, element) {
+            selectedOrgId = orgId;
+            document.getElementById('selected_org').value = orgId;
+
+            // Update UI
+            document.querySelectorAll('.org-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            element.classList.add('selected');
+
+            // Enable continue button
+            document.getElementById('continue-btn').disabled = false;
+        }
+    </script>
+</body>
+</html>

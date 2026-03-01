@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, Branch, Organization, ActivityLog
+from .models import CustomUser, Branch, Organization, ActivityLog, OrganizationMembership
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import Group
@@ -81,4 +81,27 @@ class ActivityLogAdmin(ModelAdmin):
     date_hierarchy = "timestamp"
     list_per_page = 10
     list_display_links = ("staff", "activity")
+
+
+@admin.register(OrganizationMembership)
+class OrganizationMembershipAdmin(ModelAdmin):
+    list_display = ("user", "organization", "branch", "role", "is_active", "date_joined")
+    search_fields = ("user__email", "user__first_name", "user__last_name", "organization__name", "branch__name")
+    list_filter = ("role", "is_active", "organization", "branch", "date_joined")
+    ordering = ("-date_joined",)
+    date_hierarchy = "date_joined"
+    list_per_page = 20
+    list_display_links = ("user", "organization")
+    raw_id_fields = ("user", "organization", "branch")
+    autocomplete_fields = ("user", "organization", "branch")
+    readonly_fields = ("date_joined", "date_removed")
     
+    fieldsets = (
+        ("Membership Info", {
+            "fields": ("user", "organization", "branch", "role", "is_active")
+        }),
+        ("Dates", {
+            "fields": ("date_joined", "date_removed"),
+            "classes": ("collapse",)
+        }),
+    )

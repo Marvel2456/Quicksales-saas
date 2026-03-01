@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Invoice {{ invoice.invoice_number }}{% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+
+        <!-- Header -->
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <h1 class="app-page-title mb-0">Invoice {{ invoice.invoice_number }}</h1>
+            </div>
+            <div class="col-auto d-flex gap-2">
+                <a href="{% url 'invoices' branch.id %}" class="btn app-btn-secondary">&larr; Back</a>
+                <a href="{% url 'invoice_pdf' invoice.id %}" class="btn btn-outline-dark" target="_blank">
+                    ⬇ Download PDF
+                </a>
+                {% if invoice.status == 'pending' %}
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmPaymentModal">
+                    ✓ Confirm Payment
+                </button>
+                <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#closeInvoiceModal">
+                    ✕ Close Invoice
+                </button>
+                {% endif %}
+                {% if invoice.status != 'paid' %}
+                <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal">
+                    🗑 Delete
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="row g-4">
+            <!-- Invoice Info Card -->
+            <div class="col-12 col-md-5">
+                <div class="app-card shadow-sm p-4 h-100">
+                    <h5 class="mb-3">Invoice Details</h5>
+                    <table class="table table-borderless mb-0">
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Invoice #</th>
+                            <td class="fw-semibold">{{ invoice.invoice_number }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Status</th>
+                            <td>
+                                {% if invoice.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif invoice.status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Closed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Created</th>
+                            <td>{{ invoice.date_created|date:"M d, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Due Date</th>
+                            <td>{{ invoice.due_date|date:"M d, Y"|default:"Not set" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Payment Method</th>
+                            <td>{{ invoice.payment_method|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Branch</th>
+                            <td>{{ branch.name }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Created By</th>
+                            <td>{{ invoice.created_by.get_full_name|default:invoice.created_by.email }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Customer Info Card -->
+            <div class="col-12 col-md-7">
+                <div class="app-card shadow-sm p-4 h-100">
+                    <h5 class="mb-3">Customer Details</h5>
+                    <table class="table table-borderless mb-0">
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Name</th>
+                            <td>{{ invoice.customer_name|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Email</th>
+                            <td>{{ invoice.customer_email|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Phone</th>
+                            <td>{{ invoice.customer_phone|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Notes</th>
+                            <td>{{ invoice.notes|default:"—"|linebreaksbr }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Line Items -->
+            <div class="col-12">
+                <div class="app-card shadow-sm p-4">
+                    <h5 class="mb-3">Invoice Items</h5>
+                    <div class="table-responsive">
+                        <table class="table app-table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ item.inventory.product.product_name|default:"—" }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>₦{{ item.unit_price|floatformat:2 }}</td>
+                                    <td>₦{{ item.total|floatformat:2 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No items on this invoice.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" class="text-end fw-bold">Total</td>
+                                    <td class="fw-bold text-success">₦{{ invoice.total_amount|floatformat:2 }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Confirm Payment Modal -->
+{% if invoice.status == 'pending' %}
+<div class="modal fade" id="confirmPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'confirm_payment' invoice.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Confirm payment of <strong>₦{{ invoice.total_amount|floatformat:2 }}</strong> from <strong>{{ invoice.customer_name|default:"customer" }}</strong>?</p>
+                    <p class="text-muted small">This will deduct the sold quantities from your inventory and mark the
+                        invoice as <strong>Paid</strong>.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Payment Method</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="Cash" {% if invoice.payment_method == 'Cash' %}selected{% endif %}>Cash
+                            </option>
+                            <option value="Transfer" {% if invoice.payment_method == 'Transfer' %}selected{% endif %}>
+                                Transfer</option>
+                            <option value="POS" {% if invoice.payment_method == 'POS' %}selected{% endif %}>POS</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Yes, Confirm Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Close Invoice Modal -->
+<div class="modal fade" id="closeInvoiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'close_invoice' invoice.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Close Invoice</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Close invoice <strong>{{ invoice.invoice_number }}</strong> without confirming payment?</p>
+                    <p class="text-muted small">No inventory will be deducted. This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-secondary">Close Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Invoice Modal -->
+{% if invoice.status != 'paid' %}
+<div class="modal fade" id="deleteInvoiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'delete_invoice' invoice.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Invoice</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Permanently delete invoice <strong>{{ invoice.invoice_number }}</strong>?</p>
+                    <p class="text-danger small">This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock content %}

@@ -40,8 +40,9 @@ def get_plan_limits(organization):
 
 def can_create_user(organization):
     """Check if organization can create more users based on plan limit."""
+    from account.models import OrganizationMembership
     limits = get_plan_limits(organization)
-    current_users = CustomUser.objects.filter(organization=organization).count()
+    current_users = OrganizationMembership.objects.filter(organization=organization, is_active=True).count()
     return current_users < limits['max_users'], current_users, limits['max_users']
 
 
@@ -85,9 +86,10 @@ def get_subscription_status(organization):
 
 def get_usage_stats(organization):
     """Get current usage statistics compared to plan limits."""
+    from account.models import OrganizationMembership
     limits = get_plan_limits(organization)
     
-    current_users = CustomUser.objects.filter(organization=organization).count()
+    current_users = OrganizationMembership.objects.filter(organization=organization, is_active=True).count()
     current_branches = Branch.objects.filter(organization=organization).count()
     current_products = Product.objects.filter(organization=organization).count()
     

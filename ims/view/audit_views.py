@@ -13,6 +13,7 @@ import json
 import tempfile
 import os
 from account.decorators import role_required
+from account.utils import get_request_branch, get_request_organization
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 try:
@@ -28,7 +29,8 @@ except ImportError:
 @login_required
 # @is_unsubscribed
 def inventoryAudit(request, pk):
-    branch = Branch.objects.get(id=pk)
+    organization = get_request_organization(request)
+    branch = Branch.objects.get(id=pk, organization=organization)
     audits = Inventory.history.filter(branch_id=pk, quantity_restocked__gt=0).order_by('-history_date')
 
     # Filters
@@ -47,6 +49,8 @@ def inventoryAudit(request, pk):
     page = request.GET.get('page')
     audit_page = paginator.get_page(page)
     nums = "a" * audit_page.paginator.num_pages
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
     context = {
         'branch': branch,
         'audit_page':audit_page,
@@ -54,13 +58,15 @@ def inventoryAudit(request, pk):
         'start_date': start_date,
         'end_date': end_date,
         'product': product_query,
+        'query_params': query_params.urlencode(),
     }
     return render(request, 'ims/price_audit.html', context)
 
 
 @role_required(roles=['owner'])
 def export_audit_csv(request, pk):
-    branch = Branch.objects.get(id=pk)
+    organization = get_request_organization(request)
+    branch = Branch.objects.get(id=pk, organization=organization)
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     product_query = request.GET.get('product')
@@ -90,7 +96,8 @@ def export_audit_csv(request, pk):
 @login_required
 # @is_unsubscribed
 def branchCount(request):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -110,10 +117,13 @@ def branchCount(request):
 
     return render(request, 'ims/branch_count.html', context)
     
+@role_required(roles=['owner'])
+@login_required
 def adminCountView(request, pk):
-    branch = Branch.objects.get(id=pk)
-    inventory = Inventory.objects.filter(branch_id = pk).all()
-    audit = Inventory.history.filter(branch_id = pk).all()
+    organization = get_request_organization(request)
+    branch = get_object_or_404(Branch, id=pk, organization=organization)
+    inventory = Inventory.objects.filter(branch=branch, organization=organization).all()
+    audit = Inventory.history.filter(branch_id=branch.id).all()
 
     context = {
         'branch':branch,
@@ -126,10 +136,14 @@ def adminCountView(request, pk):
 @role_required(roles=['owner', 'manager'])
 @login_required
 def countView(request):
-    branch = request.user.branch
-    organization = request.user.organization
-    inventory = Inventory.objects.filter(branch_id=branch, organization=organization).all()
-    audit = Inventory.history.filter(branch_id=branch).all()
+    organization = get_request_organization(request)
+    branch = get_request_branch(request, organization)
+    if not branch:
+        messages.error(request, 'Please select a branch to view counts.')
+        return redirect('branchcount')
+
+    inventory = Inventory.objects.filter(branch=branch, organization=organization).all()
+    audit = Inventory.history.filter(branch_id=branch.id).all()
     
     # Calculate variance statistics
     total_items = inventory.count()
@@ -174,14 +188,20 @@ def countView(request):
 @role_required(roles=['owner', 'manager'])
 def addCount(request):
     if request.method == 'POST':
-        branch = request.user.branch
-        inventory = Inventory.objects.filter(branch_id = branch).get(id = request.POST.get('id'))
+        organization = get_request_organization(request)
+        branch = get_request_branch(request, organization)
+        if not branch:
+            messages.error(request, 'Please select a branch to update counts.')
+            return redirect('branchcount')
+
+        inventory = Inventory.objects.filter(branch=branch, organization=organization).get(id=request.POST.get('id'))
         if request.method != None:
             form = AddCountForm(request.POST, instance=inventory)
             if form.is_valid():
                 invent = form.save(commit=False)
                 invent.variance = invent.count - invent.store_quantity if invent.count else None
-                invent.branch = request.user.branch
+                invent.branch = branch
+                invent.organization = organization
                 invent.save()
                 messages.success(request, 'Count Added Successfully')
                 return redirect('count')
@@ -196,8 +216,11 @@ def addCount(request):
 @login_required
 def uploadCountBulk(request):
     """Handle bulk count upload via CSV/Excel"""
-    branch = request.user.branch
-    organization = request.user.organization
+    organization = get_request_organization(request)
+    branch = get_request_branch(request, organization)
+    if not branch:
+        messages.error(request, 'Please select a branch to upload counts.')
+        return redirect('branchcount')
     
     if request.method == 'POST':
         form = UploadCountForm(request.POST, request.FILES)
@@ -308,8 +331,8 @@ def uploadCountBulk(request):
 @login_required
 def exportCountHistory(request):
     """Export count history as CSV"""
-    branch = request.user.branch
-    organization = request.user.organization
+    organization = get_request_organization(request)
+    branch = get_request_branch(request, organization)
     
     # Get count history from audit
     inventory_counts = Inventory.objects.filter(
@@ -358,7 +381,8 @@ def exportCountHistory(request):
 @login_required
 # @is_unsubscribed
 def branchAudit(request):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)

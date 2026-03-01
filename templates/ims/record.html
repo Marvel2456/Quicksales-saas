@@ -1,20 +1,27 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %} {{ branch.name }} Login Records {% endblock title %}
+{% block title %} Login Records {% endblock title %}
 
 {% block content %}
 <div class="app-content pt-3 p-md-3 p-lg-4">
     <div class="container-xl">
-        <div class="mb-3">
-            <a href="{% url 'branchrecord' %}" class="btn app-btn-secondary">&larr; Back to Branch List</a>
-        </div>
         <div class="row g-3 mb-4 align-items-center justify-content-between">
             <div class="col-auto">
-                <h1 class="app-page-title mb-0">{{ branch.name }} &mdash; Login Records</h1>
+                <h1 class="app-page-title mb-0">Login Records</h1>
                 <p class="text-muted mb-0">Last updated: {{ now|date:"M d, Y H:i" }}</p>
             </div>
             <div class="col-auto">
                 <form class="row gx-2" method="get" action="">
+                    <div class="col-auto">
+                        <select name="branch" class="form-select">
+                            <option value="">All branches</option>
+                            {% for branch_item in branches %}
+                                <option value="{{ branch_item.id }}" {% if branch_item.id|stringformat:"s" == selected_branch_id %}selected{% endif %}>
+                                    {{ branch_item.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="col-auto">
                         <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}" placeholder="Start date">
                     </div>
@@ -62,15 +69,15 @@
         <nav class="app-pagination mt-3">
             <ul class="pagination justify-content-center">
                 <li class="page-item {% if not logs_page.has_previous %}disabled{% endif %}">
-                    <a class="page-link" href="{% if logs_page.has_previous %}?page={{ logs_page.previous_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% else %}#{% endif %}">Previous</a>
+                    <a class="page-link" href="{% if logs_page.has_previous %}?page={{ logs_page.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}{% else %}#{% endif %}">Previous</a>
                 </li>
                 {% for num in logs_page.paginator.page_range %}
                     <li class="page-item {% if logs_page.number == num %}active{% endif %}">
-                        <a class="page-link" href="?page={{ num }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a>
+                        <a class="page-link" href="?page={{ num }}{% if query_params %}&{{ query_params }}{% endif %}">{{ num }}</a>
                     </li>
                 {% endfor %}
                 <li class="page-item {% if not logs_page.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="{% if logs_page.has_next %}?page={{ logs_page.next_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% else %}#{% endif %}">Next</a>
+                    <a class="page-link" href="{% if logs_page.has_next %}?page={{ logs_page.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}{% else %}#{% endif %}">Next</a>
                 </li>
             </ul>
         </nav>

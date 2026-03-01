@@ -13321,6 +13321,12 @@ button.close:focus {
     }
 }
 
+@media(min-width: 1200px) {
+    .app.no-sidepanel .app-wrapper {
+        margin-left: 0
+    }
+}
+
 .app {
     min-height: 100vh;
     height: 100%;

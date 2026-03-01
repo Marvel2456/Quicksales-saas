@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponse
 import csv
 import json
 from account.decorators import role_required
+from account.utils import get_request_organization
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from ims.view_caching import cached_view
@@ -21,7 +22,8 @@ from django.core.cache import cache
 @role_required(roles=['owner'])
 @login_required
 def branch_inventory(request):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -48,7 +50,7 @@ def branch_inventory(request):
 # @is_unsubscribed
 def inventory_list(request, pk):
     """Inventory list view - optimized with select_related and proper pagination"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
     
@@ -105,7 +107,7 @@ def inventory_list(request, pk):
 # @is_unsubscribed
 def branchInventory(request):
     """Admin branch inventory view - optimized with select_related"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     # Use select_related for efficient loading
     inventory_qs = Inventory.objects.select_related(
         'product', 'branch', 'organization'
@@ -153,7 +155,7 @@ def branchInventory(request):
 
 @role_required(roles=['owner'])
 def inventory(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     inventory = get_object_or_404(Inventory, id=pk, organization=organization)
 
     context = {
@@ -164,7 +166,7 @@ def inventory(request, pk):
 
 @role_required(roles=['owner', 'manager'])
 def edit_inventory(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     if request.method == 'POST':
         inventory = get_object_or_404(Inventory, id=pk, organization=organization)
         if inventory != None:
@@ -186,7 +188,7 @@ def edit_inventory(request, pk):
 
 @role_required(roles=['owner', 'manager'])
 def restock(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     inventory = get_object_or_404(Inventory, id=pk, organization=organization)
     if request.method == 'POST':
         form = RestockForm(request.POST, instance=inventory)
@@ -214,16 +216,17 @@ def restock(request, pk):
 @login_required
 # @is_unsubscribed
 def inventoryView(request, pk):
-    branch = Branch.objects.get(id=pk)
-    inventory = Inventory.objects.filter(branch_id = pk).all()
-    product = Product.objects.filter().all()
-    paginator = Paginator(Inventory.objects.filter(branch_id = pk).all(), 15)
+    organization = get_request_organization(request)
+    branch = get_object_or_404(Branch, id=pk, organization=organization)
+    inventory = Inventory.objects.filter(branch=branch, organization=organization)
+    product = Product.objects.filter(branch=branch, organization=organization)
+    paginator = Paginator(inventory, 15)
     page = request.GET.get('page')
     inventory_page = paginator.get_page(page)
     nums = "a" *inventory_page.paginator.num_pages
     product_contains_query = request.GET.get('product')
 
-    if product_contains_query != '' and product_contains_query is not None:
+    if product_contains_query:
         inventory_page = inventory.filter(product__product_name__icontains=product_contains_query)
 
     context = {
@@ -238,9 +241,10 @@ def inventoryView(request, pk):
 
 @role_required(roles=['owner'])
 def delete_inventory(request, pk):
-    branch = Branch.objects.get(id=pk)
+    organization = get_request_organization(request)
+    branch = Branch.objects.get(id=pk, organization=organization)
     if request.method == 'POST':
-        inventory = Inventory.objects.filter(branch_id = pk).get(id = request.POST.get('id'))
+        inventory = Inventory.objects.filter(branch=branch, organization=organization).get(id=request.POST.get('id'))
         if inventory != None:
             inventory.delete()
             messages.success(request, "Succesfully deleted")

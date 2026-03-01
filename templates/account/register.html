@@ -1,17 +1,18 @@
 {% load static %}
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Marvex Quicksales | Register</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
+
     <!-- Bootstrap CSS -->
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    
+
     <style>
         /* Uncut Sans Font Registration */
         @font-face {
@@ -20,18 +21,21 @@
             font-weight: 400;
             font-style: normal;
         }
+
         @font-face {
             font-family: 'Uncut Sans';
             src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Medium.otf' %}") format('opentype');
             font-weight: 500;
             font-style: normal;
         }
+
         @font-face {
             font-family: 'Uncut Sans';
             src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Semibold.otf' %}") format('opentype');
             font-weight: 600;
             font-style: normal;
         }
+
         @font-face {
             font-family: 'Uncut Sans';
             src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Bold.otf' %}") format('opentype');
@@ -43,7 +47,7 @@
             font-family: 'Uncut Sans', sans-serif !important;
             background-color: #F7F7F7;
         }
-        
+
         .card-register {
             border-radius: 24px;
             border: 1px solid #e5e7eb;
@@ -51,18 +55,20 @@
             width: 100%;
         }
 
-        .form-control, .form-select {
+        .form-control,
+        .form-select {
             border-radius: 12px;
             padding: 0.75rem 1rem;
             border: 1px solid #d1d5db;
             background-color: #f9fafb;
         }
-        
-        .form-control:focus, .form-select:focus {
+
+        .form-control:focus,
+        .form-select:focus {
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
             border-color: #2563EB;
         }
-        
+
         .btn-primary {
             background-color: #2563EB;
             border-color: #2563EB;
@@ -70,12 +76,12 @@
             padding: 0.875rem 1rem;
             font-weight: 600;
         }
-        
+
         .btn-primary:hover {
             background-color: #1d4ed8;
             border-color: #1d4ed8;
         }
-        
+
         .btn-outline-secondary {
             border-radius: 12px;
             padding: 0.875rem 1rem;
@@ -84,7 +90,7 @@
             color: #111827;
             border-color: #d1d5db;
         }
-        
+
         .btn-outline-secondary:hover {
             background-color: #f9fafb;
             color: #111827;
@@ -103,63 +109,89 @@
             position: relative;
             z-index: 10;
         }
-        
+
         .progress-line {
             height: 1px;
             background-color: #E5E7EB;
             position: relative;
             margin: 2rem 0;
         }
-        
+
         /* Checkbox style for password requirements */
         .check-icon {
             color: #10B981;
         }
+
         .gray-icon {
             color: #9CA3AF;
         }
+
         .text-success-custom {
             color: #16a34a !important;
         }
-        
+
         /* Utility overrides to match design exactly */
-         .text-gray-700 { color: #374151; }
-         .text-gray-500 { color: #6b7280; }
-         .text-gray-900 { color: #111827; }
-         .text-blue-600 { color: #2563EB; }
-         
-         .d-none { display: none !important; }
+        .text-gray-700 {
+            color: #374151;
+        }
+
+        .text-gray-500 {
+            color: #6b7280;
+        }
+
+        .text-gray-900 {
+            color: #111827;
+        }
+
+        .text-blue-600 {
+            color: #2563EB;
+        }
+
+        .d-none {
+            display: none !important;
+        }
     </style>
 </head>
+
 <body class="d-flex align-items-center justify-content-center min-vh-100 py-4 px-3">
 
     <div class="card card-register bg-white shadow p-4 p-sm-5">
         <!-- Header Section -->
         <div class="d-flex flex-column align-items-center mb-2">
-            <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo" class="mb-4" style="height: 100px; width: 100px;">
-            
+            <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo" class="mb-4"
+                style="height: 100px; width: 100px;">
+
             <h3 id="step-title" class="fw-bold text-center mb-2 text-gray-900">Create your Organization Account</h3>
             <p id="step-desc" class="text-gray-500 text-center small mb-0">Set up your account in 3 simple steps</p>
         </div>
-        
+
         <!-- Progress Indicator -->
         <div class="progress-line d-flex align-items-center justify-content-center">
             <div id="step-indicator" class="step-pill">Step 1/3</div>
         </div>
-        
+
+        <!-- Existing User Alert (Hidden by default) -->
+        <div id="existing-user-alert" class="alert alert-info py-2 px-3 small rounded-3 d-none" role="alert">
+            <i class="bi bi-info-circle me-1"></i> An account with this email already exists. You'll be added using your
+            existing credentials, skip the password step!
+        </div>
+
+        {% include 'ims/message.html' %}
+
         {% if messages %}
-            <div class="mb-4">
-                {% for message in messages %}
-                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} py-2 px-3 small rounded-3" role="alert">
-                        {{ message }}
-                    </div>
-                {% endfor %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} py-2 px-3 small rounded-3"
+                role="alert">
+                {{ message }}
             </div>
+            {% endfor %}
+        </div>
         {% endif %}
-        
+
         <form method="post" enctype="multipart/form-data" id="registerForm" class="mt-4 needs-validation" novalidate>
             {% csrf_token %}
-            
+
             <input type="hidden" name="brand_color" value="{{ form.brand_color.value|default:'#007bff' }}">
             <input type="hidden" name="organization_country" value="{{ form.organization_country.value|default:'' }}">
 
@@ -168,40 +200,49 @@
                 <div class="row g-3 mb-3">
                     <div class="col-6">
                         <label for="id_first_name" class="form-label text-gray-700 small fw-medium">First Name</label>
-                        <input type="text" id="id_first_name" name="first_name" value="{{ form.first_name.value|default:'' }}" required class="form-control" placeholder="">
-                        {% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>{% endif %}
+                        <input type="text" id="id_first_name" name="first_name"
+                            value="{{ form.first_name.value|default:'' }}" required class="form-control" placeholder="">
+                        {% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors.0}}
+                        </div>{% endif %}
                     </div>
                     <div class="col-6">
                         <label for="id_last_name" class="form-label text-gray-700 small fw-medium">Last Name</label>
-                        <input type="text" id="id_last_name" name="last_name" value="{{ form.last_name.value|default:'' }}" required class="form-control" placeholder="">
-                        {% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>{% endif %}
+                        <input type="text" id="id_last_name" name="last_name"
+                            value="{{ form.last_name.value|default:'' }}" required class="form-control" placeholder="">
+                        {% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors.0 }}
+                        </div>{% endif %}
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label for="id_email" class="form-label text-gray-700 small fw-medium">Business Email</label>
-                    <input type="email" id="id_email" name="email" value="{{ form.email.value|default:'' }}" required class="form-control" placeholder="">
+                    <input type="email" id="id_email" name="email" value="{{ form.email.value|default:'' }}" required
+                        class="form-control" placeholder="">
                     {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>{% endif %}
                 </div>
 
                 <div class="mb-3">
                     <label for="id_phone_number" class="form-label text-gray-700 small fw-medium">Phone number</label>
-                    <input type="text" id="id_phone_number" name="phone_number" value="{{ form.phone_number.value|default:'' }}" required class="form-control" placeholder="">
-                    {% if form.phone_number.errors %}<div class="text-danger small mt-1">{{ form.phone_number.errors.0 }}</div>{% endif %}
+                    <input type="text" id="id_phone_number" name="phone_number"
+                        value="{{ form.phone_number.value|default:'' }}" required class="form-control" placeholder="">
+                    {% if form.phone_number.errors %}<div class="text-danger small mt-1">{{ form.phone_number.errors.0}}
+                    </div>{% endif %}
                 </div>
 
                 <div class="pt-2">
                     <button type="button" onclick="nextStep(2)" class="btn btn-primary w-100">Continue</button>
-                    <p class="mt-4 text-center small text-gray-500">Already have an account? <a href="{% url 'login' %}" class="text-blue-600 fw-semibold text-decoration-none">Log in</a></p>
+                    <p class="mt-4 text-center small text-gray-500">Already have an account? <a href="{% url 'login' %}"
+                            class="text-blue-600 fw-semibold text-decoration-none">Log in</a></p>
                 </div>
             </div>
 
             <!-- Step 2: Organization Info -->
             <div id="step2" class="step-content d-none">
                 <div class="mb-3">
-                    <label for="id_organization_name" class="form-label text-gray-700 small fw-medium">Organization Name</label>
-                    <input type="text" id="id_organization_name" name="organization_name" value="{{ form.organization_name.value|default:'' }}" required class="form-control">
-                    {% if form.organization_name.errors %}<div class="text-danger small mt-1">{{ form.organization_name.errors.0 }}</div>{% endif %}
+                    <label for="id_organization_name" class="form-label text-gray-700 small fw-medium">Organization
+                        Name</label>
+                    <input type="text" id="id_organization_name" name="organization_name"
+                        value="{{ form.organization_name.value|default:'' }}" required class="form-control">
                 </div>
 
                 <div class="mb-3">
@@ -209,35 +250,49 @@
                     <select id="id_business_type" name="business_type" required class="form-select">
                         <option value="">Select Option</option>
                         {% for key, value in form.business_type.field.choices %}
-                            <option value="{{ key }}" {% if form.business_type.value == key %}selected{% endif %}>{{ value }}</option>
+                        <option value="{{ key }}" {% if form.business_type.value == key %}selected{% endif %}>{{ value }}
+                        </option>
                         {% endfor %}
                     </select>
-                    {% if form.business_type.errors %}<div class="text-danger small mt-1">{{ form.business_type.errors.0 }}</div>{% endif %}
+                    {% if form.business_type.errors %}<div class="text-danger small mt-1">{{
+                        form.business_type.errors.0}}</div>{% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_organization_logo" class="form-label text-gray-700 small fw-medium">Organization Logo</label>
-                    <input type="file" id="id_organization_logo" name="organization_logo" accept="image/*" class="form-control">
-                    {% if form.organization_logo.errors %}<div class="text-danger small mt-1">{{ form.organization_logo.errors.0 }}</div>{% endif %}
+                    <label for="id_organization_logo" class="form-label text-gray-700 small fw-medium">Organization
+                        Logo</label>
+                    <input type="file" id="id_organization_logo" name="organization_logo" accept="image/*"
+                        class="form-control">
+                    {% if form.organization_logo.errors %}<div class="text-danger small mt-1">{{
+                        form.organization_logo.errors.0 }}</div>{% endif %}
                 </div>
 
                 <div class="mb-3">
                     <label for="id_branch_name" class="form-label text-gray-700 small fw-medium">Branch Name</label>
-                    <input type="text" id="id_branch_name" name="branch_name" value="{{ form.branch_name.value|default:'' }}" required class="form-control">
-                    {% if form.branch_name.errors %}<div class="text-danger small mt-1">{{ form.branch_name.errors.0 }}</div>{% endif %}
+                    <input type="text" id="id_branch_name" name="branch_name"
+                        value="{{ form.branch_name.value|default:'' }}" required class="form-control">
+                    {% if form.branch_name.errors %}<div class="text-danger small mt-1">{{ form.branch_name.errors.0 }}
+                    </div>{% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_branch_address" class="form-label text-gray-700 small fw-medium">Branch Address</label>
-                    <input type="text" id="id_branch_address" name="branch_address" value="{{ form.branch_address.value|default:'' }}" required class="form-control">
-                    {% if form.branch_address.errors %}<div class="text-danger small mt-1">{{ form.branch_address.errors.0 }}</div>{% endif %}
+                    <label for="id_branch_address" class="form-label text-gray-700 small fw-medium">Branch
+                        Address</label>
+                    <input type="text" id="id_branch_address" name="branch_address"
+                        value="{{ form.branch_address.value|default:'' }}" required class="form-control">
+                    {% if form.branch_address.errors %}<div class="text-danger small mt-1">{{
+                        form.branch_address.errors.0 }}</div>{% endif %}
                 </div>
 
                 <div class="d-flex gap-3 pt-2">
                     <button type="button" onclick="prevStep(1)" class="btn btn-outline-secondary w-50">Back</button>
-                    <button type="button" onclick="nextStep(3)" class="btn btn-primary w-100 position-relative">
+                    <button type="button" id="step2ContinueBtn" onclick="handleStep2Continue()"
+                        class="btn btn-primary w-100 position-relative">
                         Continue
                         <div id="step2-user-thumb" class="d-none"></div>
+                    </button>
+                    <button type="submit" id="step2SubmitBtn" class="btn btn-primary w-100 position-relative d-none">
+                        Create Account
                     </button>
                 </div>
             </div>
@@ -248,7 +303,8 @@
                     <label for="id_password1" class="form-label text-gray-700 small fw-medium">Password</label>
                     <div class="position-relative">
                         <input type="password" id="id_password1" name="password1" required class="form-control pe-5">
-                        <button type="button" onclick="togglePassword('id_password1', this)" class="btn p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-secondary border-0 bg-transparent">
+                        <button type="button" onclick="togglePassword('id_password1', this)"
+                            class="btn p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-secondary border-0 bg-transparent">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -258,7 +314,8 @@
                     <label for="id_password2" class="form-label text-gray-700 small fw-medium">Confirm Password</label>
                     <div class="position-relative">
                         <input type="password" id="id_password2" name="password2" required class="form-control pe-5">
-                        <button type="button" onclick="togglePassword('id_password2', this)" class="btn p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-secondary border-0 bg-transparent">
+                        <button type="button" onclick="togglePassword('id_password2', this)"
+                            class="btn p-0 position-absolute top-50 end-0 translate-middle-y me-3 text-secondary border-0 bg-transparent">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -274,7 +331,7 @@
                         <i class="bi bi-check-lg gray-icon fs-5"></i>
                         <span>Your password has to be unique</span>
                     </div>
-                     <div class="d-flex align-items-center gap-2" id="req-numeric">
+                    <div class="d-flex align-items-center gap-2" id="req-numeric">
                         <i class="bi bi-check-lg gray-icon fs-5"></i>
                         <span>Your password can't be entirely numeric.</span>
                     </div>
@@ -293,14 +350,18 @@
     <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 
     <script>
-        let currentStep = 1;
-        
+        // If org-level errors exist, start on step 2 automatically
+        const hasOrgErrors = "{% if form.organization_name.errors or form.business_type.errors or form.branch_name.errors or form.branch_address.errors %}true{% else %}false{% endif %}" === "true";
+        let currentStep = hasOrgErrors ? 2 : 1;
+        let isExistingUser = false;
+        let originalPasswordRequiredState = true;
+
         function updateUI(step) {
             // Update Headers
             const titleEl = document.getElementById('step-title');
             const descEl = document.getElementById('step-desc');
             const indicatorEl = document.getElementById('step-indicator');
-            
+
             if (step === 1) {
                 titleEl.textContent = 'Create your Organization Account';
                 descEl.textContent = 'Set up your account in 3 simple steps';
@@ -308,13 +369,13 @@
             } else if (step === 2) {
                 titleEl.textContent = 'Tell us about your organization';
                 descEl.textContent = 'Answer questions about your organization';
-                 indicatorEl.textContent = 'Step 2/3';
+                indicatorEl.textContent = 'Step 2/3';
             } else if (step === 3) {
                 titleEl.textContent = 'Set your password';
                 descEl.textContent = 'Set your organization password';
-                 indicatorEl.textContent = 'Step 3/3';
+                indicatorEl.textContent = 'Step 3/3';
             }
-            
+
             // Toggle visibility
             document.querySelectorAll('.step-content').forEach(el => el.classList.add('d-none'));
             document.getElementById(`step${step}`).classList.remove('d-none');
@@ -323,26 +384,26 @@
         function validateStep(step) {
             const stepEl = document.getElementById(`step${step}`);
             const inputs = stepEl.querySelectorAll('input[required], select[required]');
-             let isValid = true;
-            
+            let isValid = true;
+
             inputs.forEach(input => {
                 if (!input.value.trim()) {
                     isValid = false;
                     input.classList.add('is-invalid');
                 } else {
                     input.classList.remove('is-invalid');
-                    
+
                     // Specific validations
                     if (input.type === 'email' && !validateEmail(input.value)) {
-                         isValid = false;
-                         input.classList.add('is-invalid');
+                        isValid = false;
+                        input.classList.add('is-invalid');
                     }
                 }
             });
-            
+
             return isValid;
         }
-        
+
         function validateEmail(email) {
             return String(email)
                 .toLowerCase()
@@ -353,8 +414,79 @@
 
         function nextStep(step) {
             if (validateStep(currentStep)) {
+                // Determine if we need to check email on step 1 -> step 2
+                if (currentStep === 1 && step === 2) {
+                    checkUserExists();
+                }
+
                 currentStep = step;
                 updateUI(step);
+            }
+        }
+
+        function checkUserExists() {
+            const emailInput = document.getElementById('id_email');
+            const email = emailInput.value.trim();
+
+            if (!email) return;
+
+            fetch(`/account/api/check-email/?email=${encodeURIComponent(email)}`)
+                .then(response => response.json())
+                .then(data => {
+                    isExistingUser = data.exists;
+                    const alertEl = document.getElementById('existing-user-alert');
+                    const continueBtn = document.getElementById('step2ContinueBtn');
+                    const submitBtn = document.getElementById('step2SubmitBtn');
+                    const passwordInputs = document.querySelectorAll('#step3 input[type="password"]');
+
+                    if (isExistingUser) {
+                        // User exists
+                        alertEl.classList.remove('d-none');
+                        continueBtn.classList.add('d-none');
+                        submitBtn.classList.remove('d-none');
+                        updateUIIndicatorForExisting();
+
+                        // Remove required attribute from password fields so form can submit
+                        passwordInputs.forEach(input => {
+                            input.removeAttribute('required');
+                        });
+                    } else {
+                        // User does not exist
+                        alertEl.classList.add('d-none');
+                        continueBtn.classList.remove('d-none');
+                        submitBtn.classList.add('d-none');
+                        resetUIIndicator();
+
+                        // Restore required attribute
+                        passwordInputs.forEach(input => {
+                            input.setAttribute('required', 'required');
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error('Error checking email:', err);
+                });
+        }
+
+        function updateUIIndicatorForExisting() {
+            // Modify indicator dynamically since we skip step 3
+            const indicatorEl = document.getElementById('step-indicator');
+            if (currentStep === 2) {
+                indicatorEl.textContent = 'Step 2/2';
+            }
+        }
+
+        function resetUIIndicator() {
+            const indicatorEl = document.getElementById('step-indicator');
+            if (currentStep === 2) {
+                indicatorEl.textContent = 'Step 2/3';
+            }
+        }
+
+        function handleStep2Continue() {
+            // Normal flow, proceed to step 3 if form connects correctly
+            if (validateStep(2)) {
+                nextStep(3);
             }
         }
 
@@ -376,11 +508,11 @@
                 icon.classList.add('bi-eye');
             }
         }
-        
+
         // Password Strength Validation
-        document.getElementById('id_password1').addEventListener('input', function(e) {
+        document.getElementById('id_password1').addEventListener('input', function (e) {
             const password = e.target.value;
-            
+
             // 8 characters
             const reqLength = document.getElementById('req-length');
             const iconLength = reqLength.querySelector('i');
@@ -393,34 +525,35 @@
                 iconLength.classList.add('gray-icon');
                 iconLength.classList.remove('check-icon');
             }
-            
+
             // Numeric check
             const reqNumeric = document.getElementById('req-numeric');
-             const iconNumeric = reqNumeric.querySelector('i');
+            const iconNumeric = reqNumeric.querySelector('i');
             if (password.length > 0 && !/^\d+$/.test(password)) {
-                 reqNumeric.classList.add('text-success-custom');
+                reqNumeric.classList.add('text-success-custom');
                 iconNumeric.classList.remove('gray-icon');
                 iconNumeric.classList.add('check-icon');
             } else {
-                 reqNumeric.classList.remove('text-success-custom');
+                reqNumeric.classList.remove('text-success-custom');
                 iconNumeric.classList.add('gray-icon');
                 iconNumeric.classList.remove('check-icon');
             }
-            
-            // Unique check
-             const reqUnique = document.getElementById('req-unique');
-             const iconUnique = reqUnique.querySelector('i');
 
-             if (password.length > 3) { 
-                 reqUnique.classList.add('text-success-custom');
-                 iconUnique.classList.remove('gray-icon');
-                 iconUnique.classList.add('check-icon');
-             } else {
-                 reqUnique.classList.remove('text-success-custom');
+            // Unique check
+            const reqUnique = document.getElementById('req-unique');
+            const iconUnique = reqUnique.querySelector('i');
+
+            if (password.length > 3) {
+                reqUnique.classList.add('text-success-custom');
+                iconUnique.classList.remove('gray-icon');
+                iconUnique.classList.add('check-icon');
+            } else {
+                reqUnique.classList.remove('text-success-custom');
                 iconUnique.classList.add('gray-icon');
-                 iconUnique.classList.remove('check-icon');
-             }
+                iconUnique.classList.remove('check-icon');
+            }
         });
     </script>
 </body>
+
 </html>

@@ -16,7 +16,8 @@ from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 from django.conf import settings
 from .emails import send_welcome_email, send_verification_email, get_protocol, send_password_reset_email
-from django.http import HttpResponse
+from .utils import get_request_branch, get_request_org_role, get_request_organization
+from django.http import HttpResponse, JsonResponse
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
@@ -36,60 +37,153 @@ class OwnerRegisterView(View):
 
         if not form.is_valid():
             print(form.errors)
+            return render(request, 'account/register.html', {'form': form})
 
-        if form.is_valid():
-            with transaction.atomic():
-                trial_start = timezone.now()
-                trial_end = timezone.now() + timedelta(days=7)
-                # Create organization
-                organization = Organization.objects.create(
-                    name=form.cleaned_data['organization_name'],
-                    business_type = form.cleaned_data['business_type'],
-                    country=form.cleaned_data['organization_country'],
-                    logo=form.cleaned_data.get('organization_logo'),
-                    brand_color=form.cleaned_data.get('brand_color', '#007bff'),
-                    trial_start=trial_start,
-                    trial_end=trial_end,
-                    is_active=True
-                )
+        # Extract cleaned data
+        email = form.cleaned_data['email']
+        first_name = form.cleaned_data['first_name']
+        last_name = form.cleaned_data['last_name']
+        phone_number = form.cleaned_data.get('phone_number', '')
+        password = form.cleaned_data.get('password1')
+        
+        # Check if user already exists
+        try:
+            existing_user = CustomUser.objects.get(email=email)
+            user_exists = True
+        except CustomUser.DoesNotExist:
+            user_exists = False
+            existing_user = None
+        
+        # Block duplicate organization names for the same owner
+        organization_name = form.cleaned_data['organization_name']
+        if user_exists and existing_user:
+            duplicate = Organization.objects.filter(
+                owned_by=existing_user,
+                name__iexact=organization_name
+            ).exists()
+            if duplicate:
+                messages.error(request, f'You already own an organization called "{organization_name}". Please choose a different name.')
+                return render(request, 'account/register.html', {'form': form})
+        
+        with transaction.atomic():
+            trial_start = timezone.now()
+            trial_end = timezone.now() + timedelta(days=7)
+            
+            # Create organization
+            organization = Organization.objects.create(
+                name=form.cleaned_data['organization_name'],
+                business_type=form.cleaned_data['business_type'],
+                country=form.cleaned_data.get('organization_country', ''),
+                logo=form.cleaned_data.get('organization_logo'),
+                brand_color=form.cleaned_data.get('brand_color', '#007bff'),
+                trial_start=trial_start,
+                trial_end=trial_end,
+                is_active=True
+            )
 
-                # Create default branch
-                branch = Branch.objects.create(
-                    organization=organization,
-                    name=form.cleaned_data['branch_name'],
-                    address=form.cleaned_data['branch_address']
-                )
+            # Create default branch
+            branch = Branch.objects.create(
+                organization=organization,
+                name=form.cleaned_data['branch_name'],
+                address=form.cleaned_data['branch_address']
+            )
 
-                # Assign free plan
-                free_plan = Plan.objects.filter(price=0).first()
-                subscription = Subscription.objects.create(
-                    organization=organization,
-                    plan=free_plan,
-                    start_date=trial_start,
-                    end_date=trial_end,
-                    is_active=True
-                )
+            # Assign free plan
+            free_plan = Plan.objects.filter(price=0).first()
+            subscription = Subscription.objects.create(
+                organization=organization,
+                plan=free_plan,
+                start_date=trial_start,
+                end_date=trial_end,
+                is_active=True
+            )
 
-                # Schedule deactivation at trial_end (Celery)
-                deactivate_subscription.apply_async(
-                    args=[str(subscription.id)],
-                    eta=trial_end
-                )
+            # Schedule deactivation at trial_end (Celery)
+            deactivate_subscription.apply_async(
+                args=[str(subscription.id)],
+                eta=trial_end
+            )
 
-
-
-
-                # Create user
-                user = form.save(commit=False)
-                user.organization = organization
-                user.role = 'owner'
-                user.branch = branch
-                user.set_password(form.cleaned_data['password1'])
-                user.is_active = False
-                user.save()
-                # Assign the user to the organization and branch
+            if user_exists:
+                # User already exists - add them to this new organization
+                user = existing_user
+                
+                # Update user's default org/branch if they don't have one
+                if not user.organization:
+                    user.organization = organization
+                    user.branch = branch
+                    user.save()
+                
+                # Set organization owner
                 organization.owned_by = user
                 organization.save()
+                
+                # Create membership for this organization
+                from account.models import OrganizationMembership
+                OrganizationMembership.objects.create(
+                    user=user,
+                    organization=organization,
+                    branch=branch,
+                    role='owner',
+                    is_active=True
+                )
+                
+                # Log the activity
+                ActivityLog.objects.create(
+                    staff=user,
+                    organization=organization,
+                    branch=branch,
+                    activity=f'Added as owner of new organization: {organization.name}'
+                )
+                
+                # Send notification email with organization-specific login URL
+                from django.core.mail import send_mail
+                from django.conf import settings
+                try:
+                    protocol = get_protocol()
+                    login_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/account/login/"
+                    send_mail(
+                        subject=f'You\'ve been added to {organization.name}',
+                        message=f'Your account has been added as the owner of {organization.name}.\n\nYou can now log in here: {login_url}\n\nIf you have multiple organizations, you can switch between them in your dashboard.',
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[user.email],
+                        fail_silently=True,
+                    )
+                except Exception as e:
+                    print(f"Email notification failed: {e}")
+                
+                messages.success(
+                    request,
+                    f'Organization created successfully! You can log in with your existing credentials to manage {organization.name}.'
+                )
+            else:
+                # Create new user
+                user = CustomUser.objects.create(
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone_number=phone_number,
+                    organization=organization,
+                    role='owner',
+                    branch=branch,
+                    is_active=False
+                )
+                user.set_password(password)
+                user.save()
+                
+                # Assign the user to the organization
+                organization.owned_by = user
+                organization.save()
+                
+                # Create membership
+                from account.models import OrganizationMembership
+                OrganizationMembership.objects.create(
+                    user=user,
+                    organization=organization,
+                    branch=branch,
+                    role='owner',
+                    is_active=True
+                )
 
                 # Log the activity
                 ActivityLog.objects.create(
@@ -99,18 +193,14 @@ class OwnerRegisterView(View):
                     activity='Owner registration completed'
                 )
 
-                # Generate subdomain login URL
-                # login_url = f"http://{organization.slug}.lvh.me:8000/login/"
-
-
-                
                 # Send email verification
                 send_verification_email(user, organization)
-                messages.success(request, 'Registration successful! Please check your email to verify your account.')
-                return redirect("login")
-
-
-        return render(request, 'account/register.html', {'form': form})
+                messages.success(
+                    request,
+                    'Registration successful! Please check your email to verify your account.'
+                )
+            
+            return redirect("login")
 
 
 def verifyEmail(request, uidb64, token):
@@ -137,24 +227,121 @@ def verifyEmail(request, uidb64, token):
     else:
         return HttpResponse("Invalid or expired verification link.", status=400)
 
+def check_email(request):
+    email = request.GET.get('email', '').strip()
+    if email:
+        exists = CustomUser.objects.filter(email__iexact=email).exists()
+        return JsonResponse({'exists': exists})
+    return JsonResponse({'exists': False})
+
 def loginUser(request):
+    """Multi-step login: email -> organization select -> password"""
     organization = request.organization
     
-    if request.method == 'POST':
-        email = request.POST.get('email')
+    # Step 2: Organization selection (check this BEFORE step 1)
+    if request.method == 'POST' and 'organization_id' in request.POST:
+        email = request.session.get('login_email')
+        org_id = request.POST.get('organization_id')
+        
+        if not email or not org_id:
+            messages.error(request, 'Session expired. Please start over.')
+            return redirect('login')
+        
+        try:
+            user = CustomUser.objects.get(email__iexact=email)
+            from account.models import OrganizationMembership
+            
+            # Verify user has access to this organization
+            membership = user.memberships.get(organization_id=org_id, is_active=True)
+            
+            request.session['selected_org_id'] = org_id
+            request.session.modified = True
+            
+            # Redirect to password page
+            return render(request, 'account/login_password.html', {
+                'email': email,
+                'organization': membership.organization
+            })
+        except (CustomUser.DoesNotExist, OrganizationMembership.DoesNotExist):
+            messages.error(request, 'Unauthorized access.')
+            return redirect('login')
+    
+    # Step 3: Password submission
+    if request.method == 'POST' and 'password' in request.POST:
+        email = request.session.get('login_email')
+        org_id = request.session.get('selected_org_id')
+        is_legacy = request.session.get('is_legacy_user', False)
         password = request.POST.get('password')
+        
+        if not email:
+            return render(request, 'account/login.html', {
+                'error': 'Session expired. Please start over.'
+            })
+        
         user = authenticate(request, email=email, password=password)
-
+        
         if user is not None:
             if not user.is_active:
                 messages.error(request, 'Account is inactive. Please contact support.')
                 return redirect('login')
-
+            
             login(request, user)
-            log_org = user.organization or organization
-            log_branch = user.branch
-            if log_branch is None and log_org is not None:
+            
+            # Handle legacy vs multi-org users
+            role_for_session = None
+            if is_legacy:
+                # Legacy user - use FK fields
+                log_org = user.organization
+                log_branch = user.branch
+                role_for_session = user.role
+                
+                # Set session for consistency
+                if log_org:
+                    request.session['active_organization_id'] = str(log_org.id)
+                if role_for_session == 'owner':
+                    request.session['active_branch_id'] = None
+                    request.session['active_branch_name'] = None
+                    log_branch = None
+                elif log_branch:
+                    request.session['active_branch_id'] = str(log_branch.id)
+            else:
+                # Multi-org user - get membership
+                try:
+                    membership = user.memberships.get(organization_id=org_id, is_active=True)
+                    log_org = membership.organization
+                    log_branch = membership.branch
+                    role_for_session = membership.role
+                    
+                    # Set session context for the selected organization AND branch
+                    request.session['active_organization_id'] = str(log_org.id) if log_org else None
+                    if role_for_session == 'owner':
+                        request.session['active_branch_id'] = None
+                        request.session['active_branch_name'] = None
+                        log_branch = None
+                    else:
+                        request.session['active_branch_id'] = str(log_branch.id) if log_branch else None
+                except:
+                    log_org = user.organization or organization
+                    log_branch = user.branch
+                    role_for_session = user.role
+                    
+                    if log_org:
+                        request.session['active_organization_id'] = str(log_org.id)
+                    if role_for_session == 'owner':
+                        request.session['active_branch_id'] = None
+                        request.session['active_branch_name'] = None
+                        log_branch = None
+                    elif log_branch:
+                        request.session['active_branch_id'] = str(log_branch.id)
+            
+            if log_branch is None and log_org is not None and role_for_session != 'owner':
                 log_branch = log_org.branch_set.first()
+
+            request.session.modified = True
+
+            # Also set in request context for immediate use
+            request.organization = log_org
+            request.branch = log_branch
 
             ActivityLog.objects.create(
                 staff=user,
@@ -163,39 +350,155 @@ def loginUser(request):
                 activity='Login successful'
             )
 
-            # Create notification for owner when staff members log in
-            if user.role in ['manager', 'sales'] and organization:
-                owner = organization.owned_by
-                if owner and owner != user:
-                    # Create login notification for owner
-                    login_message = f"{user.get_full_name() or user.email} ({user.role}) logged in"
-                    if user.branch:
-                        login_message += f" at {user.branch.name} branch"
+            # Subscription expiry check for sales/manager
+            subscription = Subscription.objects.filter(organization=log_org, is_active=True).order_by('-end_date').first()
+            expired = False
+            if subscription:
+                if subscription.end_date and subscription.end_date < timezone.now():
+                    expired = True
+            else:
+                expired = True
 
+            # Create notification for owner when staff members log in
+            if role_for_session in ['manager', 'sales'] and log_org:
+                owner = log_org.owned_by
+                if owner and owner != user:
+                    login_message = f"{user.get_full_name() or user.email} ({role_for_session}) logged in"
+                    if log_branch:
+                        login_message += f" at {log_branch.name} branch"
                     Notification.objects.create(
                         user=owner,
                         message=login_message,
                         notification_type='info',
+                        organization=log_org,
                         is_read=False
                     )
 
+            # Clear session login data
+            if 'login_email' in request.session:
+                del request.session['login_email']
+            if 'selected_org_id' in request.session:
+                del request.session['selected_org_id']
+            if 'is_legacy_user' in request.session:
+                del request.session['is_legacy_user']
+            request.session.modified = True
+
             messages.success(request, f'Welcome {user.get_full_name()}')
 
-            if user.role == 'owner':
+            # For multi-org users, use the membership role, not the user's global role
+            if is_legacy:
+                redirect_role = user.role
+            else:
+                # Get role from membership for the selected organization
+                try:
+                    membership = user.memberships.get(organization_id=org_id, is_active=True)
+                    redirect_role = membership.role
+                except:
+                    redirect_role = user.role  # Fallback to user role
+
+            # Redirect logic
+            if redirect_role == 'owner':
+                # Owners see the list of all branches in their organization (branchdash.html)
                 return redirect('index')
-            elif user.role in ['manager', 'sales']:
-                if user.branch:
-                    return redirect('branchdash', pk=user.branch.id)
+            elif redirect_role in ['manager', 'sales']:
+                if expired:
+                    messages.error(request, 'Organization subscription has expired. Contact admin for a sales or manager role.')
+                    return redirect('login')
+                if log_branch:
+                    return redirect('branchdash', pk=log_branch.id)
                 else:
                     messages.error(request, 'You are not assigned to a branch yet.')
                     return redirect('login')
             else:
                 messages.warning(request, 'Your role is not recognized.')
                 return redirect('login')
-
         else:
-            messages.error(request, 'Invalid email or password.')
-
+            # Invalid password
+            try:
+                failed_user = CustomUser.objects.get(email__iexact=email)
+                if is_legacy:
+                    org_obj = failed_user.organization
+                else:
+                    try:
+                        org_obj = failed_user.memberships.get(
+                            organization_id=org_id, is_active=True
+                        ).organization
+                    except:
+                        org_obj = None
+            except CustomUser.DoesNotExist:
+                org_obj = None
+                    
+            return render(request, 'account/login_password.html', {
+                'email': email,
+                'error': 'Invalid password. Please try again.',
+                'organization': org_obj
+            })
+    
+    # Step 1: Email submission
+    if request.method == 'POST' and 'email' in request.POST:
+        email = request.POST.get('email', '').strip()
+        
+        try:
+            user = CustomUser.objects.get(email__iexact=email)
+            from account.models import OrganizationMembership
+            
+            # Get all active organizations for this user
+            orgs = user.memberships.filter(is_active=True).select_related('organization')
+            
+            if orgs.count() == 0:
+                # No memberships - check if user has legacy single-org setup
+                if user.organization:
+                    # Legacy single-organization user - go straight to password
+                    request.session['login_email'] = email
+                    request.session['is_legacy_user'] = True
+                    request.session.modified = True
+                    return render(request, 'account/login_password.html', {
+                        'email': email,
+                        'organization': user.organization
+                    })
+                else:
+                    # User exists but has no active organizations
+                    return render(request, 'account/login.html', {
+                        'error': 'You do not have access to any organizations. Please contact support.',
+                        'email': email
+                    })
+            elif orgs.count() == 1:
+                # Only one organization - skip selector
+                request.session['login_email'] = email
+                request.session['selected_org_id'] = str(orgs.first().organization.id)
+                request.session['is_legacy_user'] = False
+                request.session.modified = True
+                return render(request, 'account/login_password.html', {
+                    'email': email,
+                    'organization': orgs.first().organization
+                })
+            else:
+                # Multiple organizations - show selector
+                request.session['login_email'] = email
+                request.session['is_legacy_user'] = False
+                request.session.modified = True
+                
+                org_list = []
+                for membership in orgs:
+                    org_list.append({
+                        'id': str(membership.organization.id),
+                        'name': membership.organization.name,
+                        'logo': membership.organization.logo.url if membership.organization.logo else None,
+                        'role': membership.role,
+                    })
+                
+                return render(request, 'account/login_org_select.html', {
+                    'email': email,
+                    'organizations': org_list,
+                    'user': user
+                })
+        except CustomUser.DoesNotExist:
+            return render(request, 'account/login.html', {
+                'error': 'No account found with this email. Please check and try again.',
+                'email': email
+            })
+    
+    # Default: Show email entry form
     return render(request, 'account/login.html')
 
 
@@ -282,7 +585,7 @@ def password_reset_complete(request):
 @login_required(login_url='login')
 @check_branch_limit
 def createBranch(request):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     if not organization:
         messages.error(request, 'You do not belong to any organization.')
         return redirect('login')
@@ -305,6 +608,7 @@ def createBranch(request):
                     user=owner,
                     message=f"New branch created: {new_branch.name}",
                     notification_type='success',
+                    organization=organization,
                     is_read=False
                 )
             return redirect('branch')
@@ -319,7 +623,7 @@ def createBranch(request):
 @login_required(login_url='login')
 def editBranch(request):
     if request.method == 'POST':
-        organization = request.user.organization
+        organization = get_request_organization(request)
         if not organization:
             messages.error(request, 'You do not belong to any organization.')
             return redirect('login')
@@ -352,7 +656,7 @@ def editBranch(request):
 @login_required(login_url='login')
 def deleteBranch(request):
     if request.method == 'POST':
-        organization = request.user.organization
+        organization = get_request_organization(request)
         if not organization:
             messages.error(request, 'You do not belong to any organization.')
             return redirect('login')
@@ -409,7 +713,7 @@ def deleteBranch(request):
 
 @login_required(login_url='login')
 def accountView(request):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     subscription = Subscription.objects.filter(organization=organization).order_by('-end_date').first()
     plan = subscription.plan if subscription else None
 
@@ -508,8 +812,8 @@ def force_password_change(request):
             # Log the activity
             ActivityLog.objects.create(
                 staff=request.user,
-                organization=request.user.organization,
-                branch=request.user.branch,
+                organization=get_request_organization(request),
+                branch=get_request_branch(request),
                 activity='Password changed on first login'
             )
 
@@ -556,7 +860,7 @@ def update_organization_branding(request):
         messages.error(request, "Invalid request method.")
         return redirect('settings')
 
-    organization = request.user.organization
+    organization = get_request_organization(request)
     if not organization:
         messages.error(request, "Organization not found.")
         return redirect('settings')
