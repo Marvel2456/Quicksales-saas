@@ -74,6 +74,7 @@ def check_low_stock(sender, instance, created, **kwargs):
                 user=owner,
                 message=message,
                 notification_type='warning',
+                organization=organization,
                 is_read=False
             )
             created_notification = True

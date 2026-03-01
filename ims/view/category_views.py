@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponse
 import csv
 import json
 from account.decorators import role_required
+from account.utils import get_request_organization
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 
@@ -21,8 +22,8 @@ from xhtml2pdf import pisa
 @role_required(roles=['owner'])
 @login_required(login_url='login')
 def branch_category(request):
-    # Assuming request.user is connected to an organization
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
 
     branch_qs = Branch.objects.filter(organization=organization)
 
@@ -48,7 +49,8 @@ def branch_category(request):
 @login_required
 # @is_unsubscribed
 def category_list(request, pk):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch = Branch.objects.get(organization=organization, id=pk)
     category_qs = Category.objects.filter(branch=branch, organization=organization)
     page = request.GET.get('page')
@@ -85,7 +87,7 @@ def category_list(request, pk):
 @login_required
 # @is_unsubscribed
 def category(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     category = get_object_or_404(Category, id=pk, organization=organization)
 
     context = {
@@ -98,7 +100,7 @@ def category(request, pk):
 @role_required(roles=['owner', 'manager'])
 @login_required
 def edit_category(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     category = get_object_or_404(Category, id=pk, organization=organization)
 
     if request.method == 'POST':
@@ -119,7 +121,7 @@ def edit_category(request, pk):
 
 @role_required(roles=['owner'])
 def delete_category(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     
     if request.method == 'POST':
         category = get_object_or_404(Category, id=pk, organization=organization)

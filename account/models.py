@@ -105,6 +105,35 @@ class Branch(models.Model):
         return self.name
 
 
+class OrganizationMembership(models.Model):
+    """Junction table for many-to-many relationship between users and organizations"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    user = models.ForeignKey('CustomUser', on_delete=models.CASCADE, related_name='memberships', db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='memberships', db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='staff_memberships', db_index=True)
+    role_choice = [
+        ('owner', 'Owner'),
+        ('manager', 'Manager'),
+        ('sales', 'Sales')
+    ]
+    role = models.CharField(max_length=100, choices=role_choice, default='sales', db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True, help_text='Is this membership active?')
+    date_joined = models.DateTimeField(auto_now_add=True, db_index=True)
+    date_removed = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "organization memberships"
+        unique_together = [('user', 'organization')]
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['organization', 'is_active']),
+            models.Index(fields=['branch', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.organization.name} ({self.role})"
+
+
 class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
@@ -136,8 +165,42 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
+    
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    # Multi-organization helper methods
+    def get_organizations(self):
+        """Get all organizations this user is a member of"""
+        return Organization.objects.filter(
+            memberships__user=self,
+            memberships__is_active=True
+        ).distinct()
+    
+    def get_active_memberships(self):
+        """Get all active memberships for this user"""
+        return self.memberships.filter(is_active=True).select_related('organization', 'branch')
+    
+    def get_membership_for_organization(self, organization):
+        """Get the membership for a specific organization"""
+        try:
+            return self.memberships.get(organization=organization, is_active=True)
+        except OrganizationMembership.DoesNotExist:
+            return None
+    
+    def is_member_of(self, organization):
+        """Check if user is an active member of the organization"""
+        return self.memberships.filter(organization=organization, is_active=True).exists()
+    
+    def get_role_in_organization(self, organization):
+        """Get user's role in a specific organization"""
+        membership = self.get_membership_for_organization(organization)
+        return membership.role if membership else None
+    
+    def get_branch_in_organization(self, organization):
+        """Get user's branch in a specific organization"""
+        membership = self.get_membership_for_organization(organization)
+        return membership.branch if membership else None
     
 
 class ActivityLog(models.Model):
@@ -169,6 +232,7 @@ class Notification(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notifications', db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='notifications', db_index=True, null=True, blank=True)
     message = models.CharField(max_length=500)
     notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='info')
     is_read = models.BooleanField(default=False, db_index=True)

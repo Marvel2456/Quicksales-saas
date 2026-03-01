@@ -76,7 +76,7 @@
     </style>
 </head> 
 
-<body class="app">
+<body class="app{% if org_role != 'owner' or active_branch_id %}{% else %} no-sidepanel{% endif %}">
     <header class="app-header fixed-top">
         {% include 'partials/_navbar.html' %}
         {% include 'partials/_sidebar.html' %}

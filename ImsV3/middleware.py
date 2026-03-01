@@ -36,23 +36,6 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
         return redirect('force_password_change')
 
 
-# class SubdomainOrganizationMiddleware(MiddlewareMixin):
-#     def process_request(self, request):
-#         host = request.get_host().split(':')[0]  # remove port
-#         parts = host.split('.')
-
-#         if len(parts) < 3:
-#             request.organization = None  # Root domain (e.g. landing page)
-#             return
-
-#         subdomain = parts[0]
-
-#         try:
-#             request.organization = Organization.objects.get(slug=subdomain)
-#         except Organization.DoesNotExist:
-#             return HttpResponse("Organization not found", status=404)
-
-
 class SubdomainOrganizationMiddleware(MiddlewareMixin):
     def process_request(self, request):
         host = request.get_host().split(':')[0]
@@ -78,8 +61,68 @@ class SubdomainOrganizationMiddleware(MiddlewareMixin):
 
 
 class OrganizationContextMiddleware(MiddlewareMixin):
-    """Add organization to template context for all authenticated users."""
+    """
+    Add organization and branch context for authenticated users.
+    Supports multi-organization memberships with session-based context switching.
+    """
     def process_request(self, request):
-        if request.user.is_authenticated:
-            request.organization = getattr(request.user, 'organization', None)
+        if not request.user.is_authenticated or request.user.is_superuser:
+            request.organization = None
+            request.branch = None
+            return None
+        
+        # Get active organization from session
+        active_org_id = request.session.get('active_organization_id')
+        
+        # Multi-org mode: Use memberships (PRIORITY over legacy FK)
+        try:
+            from account.models import OrganizationMembership
+            
+            # Try to get membership based on active_org_id in session
+            if active_org_id:
+                try:
+                    membership = request.user.memberships.select_related(
+                        'organization', 'branch'
+                    ).get(
+                        organization_id=active_org_id,
+                        is_active=True
+                    )
+                    request.organization = membership.organization
+                    request.branch = membership.branch
+                    request.user._current_role = membership.role  # Store role for this request
+                    return None
+                except OrganizationMembership.DoesNotExist:
+                    # Invalid org ID in session, clear it
+                    if 'active_organization_id' in request.session:
+                        del request.session['active_organization_id']
+            
+            # No active org in session, get first available membership
+            first_membership = request.user.memberships.select_related(
+                'organization', 'branch'
+            ).filter(is_active=True).first()
+            
+            if first_membership:
+                request.organization = first_membership.organization
+                request.branch = first_membership.branch
+                request.user._current_role = first_membership.role
+                request.session['active_organization_id'] = str(first_membership.organization.id)
+                return None
+                
+        except Exception:
+            pass  # Fall through to legacy mode
+        
+        # Backward compatibility: If user has organization FK (legacy single-org) and NO memberships
+        if hasattr(request.user, 'organization') and request.user.organization:
+            request.organization = request.user.organization
+            request.branch = request.user.branch
+            # Save to session for consistency
+            if not active_org_id:
+                request.session['active_organization_id'] = str(request.user.organization.id)
+            return None
+        
+        # User has no organization context at all
+        request.organization = None
+        request.branch = None
+        return None
+
         return None

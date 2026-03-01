@@ -250,3 +250,70 @@ class TicketComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author.email} on {self.ticket.title}"
+
+
+class Invoice(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('closed', 'Closed'),
+    ]
+    PAYMENT_CHOICES = [
+        ('Cash', 'Cash'),
+        ('Transfer', 'Transfer'),
+        ('POS', 'POS'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
+    # Customer info — typed in manually by owner on invoice creation
+    customer_name = models.CharField(max_length=255, blank=True, null=True)
+    customer_email = models.EmailField(blank=True, null=True)
+    customer_phone = models.CharField(max_length=50, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    due_date = models.DateField(blank=True, null=True)
+    total_amount = models.FloatField(default=0, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_CHOICES, blank=True, null=True)
+    invoice_number = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    date_created = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_index=True)
+    date_updated = models.DateTimeField(auto_now=True, blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['organization', '-date_created']),
+            models.Index(fields=['branch', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Invoice #{self.invoice_number} - {self.customer_name}"
+
+    @property
+    def get_total(self):
+        return sum(item.total or 0 for item in self.items.all())
+
+
+class InvoiceItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items', blank=True, null=True, db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
+    inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
+    quantity = models.IntegerField(default=1, blank=True, null=True)
+    unit_price = models.FloatField(blank=True, null=True)   # snapshot of sale_price at invoice creation
+    total = models.FloatField(default=0, blank=True, null=True)
+    date_created = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['invoice']),
+        ]
+
+    def __str__(self):
+        return f"{self.inventory} x{self.quantity}"
+
+    def save(self, *args, **kwargs):
+        if self.unit_price and self.quantity:
+            self.total = self.unit_price * self.quantity
+        super().save(*args, **kwargs)

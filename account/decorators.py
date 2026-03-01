@@ -1,22 +1,50 @@
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.contrib.auth.decorators import user_passes_test
-from .models import Branch, CustomUser
+from .models import Branch, CustomUser, OrganizationMembership
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from functools import wraps
 from django.contrib.auth.views import redirect_to_login
 from django.contrib import messages
 from django.urls import reverse
+from account.utils import get_request_organization
 
 
 def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login'):
+    """
+    Check organization-specific role from membership, fallback to global user role for legacy users.
+    """
     def decorator(function):
-        actual_decorator = user_passes_test(
-            lambda u: u.is_authenticated and u.is_active and u.role in roles,
-            login_url=login_url,
-            redirect_field_name=redirect_field_name
-        )
-        return actual_decorator(function)
+        @wraps(function)
+        def _wrapped_view(request, *args, **kwargs):
+            user = request.user
+            if not user.is_authenticated or not user.is_active:
+                return redirect_to_login(request.get_full_path(), login_url, redirect_field_name)
+            
+            # Get the organization from middleware context
+            organization = getattr(request, 'organization', None)
+            
+            if organization:
+                # Multi-org mode: check membership role
+                try:
+                    membership = user.memberships.get(
+                        organization_id=organization.id,
+                        is_active=True
+                    )
+                    user_role = membership.role
+                except OrganizationMembership.DoesNotExist:
+                    user_role = None
+            else:
+                # Legacy mode: use global user role
+                user_role = user.role
+            
+            if user_role in roles:
+                return function(request, *args, **kwargs)
+            
+            messages.error(request, f'You do not have permission to access this page. Required roles: {", ".join(roles)}')
+            return redirect_to_login(request.get_full_path(), login_url, redirect_field_name)
+        
+        return _wrapped_view
     return decorator
 
 
@@ -102,8 +130,11 @@ def check_user_limit(function):
     def wrapper(request, *args, **kwargs):
         if request.method == 'POST':
             from subscriptions.utils import can_create_user, get_plan_limits
-            
-            organization = request.user.organization
+
+            organization = get_request_organization(request) or getattr(request.user, "organization", None)
+            if not organization:
+                messages.error(request, 'You do not belong to any organization.')
+                return redirect('login')
             can_create, current, limit = can_create_user(organization)
             
             if not can_create:
@@ -128,8 +159,11 @@ def check_branch_limit(function):
     def wrapper(request, *args, **kwargs):
         if request.method == 'POST':
             from subscriptions.utils import can_create_branch, get_plan_limits
-            
-            organization = request.user.organization
+
+            organization = get_request_organization(request) or getattr(request.user, "organization", None)
+            if not organization:
+                messages.error(request, 'You do not belong to any organization.')
+                return redirect('login')
             can_create, current, limit = can_create_branch(organization)
             
             if not can_create:
@@ -154,8 +188,11 @@ def check_product_limit(function):
     def wrapper(request, *args, **kwargs):
         if request.method == 'POST':
             from subscriptions.utils import can_create_product, get_plan_limits
-            
-            organization = request.user.organization
+
+            organization = get_request_organization(request) or getattr(request.user, "organization", None)
+            if not organization:
+                messages.error(request, 'You do not belong to any organization.')
+                return redirect('login')
             can_create, current, limit = can_create_product(organization)
             
             if not can_create:

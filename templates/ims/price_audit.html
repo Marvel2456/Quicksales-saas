@@ -79,15 +79,15 @@
                       <nav aria-label="Page navigation example">
                         <ul class="pagination" style="color:yellow;">
                             {% if audit_page.has_previous %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ audit_page.previous_page_number }}">previous</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ audit_page.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">previous</a></li>
                             {% endif %}
                             {% for i in nums %}
                             <span class="current">
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}">{{forloop.counter}}</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}{% if query_params %}&{{ query_params }}{% endif %}">{{forloop.counter}}</a></li>
                             </span>
                             {% endfor %}
                             {% if audit_page.has_next %}
-                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ audit_page.next_page_number }}">next</a></li>
+                            <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ audit_page.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}">next</a></li>
                             {% endif %}
                         </ul>
                       </nav>

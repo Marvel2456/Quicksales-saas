@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponse
 import csv
 import json
 from account.decorators import role_required
+from account.utils import get_request_organization, get_request_branch
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.db.models import Sum, Count, Q
@@ -25,8 +26,9 @@ from ims.view_caching import cached_view
 @role_required(roles=['owner'])
 @login_required(login_url='login')
 def branchDasboard(request):
-    # Assuming request.user is connected to an organization
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
+    
     now = datetime.now()
     current_year = now.strftime("%Y")
     current_month = now.strftime("%m")
@@ -82,9 +84,30 @@ def branchDasboard(request):
 
 def dashboard(request, pk):
 
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
 
-    branch = Branch.objects.get(id=pk, organization=organization)
+    try:
+        branch = Branch.objects.get(id=pk, organization=organization)
+    except Branch.DoesNotExist:
+        # Branch doesn't belong to current organization
+        # Redirect to user's actual branch
+        user_branch = get_request_branch(request)
+        if user_branch:
+            messages.warning(
+                request,
+                "You don't have access to that branch. Redirecting to your branch."
+            )
+            return redirect('branchdash', pk=user_branch.id)
+        else:
+            messages.error(request, "No branch assigned to your account.")
+            return redirect('account')
+    
+    # Store current branch in session for sidebar navigation
+    request.session['active_branch_id'] = str(pk)
+    request.session['active_branch_name'] = branch.name
+    request.session.modified = True
+    
     now = datetime.now()
     current_year = now.strftime("%Y")
     current_month = now.strftime("%m")

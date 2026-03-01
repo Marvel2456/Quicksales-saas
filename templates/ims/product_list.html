@@ -62,7 +62,6 @@
                                         {% endif %}
                                     </div>    
                                     {% for inventory in inventory_page %}
-                                    {% if inventory.branch == user.branch %}
                                     <tr>
                                         <td class="cell"><span class="truncate">{{inventory.product.product_name}}</span></td>
                                         <td class="cell">{{inventory.product.category}}</td>
@@ -74,20 +73,7 @@
                                         
                                     </tr>
                                     
-                                    {% include 'ims/add_count.html' %}
-                                    {% elif user.is_admin %}
-                                    <tr>
-                                        <td class="cell"><span class="truncate">{{inventory.product.product_name}}</span></td>
-                                        <td class="cell">{{inventory.product.category}}</td>
-                                        
-                                        <td class="cell">
-                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#addCountModal{{inventory.pk}}"><i class="fa-solid fa-calculator"></i></a>
-                                        </td>
-                                        
-                                    </tr>
-                                    
-                                    {% include 'ims/add_count.html' %}
-                                    {% endif %}
+                                    {% include 'modals/add_count.html' %}
                                     {% endfor %}
                                     
                                 </tbody>

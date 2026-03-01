@@ -5,9 +5,11 @@
             <div class="row justify-content-between align-items-center">
             
             <div class="col-auto">
+                {% if org_role != 'owner' or active_branch_id %}
                 <a id="sidepanel-toggler" class="sidepanel-toggler d-inline-block d-xl-none" href="#">
                     <svg width="30" height="30" viewBox="0 0 30 30" role="img"><title>Menu</title><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg>
                 </a>
+                {% endif %}
             </div><!--//col-->
 
             <div class="app-utilities col-auto">
@@ -41,38 +43,38 @@
                         </div><!--//dropdown-menu-title-->
                         <div class="dropdown-menu-content" style="max-height: 400px; overflow-y: auto;">
                            <!-- All Notifications from Database -->
-                           {% if request.user.notifications.all %}
-                               {% for notification in request.user.notifications.all|slice:":10" %}
-                               <div class="item p-3 border-top">
-                                   <div class="row gx-2 align-items-center">
-                                       <div class="col">
-                                           <div class="info">
-                                               {% if notification.notification_type == 'success' %}
-                                                   <span class="badge bg-success me-2">
-                                                       <i class="fas fa-check-circle"></i>
-                                                   </span>
-                                               {% elif notification.notification_type == 'error' %}
-                                                   <span class="badge bg-danger me-2">
-                                                       <i class="fas fa-exclamation-circle"></i>
-                                                   </span>
-                                               {% elif notification.notification_type == 'warning' %}
-                                                   <span class="badge bg-warning me-2">
-                                                       <i class="fas fa-exclamation-triangle"></i>
-                                                   </span>
-                                               {% else %}
-                                                   <span class="badge bg-info me-2">
-                                                       <i class="fas fa-info-circle"></i>
-                                                   </span>
-                                               {% endif %}
-                                               <small>{{ notification.message }}</small>
-                                               <div style="font-size: 0.75rem; color: #999; margin-top: 5px;">
-                                                   {{ notification.created_at|timesince }} ago
+                           {% if recent_notifications %}
+                               {% for notification in recent_notifications %}
+                                   <div class="item p-3 border-top">
+                                       <div class="row gx-2 align-items-center">
+                                           <div class="col">
+                                               <div class="info">
+                                                   {% if notification.notification_type == 'success' %}
+                                                       <span class="badge bg-success me-2">
+                                                           <i class="fas fa-check-circle"></i>
+                                                       </span>
+                                                   {% elif notification.notification_type == 'error' %}
+                                                       <span class="badge bg-danger me-2">
+                                                           <i class="fas fa-exclamation-circle"></i>
+                                                       </span>
+                                                   {% elif notification.notification_type == 'warning' %}
+                                                       <span class="badge bg-warning me-2">
+                                                           <i class="fas fa-exclamation-triangle"></i>
+                                                       </span>
+                                                   {% else %}
+                                                       <span class="badge bg-info me-2">
+                                                           <i class="fas fa-info-circle"></i>
+                                                       </span>
+                                                   {% endif %}
+                                                   <small>{{ notification.message }}</small>
+                                                   <div style="font-size: 0.75rem; color: #999; margin-top: 5px;">
+                                                       {{ notification.created_at|timesince }} ago
+                                                   </div>
                                                </div>
                                            </div>
                                        </div>
                                    </div>
-                               </div>
-                               {% endfor %}
+                                   {% endfor %}
                            {% else %}
                                <!-- No Notifications -->
                                <div class="item p-3 text-center">
@@ -112,9 +114,9 @@
                     </a>
 
                     {% else %}
-                        {% if request.user.branch == branch %}
+                        {% if active_branch_id %}
                             {% comment %} {% if sale.get_cart_items in branch %} {% endcomment %}
-                            <a class="" href="{% url 'cart' branch.id %}" title="Cart" style="position: relative;">
+                            <a class="" href="{% url 'cart' active_branch_id %}" title="Cart" style="position: relative;">
                                 <!--//Bootstrap Icons: https://icons.getbootstrap.com/ -->
                                 <svg width="1.5em" height="1.5em" fill="currentColor" class="bi bi-cart" viewBox="0 0 16 16">
                                     <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5zM3.102 4l1.313 7h8.17l1.313-7H3.102zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
@@ -127,6 +129,35 @@
                     
 
                 </div><!--//app-utility-item-->
+                
+                <!-- Organization Switcher Dropdown -->
+                {% comment %} {% if user.memberships.all|length > 1 %}
+                <div class="app-utility-item app-organization-dropdown dropdown">
+                    <a class="dropdown-toggle" id="org-dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false" title="Switch Organization">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-building" viewBox="0 0 16 16">
+                            <path d="M4 5.713C4 .915 6.46 0 8 0s4 .915 4 5.713v.882L15.823 7.29a.5.5 0 0 1 .023.585l-1.396 3.212c-.145.334-.74.714-1.42.714H13V15a1 1 0 0 1-1 1v1H3v-1a1 1 0 0 1-1-1v-2H1.577c-.68 0-1.274-.38-1.42-.714l-1.396-3.212a.5.5 0 0 1 .023-.585L4 6.595v-.882zM9 5.05c0-.431-.224-.808-.544-1.021a2.456 2.456 0 0 0-.656-.313.5.5 0 0 0-.5.5v.5h1.7zm-5 1.466V5.05h-1.7v.5a.5.5 0 0 0 .5.5c.285.082.464.193.656.313.32.213.544.59.544 1.021zM13 7h-1v8h1V7zM4 7v8h2v-1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1h2V7H4z"/>
+                        </svg>
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="org-dropdown-toggle">
+                        <li><h6 class="dropdown-header">My Organizations</h6></li>
+                        {% for membership in user.memberships.all %}
+                            {% if membership.is_active %}
+                            <li>
+                                <a class="dropdown-item" href="{% url 'switch_organization' membership.organization.id %}">
+                                    {% if request.session.active_organization_id == membership.organization.id|stringformat:"s" %}
+                                        <i class="fas fa-check me-2 text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-building me-2"></i>
+                                    {% endif %}
+                                    {{ membership.organization.name }}
+                                    <span class="badge bg-secondary ms-2">{{ membership.role|upper }}</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div><!--//app-organization-dropdown-->
+                {% endif %} {% endcomment %}
                 
                 <div class="app-utility-item app-user-dropdown dropdown">
                     <a class="dropdown-toggle" id="user-dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false"><img src="{% static 'assets/images/user_thumb.png' %}" alt="user profile"></a>

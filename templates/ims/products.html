@@ -50,7 +50,7 @@
                                         <th class="cell"></th>
                                     </tr>
                                 </thead>
-                                {% if request.user.role == 'owner' %}
+                                {% if org_role == 'owner' %}
                                 <div class="m-2 py-2">
                                     <a class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                         <i class="fas fa-plus"></i>
@@ -76,7 +76,7 @@
                                         <td class="cell"><span class="truncate">{{product.product_name}}</span></td>
                                         <td class="cell">{{product.category}}</td>
                                         <td class="cell"><span class="note">{{product.updated_at}}</span></td>
-                                        {% if user.role == 'owner' %}
+                                        {% if org_role == 'owner' %}
                                         <td class="cell">
                                             <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{product.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
                                             <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{product.pk}}"><i class="fa-solid fa-trash-can"></i></a>

@@ -39,12 +39,14 @@ class SubscriptionMiddleware:
         if not request.user.is_authenticated:
             return self.get_response(request)
         
+        # Use organization from middleware context (supports multi-org)
+        organization = getattr(request, 'organization', None) or getattr(request.user, 'organization', None)
+        
         # Skip check if user has no organization
-        if not hasattr(request.user, 'organization') or not request.user.organization:
+        if not organization:
             return self.get_response(request)
         
         # Check subscription status
-        organization = request.user.organization
         subscription = Subscription.objects.filter(
             organization=organization,
             is_active=True,

@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Create Invoice — {{ branch.name }}{% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <h1 class="app-page-title mb-0">New Invoice — {{ branch.name }}</h1>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'invoices' branch.id %}" class="btn app-btn-secondary">
+                    &larr; Back to Invoices
+                </a>
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="{% url 'create_invoice' branch.id %}">
+            {% csrf_token %}
+
+            <div class="row g-4">
+                <!-- Customer Info -->
+                <div class="col-12 col-lg-4">
+                    <div class="app-card shadow-sm p-4">
+                        <h5 class="app-card-title mb-3">Customer Details</h5>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Customer Name</label>
+                            <input type="text" name="customer_name" class="form-control" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Email Address</label>
+                            <input type="email" name="customer_email" class="form-control"
+                                placeholder="customer@email.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Phone Number</label>
+                            <input type="text" name="customer_phone" class="form-control" placeholder="+234...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Due Date <span
+                                    class="text-muted">(optional)</span></label>
+                            <input type="date" name="due_date" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Payment Method</label>
+                            <select name="payment_method" class="form-select">
+                                <option value="">Select...</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Transfer">Transfer</option>
+                                <option value="POS">POS</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Notes <span class="text-muted">(optional)</span></label>
+                            <textarea name="notes" class="form-control" rows="3"
+                                placeholder="Any additional information..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Line Items -->
+                <div class="col-12 col-lg-8">
+                    <div class="app-card shadow-sm p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="app-card-title mb-0">Invoice Items</h5>
+                            <button type="button" class="btn btn-sm app-btn-secondary" id="addItemBtn">+ Add
+                                Item</button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table" id="itemsTable">
+                                <thead>
+                                    <tr>
+                                        <th style="min-width:180px;">Product</th>
+                                        <th style="min-width:90px;">Qty</th>
+                                        <th style="min-width:110px;">Unit Price (₦)</th>
+                                        <th style="min-width:110px;">Subtotal (₦)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itemsBody">
+                                    <tr class="item-row">
+                                        <td>
+                                            <select name="inventory_id[]" class="form-select product-select" required>
+                                                <option value="">-- Select product --</option>
+                                                {% for inv in inventory %}
+                                                <option value="{{ inv.id }}" data-price="{{ inv.sale_price }}">
+                                                    {{ inv.product.product_name }} (Stock: {{ inv.quantity }})
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        <td><input type="number" name="quantity[]" class="form-control qty-input"
+                                                min="1" value="1" required></td>
+                                        <td><input type="text" class="form-control unit-price-display" readonly
+                                                placeholder="0.00"></td>
+                                        <td><input type="text" class="form-control row-total" readonly
+                                                placeholder="0.00"></td>
+                                        <td><button type="button"
+                                                class="btn btn-sm btn-outline-danger remove-row-btn">✕</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <div class="text-end">
+                                <h5>Grand Total: <strong class="text-success" id="grandTotal">₦0.00</strong></h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-3 gap-2">
+                        <a href="{% url 'invoices' branch.id %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn app-btn-primary">Create Invoice</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Template for a new row
+    const inventoryOptions = `
+        <option value="">-- Select product --</option>
+        {% for inv in inventory %}
+        <option value="{{ inv.id }}" data-price="{{ inv.sale_price }}">{{ inv.product.product_name }} (Stock: {{ inv.quantity }})</option>
+        {% endfor %}
+    `;
+
+    function recalcRow(row) {
+        const select = row.querySelector('.product-select');
+        const qtyInput = row.querySelector('.qty-input');
+        const unitPriceDisplay = row.querySelector('.unit-price-display');
+        const rowTotal = row.querySelector('.row-total');
+
+        const selectedOption = select.options[select.selectedIndex];
+        const price = parseFloat(selectedOption?.dataset?.price || 0);
+        const qty = parseInt(qtyInput.value || 0);
+
+        unitPriceDisplay.value = price.toLocaleString('en-NG', { minimumFractionDigits: 2 });
+        rowTotal.value = (price * qty).toLocaleString('en-NG', { minimumFractionDigits: 2 });
+
+        recalcTotal();
+    }
+
+    function recalcTotal() {
+        let total = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const select = row.querySelector('.product-select');
+            const qtyInput = row.querySelector('.qty-input');
+            const price = parseFloat(select.options[select.selectedIndex]?.dataset?.price || 0);
+            const qty = parseInt(qtyInput.value || 0);
+            total += price * qty;
+        });
+        document.getElementById('grandTotal').textContent = '₦' + total.toLocaleString('en-NG', { minimumFractionDigits: 2 });
+    }
+
+    function attachRowListeners(row) {
+        row.querySelector('.product-select').addEventListener('change', () => recalcRow(row));
+        row.querySelector('.qty-input').addEventListener('input', () => recalcRow(row));
+        row.querySelector('.remove-row-btn').addEventListener('click', () => {
+            if (document.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+                recalcTotal();
+            }
+        });
+    }
+
+    // Attach listeners to initial row
+    attachRowListeners(document.querySelector('.item-row'));
+
+    document.getElementById('addItemBtn').addEventListener('click', () => {
+        const tbody = document.getElementById('itemsBody');
+        const newRow = document.createElement('tr');
+        newRow.className = 'item-row';
+        newRow.innerHTML = `
+            <td><select name="inventory_id[]" class="form-select product-select" required>${inventoryOptions}</select></td>
+            <td><input type="number" name="quantity[]" class="form-control qty-input" min="1" value="1" required></td>
+            <td><input type="text" class="form-control unit-price-display" readonly placeholder="0.00"></td>
+            <td><input type="text" class="form-control row-total" readonly placeholder="0.00"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger remove-row-btn">✕</button></td>
+        `;
+        tbody.appendChild(newRow);
+        attachRowListeners(newRow);
+    });
+</script>
+
+{% endblock content %}

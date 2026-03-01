@@ -195,6 +195,7 @@ def send_trial_expiry_reminders(self):
                     f"{org.trial_end.strftime('%b %d, %Y %H:%M')}"
                 ),
                 notification_type='warning',
+                organization=org,
                 is_read=False,
             )
 
@@ -260,6 +261,7 @@ def send_subscription_expiry_reminders(self):
                     f"expires in {days_remaining} day(s) on {subscription.end_date.strftime('%b %d, %Y')}"
                 ),
                 notification_type='warning',
+                organization=org,
                 is_read=False,
             )
 

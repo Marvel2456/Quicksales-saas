@@ -8,6 +8,14 @@ from account.models import Branch
 
 
 class StaffCreateForm(forms.ModelForm):
+    organization = None
+    branch = None
+    
+    def __init__(self, *args, **kwargs):
+        self.organization = kwargs.pop('organization', None)
+        self.branch = kwargs.pop('branch', None)
+        super().__init__(*args, **kwargs)
+    
     class Meta:
         model = CustomUser
         fields = ('first_name', 'last_name', 'phone_number', 'email', 'role')
@@ -22,9 +30,31 @@ class StaffCreateForm(forms.ModelForm):
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if CustomUser.objects.filter(email=email).exists():
-            raise ValidationError("Email already exists")
+        # Only check if email exists within the same organization
+        if self.organization:
+            from account.models import OrganizationMembership
+            if OrganizationMembership.objects.filter(
+                user__email=email,
+                organization=self.organization,
+                is_active=True
+            ).exists():
+                raise ValidationError(f"Email '{email}' already exists in this organization")
         return email
+    
+    def full_clean(self):
+        super().full_clean()
+        # Remove the model-level unique constraint on email since we allow multi-org users
+        # Email uniqueness is enforced per-organization in clean_email() instead
+        if 'email' in self.errors:
+            self.errors['email'] = [
+                error for error in self.errors['email']
+                if 'already exists' not in str(error) and 'unique' not in str(error).lower()
+            ]
+            if not self.errors['email']:
+                del self.errors['email']
+                # Ensure email is in cleaned_data even if model validation failed
+                if 'email' not in self.cleaned_data and self.data.get('email'):
+                    self.cleaned_data['email'] = self.data.get('email')
 
 
 class UserEditForm(ModelForm):
@@ -250,7 +280,7 @@ class CreateTicketForm(ModelForm):
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
         if organization:
-            self.fields['assigned_to'].queryset = CustomUser.objects.filter(organization=organization)
+            self.fields['assigned_to'].queryset = CustomUser.objects.filter(memberships__organization=organization, memberships__is_active=True).distinct()
         # Widgets
         self.fields['title'].widget = forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Issue title'})
         self.fields['description'].widget = forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Describe the issue'})
@@ -269,7 +299,7 @@ class UpdateTicketForm(ModelForm):
         organization = kwargs.pop('organization', None)
         super().__init__(*args, **kwargs)
         if organization:
-            self.fields['assigned_to'].queryset = CustomUser.objects.filter(organization=organization)
+            self.fields['assigned_to'].queryset = CustomUser.objects.filter(memberships__organization=organization, memberships__is_active=True).distinct()
         self.fields['status'].widget = forms.Select(attrs={'class': 'form-select'})
 
     class Meta:

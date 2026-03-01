@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponse
 import csv
 import json
 from account.decorators import role_required
+from account.utils import get_request_organization
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.db.models import Sum
@@ -24,7 +25,8 @@ from ims.view_caching import cached_view
 @role_required(roles=['owner'])
 @login_required
 def branchStore(request):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -50,7 +52,7 @@ def branchStore(request):
 # @is_unsubscribed
 def store(request, pk):
     """Store view - optimized with select_related and proper pagination"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     
     # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
@@ -87,7 +89,7 @@ def store(request, pk):
 # @is_unsubscribed
 def cart(request, pk):
     """Cart view - optimized with select_related and prefetch_related"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     
     if request.user.is_authenticated:
         staff = request.user
@@ -155,7 +157,7 @@ def cart(request, pk):
 # @is_unsubscribed
 def checkout(request, pk):
     """Checkout view - optimized with select_related"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
        
     if request.user.is_authenticated:
         staff = request.user
@@ -214,7 +216,7 @@ def updateCart(request, pk):
     print('inventory:', inventoryId)
     print('Action:', action)
    
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
     # Use select_related for efficient branch loading
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
@@ -290,7 +292,7 @@ def updateQuantity(request, pk):
     input_value = int(data['val'])
     inventory_Id = data['invent_id']
     
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
     try:
         branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
@@ -352,7 +354,7 @@ def deleteCartItem(request, pk):
     data = json.loads(request.body)
     inventory_Id = data['invent_id']
     
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
     try:
         branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
@@ -408,7 +410,7 @@ def sale_complete(request, pk):
     transaction_id = datetime.now().timestamp()
     data = json.loads(request.body)
 
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
 
     try:
@@ -494,6 +496,7 @@ def sale_complete(request, pk):
                     user=owner,
                     message=f"High-value sale completed: ₦{sale.final_total_price:,.2f} by {staff.get_full_name() or staff.email} at {branch.name} branch",
                     notification_type='success',
+                    organization=organization,
                     is_read=False
                 )
 
@@ -518,7 +521,8 @@ def sale_complete(request, pk):
 @role_required(roles=['owner'])
 @login_required
 def branchSales(request):
-    organization = request.user.organization
+    # Use organization from middleware context (supports multi-org)
+    organization = get_request_organization(request)
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -544,7 +548,7 @@ def branchSales(request):
 # @is_unsubscribed
 def sales(request, pk):
     """Sales list view - optimized with select_related and aggregate"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
     
@@ -599,7 +603,7 @@ def sales(request, pk):
 
 
 def sale_pdf(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     branch = Branch.objects.get(organization=organization, id=pk)
     sale_qs = Sale.objects.filter(
         branch=branch,
@@ -674,7 +678,7 @@ def sale_pdf(request, pk):
 @role_required(roles=['owner'])
 @login_required
 def export_sales_csv(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     branch = Branch.objects.get(organization=organization, id=pk)
     response = HttpResponse(content_type = 'text/csv')
     response['Content-Disposition']='attachment; filename = Sales History'+str(datetime.now())+'.csv'
@@ -714,7 +718,7 @@ def export_sales_csv(request, pk):
 
 @role_required(roles=['owner'])
 def export_profit_csv(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     branch = Branch.objects.get(organization=organization, id=pk)
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
@@ -751,7 +755,7 @@ def export_profit_csv(request, pk):
 @login_required
 def create_new_sale(request, pk):
     """Create a new sale and set it as active"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
     
     try:
@@ -774,7 +778,7 @@ def create_new_sale(request, pk):
 @login_required
 def switch_sale(request, pk, sale_id):
     """Switch to a different open sale"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
     
     try:
@@ -798,7 +802,7 @@ def switch_sale(request, pk, sale_id):
 @login_required
 def cancel_sale(request, pk, sale_id):
     """Cancel a sale but keep history for reporting"""
-    organization = request.user.organization
+    organization = get_request_organization(request)
     staff = request.user
     
     try:
@@ -850,7 +854,7 @@ def cancel_sale(request, pk, sale_id):
 @role_required(roles=['owner', 'sales'])
 @login_required
 def reciept(request, pk):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     try:
         sale = Sale.objects.get(id=pk, branch__organization=organization)
     except Sale.DoesNotExist:
@@ -870,7 +874,7 @@ def reciept(request, pk):
 def profitData(request, pk):
     profits = []
 
-    organization = request.user.organization
+    organization = get_request_organization(request)
     sale = get_object_or_404(Sale, id=pk, organization=organization)
     items = sale.salesitem_set.all()
 

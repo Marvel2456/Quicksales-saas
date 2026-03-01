@@ -7,7 +7,18 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
 
 
-class OwnerRegisterForm(UserCreationForm):
+class OwnerRegisterForm(forms.Form):
+    """
+    Custom form for owner registration that doesn't inherit from UserCreationForm
+    to avoid email uniqueness validation issues in multi-org setup.
+    """
+    email = forms.EmailField(required=True, label='Business Email')
+    first_name = forms.CharField(max_length=100, required=True, label='First Name')
+    last_name = forms.CharField(max_length=100, required=True, label='Last Name')
+    phone_number = forms.CharField(max_length=100, required=False, label='Phone Number')
+    password1 = forms.CharField(widget=forms.PasswordInput, label='Password', required=False)
+    password2 = forms.CharField(widget=forms.PasswordInput, label='Confirm Password', required=False)
+    
     organization_name = forms.CharField(max_length=255, required=True, label='Organization Name')
     organization_country = forms.CharField(max_length=300, required=False, label='Organization Country')
     organization_logo = forms.ImageField(required=False, label='Organization Logo')
@@ -26,13 +37,35 @@ class OwnerRegisterForm(UserCreationForm):
         required=True,
         label='Business Type'
     )
-    class Meta:
-        model = CustomUser
-        fields = (
-            'email', 'first_name', 'last_name', 'phone_number',
-            'organization_name', 'organization_country', 'organization_logo', 'brand_color',
-            'branch_name', 'branch_address', 'business_type', 'password1', 'password2'
-        )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        email = cleaned_data.get('email')
+        password1 = cleaned_data.get('password1')
+        password2 = cleaned_data.get('password2')
+        
+        # Check if user already exists
+        user_exists = False
+        if email:
+            try:
+                CustomUser.objects.get(email__iexact=email)
+                user_exists = True
+            except CustomUser.DoesNotExist:
+                pass
+
+        # If user doesn't exist, passwords are required
+        if not user_exists:
+            if not password1:
+                self.add_error('password1', "Password is required for new users.")
+            elif len(password1) < 8:
+                self.add_error('password1', "Password must be at least 8 characters long.")
+                
+            if not password2:
+                self.add_error('password2', "Please confirm your password.")
+            elif password1 and password2 and password1 != password2:
+                self.add_error('password2', "Passwords don't match.")
+        
+        return cleaned_data
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:

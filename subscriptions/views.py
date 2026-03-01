@@ -4,6 +4,7 @@ from .models import Subscription, Plan, Payment, Coupon, CouponRedemption
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from account.decorators import role_required
+from account.utils import get_request_org_role, get_request_organization
 from django.shortcuts import get_object_or_404
 import requests
 from django.conf import settings
@@ -151,17 +152,21 @@ def validate_coupon(coupon_code):
 
 @login_required
 def settingsView(request):
-    # Check if user has owner role
-    if request.user.role != 'owner':
-        messages.error(request, "Only organization owners can access settings.")
-        return redirect('dashboard')
+    # Get organization from middleware context
+    organization = get_request_organization(request)
     
     # Check if user has an organization
-    if not hasattr(request.user, 'organization') or request.user.organization is None:
+    if organization is None:
         messages.error(request, "You must be part of an organization to access settings.")
         return redirect('dashboard')
     
-    organization = request.user.organization
+    # Check if user has owner role in this organization
+    user_role = get_request_org_role(request, organization)
+    
+    if user_role != 'owner':
+        messages.error(request, "Only organization owners can access settings.")
+        return redirect('dashboard')
+    
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
     plans = Plan.objects.exclude(tier='free').order_by('tier', 'size', 'billing_frequency')
 
@@ -201,7 +206,7 @@ def cancel_plan(request, subscription_id):
         return redirect("settings")
     
     # Check if user has owner role
-    if request.user.role != 'owner':
+    if get_request_org_role(request, get_request_organization(request)) != 'owner':
         messages.error(request, "Only organization owners can cancel subscriptions.")
         return redirect("settings")
     
@@ -209,7 +214,7 @@ def cancel_plan(request, subscription_id):
     try:
         subscription = Subscription.objects.get(
             id=subscription_id,
-            organization=request.user.organization,
+            organization=get_request_organization(request),
             is_active=True
         )
     except Subscription.DoesNotExist:
@@ -227,7 +232,7 @@ def cancel_plan(request, subscription_id):
 
 @login_required
 def init_payment(request, plan_id):
-    organization = request.user.organization
+    organization = get_request_organization(request)
     plan = get_object_or_404(Plan, id=plan_id)
 
     # Get coupon from request if provided
@@ -328,7 +333,7 @@ def create_payment(request):
                 if not coupon.is_valid():
                     print(f"❌ Coupon expired: {coupon_code}")
                     return JsonResponse({"error": "Coupon is no longer valid"}, status=400)
-                if CouponRedemption.objects.filter(coupon=coupon, organization=request.user.organization).exists():
+                if CouponRedemption.objects.filter(coupon=coupon, organization=get_request_organization(request)).exists():
                     print(f"❌ Coupon already used: {coupon_code}")
                     return JsonResponse({"error": "Coupon already used"}, status=400)
                 print(f"✓ Coupon valid: {coupon_code}")
@@ -338,7 +343,7 @@ def create_payment(request):
         
         # Deactivate previous subscriptions for this organization
         old_subs = Subscription.objects.filter(
-            organization=request.user.organization,
+            organization=get_request_organization(request),
             is_active=True
         )
         count = old_subs.count()
@@ -347,7 +352,7 @@ def create_payment(request):
             print(f"✓ Deactivated {count} previous subscription(s)")
         
         subscription = Subscription.objects.create(
-            organization=request.user.organization,
+            organization=get_request_organization(request),
             plan=plan,
             provider="paystack",
             currency="NGN",
@@ -362,7 +367,7 @@ def create_payment(request):
             # Record redemption
             CouponRedemption.objects.create(
                 coupon=coupon,
-                organization=request.user.organization,
+                organization=get_request_organization(request),
                 subscription=subscription,
             )
             coupon.uses += 1
@@ -420,7 +425,7 @@ def create_payment(request):
         if coupon:
             CouponRedemption.objects.create(
                 coupon=coupon,
-                organization=request.user.organization,
+                organization=get_request_organization(request),
                 subscription=subscription,
             )
             coupon.uses += 1
@@ -450,7 +455,7 @@ def verify_payment(request):
     
     try:
         print(f"🔍 Verifying payment with reference: {reference}")
-        print(f"👤 Organization: {request.user.organization.name}")
+        print(f"👤 Organization: {get_request_organization(request).name}")
         
         # Verify payment with Paystack
         headers = {
@@ -474,7 +479,7 @@ def verify_payment(request):
                     print(f"💳 Found payment record: {payment.id}")
                 except Payment.DoesNotExist:
                     print(f"❌ Payment not found for reference: {reference}")
-                    print(f"Available transactions: {list(Payment.objects.filter(subscription__organization=request.user.organization).values_list('transaction_id', flat=True))}")
+                    print(f"Available transactions: {list(Payment.objects.filter(subscription__organization=get_request_organization(request)).values_list('transaction_id', flat=True))}")
                     messages.error(request, 'Payment record not found')
                     return redirect('settings')
                 
