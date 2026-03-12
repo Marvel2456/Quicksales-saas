@@ -136,25 +136,12 @@ class OwnerRegisterView(View):
                     activity=f'Added as owner of new organization: {organization.name}'
                 )
                 
-                # Send notification email with organization-specific login URL
-                from django.core.mail import send_mail
-                from django.conf import settings
-                try:
-                    protocol = get_protocol()
-                    login_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/account/login/"
-                    send_mail(
-                        subject=f'You\'ve been added to {organization.name}',
-                        message=f'Your account has been added as the owner of {organization.name}.\n\nYou can now log in here: {login_url}\n\nIf you have multiple organizations, you can switch between them in your dashboard.',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[user.email],
-                        fail_silently=True,
-                    )
-                except Exception as e:
-                    print(f"Email notification failed: {e}")
+                # Send verification email for the new organization
+                send_verification_email(user, organization)
                 
                 messages.success(
                     request,
-                    f'Organization created successfully! You can log in with your existing credentials to manage {organization.name}.'
+                    f'Organization created successfully! Please check your email to verify your account for {organization.name}.'
                 )
             else:
                 # Create new user
@@ -211,15 +198,18 @@ def verifyEmail(request, uidb64, token):
         user = None
 
     if user and default_token_generator.check_token(user, token):
+        # Get the organization from the request (subdomain)
+        organization = get_request_organization(request)
+        
+        # If user is not active, activate them
         if not user.is_active:
             user.is_active = True
             user.save()
 
-            # generate subdomain login URL
+        # Always send welcome email for the organization they're verifying
+        if organization:
             protocol = get_protocol()
-            login_url = f"{protocol}://{user.organization.slug}.{settings.DOMAIN}/account/login/"
-
-            # Send welcome email after verification
+            login_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/account/login/"
             send_welcome_email(user, login_url)
 
         messages.success(request, "Email verified successfully. You can now log in.")
