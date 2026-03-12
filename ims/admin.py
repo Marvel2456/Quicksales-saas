@@ -2,7 +2,7 @@ from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 from unfold.decorators import display
 from unfold.admin import ModelAdmin
-from .models import Product, Sale, SalesItem, Category, Inventory, Supplier, ErrorTicket
+from .models import Product, Sale, SalesItem, Category, Inventory, Supplier, ErrorTicket, Invoice
 
 # Register your models here.
 
@@ -118,3 +118,12 @@ class ErrorTicketAdmin(ModelAdmin):
     search_fields = ['title', 'staff__email', 'branch__name']
     list_filter = ['status', 'branch', 'organization']
     autocomplete_fields = ['organization', 'branch', 'staff']
+
+
+
+@admin.register(Invoice)
+class InvoiceAdmin(ModelAdmin):
+    list_display = ['organization', 'branch', 'created_by', 'invoice_number', 'customer_name', 'date_created', 'due_date', 'status']
+    search_fields = ['invoice_number', 'customer_name', 'customer_email', 'branch__name', 'created_by__email']
+    list_filter = ['status', 'branch', 'organization']
+    autocomplete_fields = ['organization', 'branch', 'created_by']

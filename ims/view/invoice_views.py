@@ -99,7 +99,11 @@ def create_invoice(request, pk):
     organization = get_request_organization(request)
     branch = get_object_or_404(Branch, organization=organization, id=pk)
     inventory_qs = Inventory.objects.filter(
-        branch=branch, organization=organization
+        branch=branch,
+        organization=organization,
+        product__branch=branch,
+        product__organization=organization,
+        quantity__gt=0,
     ).select_related('product').order_by('product__product_name')
 
     if request.method == 'POST':
@@ -136,12 +140,29 @@ def create_invoice(request, pk):
         )
 
         total = 0.0
+        valid_items_count = 0
         for inv_id, qty in zip(inventory_ids, quantities):
             try:
-                inventory = Inventory.objects.get(id=inv_id, branch=branch, organization=organization)
+                inventory = Inventory.objects.get(
+                    id=inv_id,
+                    branch=branch,
+                    organization=organization,
+                    product__branch=branch,
+                    product__organization=organization,
+                )
                 qty_int = int(qty) if qty else 0
                 if qty_int <= 0:
                     continue
+                if qty_int > inventory.quantity:
+                    messages.error(
+                        request,
+                        f'Insufficient stock for {inventory.product.product_name}. Available: {inventory.quantity}.',
+                    )
+                    invoice.delete()
+                    return render(request, 'ims/create_invoice.html', {
+                        'branch': branch,
+                        'inventory': inventory_qs,
+                    })
                 unit_price = inventory.sale_price or 0.0
                 item_total = unit_price * qty_int
                 InvoiceItem.objects.create(
@@ -154,8 +175,17 @@ def create_invoice(request, pk):
                     total=item_total,
                 )
                 total += item_total
+                valid_items_count += 1
             except Inventory.DoesNotExist:
                 continue
+
+        if valid_items_count == 0:
+            invoice.delete()
+            messages.error(request, 'Please add at least one valid product from this branch.')
+            return render(request, 'ims/create_invoice.html', {
+                'branch': branch,
+                'inventory': inventory_qs,
+            })
 
         invoice.total_amount = total
         invoice.save()
