@@ -329,7 +329,7 @@
                     </div>
                     <div class="d-flex align-items-center gap-2 mb-1" id="req-unique">
                         <i class="bi bi-check-lg gray-icon fs-5"></i>
-                        <span>Your password has to be unique</span>
+                        <span>Passwords must match</span>
                     </div>
                     <div class="d-flex align-items-center gap-2" id="req-numeric">
                         <i class="bi bi-check-lg gray-icon fs-5"></i>
@@ -510,13 +510,15 @@
         }
 
         // Password Strength Validation
-        document.getElementById('id_password1').addEventListener('input', function (e) {
-            const password = e.target.value;
+        function validatePasswords() {
+            const password1 = document.getElementById('id_password1').value;
+            const password2 = document.getElementById('id_password2').value;
+            const submitBtn = document.querySelector('#step3 button[type="submit"]');
 
-            // 8 characters
+            // 8 characters requirement
             const reqLength = document.getElementById('req-length');
             const iconLength = reqLength.querySelector('i');
-            if (password.length >= 8) {
+            if (password1.length >= 8 && password2.length >= 8) {
                 reqLength.classList.add('text-success-custom');
                 iconLength.classList.remove('gray-icon');
                 iconLength.classList.add('check-icon');
@@ -526,10 +528,10 @@
                 iconLength.classList.remove('check-icon');
             }
 
-            // Numeric check
+            // Numeric check - password can't be entirely numeric
             const reqNumeric = document.getElementById('req-numeric');
             const iconNumeric = reqNumeric.querySelector('i');
-            if (password.length > 0 && !/^\d+$/.test(password)) {
+            if (password1.length > 0 && password2.length > 0 && !/^\d+$/.test(password1) && !/^\d+$/.test(password2)) {
                 reqNumeric.classList.add('text-success-custom');
                 iconNumeric.classList.remove('gray-icon');
                 iconNumeric.classList.add('check-icon');
@@ -539,11 +541,10 @@
                 iconNumeric.classList.remove('check-icon');
             }
 
-            // Unique check
+            // Passwords match check
             const reqUnique = document.getElementById('req-unique');
             const iconUnique = reqUnique.querySelector('i');
-
-            if (password.length > 3) {
+            if (password1.length > 0 && password2.length > 0 && password1 === password2) {
                 reqUnique.classList.add('text-success-custom');
                 iconUnique.classList.remove('gray-icon');
                 iconUnique.classList.add('check-icon');
@@ -551,6 +552,27 @@
                 reqUnique.classList.remove('text-success-custom');
                 iconUnique.classList.add('gray-icon');
                 iconUnique.classList.remove('check-icon');
+            }
+
+            // Enable submit button only if all requirements are met
+            const allRequirementsMet = password1.length >= 8 && 
+                                      password2.length >= 8 && 
+                                      !/^\d+$/.test(password1) && 
+                                      !/^\d+$/.test(password2) && 
+                                      password1 === password2;
+            
+            submitBtn.disabled = !allRequirementsMet;
+        }
+
+        // Add event listeners to both password fields
+        document.getElementById('id_password1').addEventListener('input', validatePasswords);
+        document.getElementById('id_password2').addEventListener('input', validatePasswords);
+
+        // Initialize submit button as disabled
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitBtn = document.querySelector('#step3 button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
             }
         });
     </script>
