@@ -2,22 +2,23 @@
 {% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Marvex Quicksales - Smart Inventory Management System</title>
 
     <link rel="shortcut icon" href="{% static 'assets/images/mq.png' %}">
-    
+
     <!-- Bootstrap CSS -->
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
-    
+
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    
+
     <!-- Custom Landing Page CSS -->
     <link href="{% static 'assets/css/landing.css' %}" rel="stylesheet">
-    
+
     <style>
         /* Uncut Sans Font Registration */
         @font-face {
@@ -26,18 +27,21 @@
             font-weight: 400;
             font-style: normal;
         }
+
         @font-face {
             font-family: 'Uncut Sans';
             src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Medium.otf' %}") format('opentype');
             font-weight: 500;
             font-style: normal;
         }
+
         @font-face {
             font-family: 'Uncut Sans';
             src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Semibold.otf' %}") format('opentype');
             font-weight: 600;
             font-style: normal;
         }
+
         @font-face {
             font-family: 'Uncut Sans';
             src: url("{% static 'assets/plugins/uncut/Uncut-Sans-Bold.otf' %}") format('opentype');
@@ -49,7 +53,14 @@
             font-family: 'Uncut Sans', sans-serif !important;
         }
 
-        h1, h2, h3, h4, h5, h6, .navbar-nav .nav-link, .btn {
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .navbar-nav .nav-link,
+        .btn {
             font-family: 'Uncut Sans', sans-serif !important;
         }
 
@@ -58,24 +69,24 @@
             --primary-hover: #000080;
             --secondary-color: #4169E1;
         }
-        
+
         /* Navbar Styles */
         .navbar {
             background-color: #ffffff;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 0.5rem 0;
         }
-        
+
         .navbar-brand img {
             height: 75px;
             width: auto;
             transition: transform 0.3s ease;
         }
-        
+
         .navbar-brand img:hover {
             transform: scale(1.05);
         }
-        
+
         .navbar-nav .nav-link {
             color: var(--primary-color) !important;
             font-weight: 500;
@@ -84,11 +95,11 @@
             transition: color 0.3s ease;
             position: relative;
         }
-        
+
         .navbar-nav .nav-link:hover {
             color: var(--secondary-color) !important;
         }
-        
+
         .navbar-nav .nav-link::after {
             content: '';
             position: absolute;
@@ -100,11 +111,11 @@
             background-color: var(--secondary-color);
             transition: width 0.3s ease;
         }
-        
+
         .navbar-nav .nav-link:hover::after {
             width: 80%;
         }
-        
+
         .btn-login {
             color: var(--primary-color) !important;
             font-weight: 500;
@@ -112,11 +123,11 @@
             border: 2px solid transparent;
             transition: all 0.3s ease;
         }
-        
+
         .btn-login:hover {
             color: var(--secondary-color) !important;
         }
-        
+
         .btn-start-trial {
             background-color: var(--secondary-color);
             color: #ffffff !important;
@@ -126,14 +137,14 @@
             border: 2px solid var(--secondary-color);
             transition: all 0.3s ease;
         }
-        
+
         .btn-start-trial:hover {
             background-color: transparent;
             color: var(--secondary-color) !important;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(65, 105, 225, 0.3);
         }
-        
+
         /* Navbar Toggle - Custom Hamburger */
         .navbar-toggler {
             border: none !important;
@@ -141,21 +152,22 @@
             padding: 5px !important;
             width: 40px !important;
             height: 40px !important;
-            display: none; /* Default to hidden, shown via media query on mobile */
+            display: none;
+            /* Default to hidden, shown via media query on mobile */
             position: relative !important;
             cursor: pointer !important;
             z-index: 1000 !important;
         }
-        
+
         .navbar-toggler:hover {
-            background-color: rgba(0,0,0,0.05) !important;
+            background-color: rgba(0, 0, 0, 0.05) !important;
         }
-        
+
         .navbar-toggler:focus {
             box-shadow: none !important;
             outline: none !important;
         }
-        
+
         /* Custom Hamburger Lines */
         .navbar-toggler-icon {
             position: relative !important;
@@ -165,7 +177,7 @@
             background-color: #00004d !important;
             margin: 0 auto !important;
         }
-        
+
         .navbar-toggler-icon::before,
         .navbar-toggler-icon::after {
             content: '' !important;
@@ -176,22 +188,22 @@
             background-color: #00004d !important;
             transition: all 0.3s ease !important;
         }
-        
+
         .navbar-toggler-icon::before {
             top: -7px !important;
         }
-        
+
         .navbar-toggler-icon::after {
             bottom: -7px !important;
         }
-        
+
         /* Hide toggler on desktop */
         @media (min-width: 992px) {
             .navbar-toggler {
                 display: none !important;
             }
         }
-        
+
         /* Ensure toggler shows on mobile */
         @media (max-width: 991.98px) {
             .navbar-toggler {
@@ -200,34 +212,36 @@
                 opacity: 1 !important;
             }
         }
-        
+
         /* Mobile Menu Styles */
         @media (max-width: 991.98px) {
             .navbar-nav {
                 padding: 1rem 0;
             }
-            
+
             .navbar-nav .nav-link {
                 padding: 0.75rem 0 !important;
             }
-            
+
             .navbar-nav .nav-link::after {
                 display: none;
             }
-            
-            .btn-login, .btn-start-trial {
+
+            .btn-login,
+            .btn-start-trial {
                 width: 100%;
                 margin: 0.5rem 0;
                 text-align: center;
             }
         }
-        
+
         /* Body Padding for Fixed Navbar */
         body {
             padding-top: 80px;
         }
     </style>
 </head>
+
 <body>
 
     <!-- Responsive Navbar -->
@@ -237,13 +251,13 @@
             <a class="navbar-brand" href="{% url 'landing_page' %}">
                 <img src="{% static 'assets/images/mq_logo.png' %}" alt="Marvex Quicksales Logo">
             </a>
-            
+
             <!-- Mobile Toggle Button -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            
+
             <!-- Navbar Links -->
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-lg-center">
@@ -312,10 +326,9 @@
                         <!-- Dashboard Preview Image -->
                         <div class="dashboard-preview">
                             <div class="dashboard-mockup">
-                                <img src="{% static 'assets/images/Hero.png' %}" 
-                                     alt="Dashboard Preview" 
-                                     class="img-fluid rounded-4 shadow-lg"
-                                     onerror="this.src='{% static 'assets/images/Hero.png' %}'">
+                                <img src="{% static 'assets/images/Hero.png' %}" alt="Dashboard Preview"
+                                    class="img-fluid rounded-4 shadow-lg"
+                                    onerror="this.src=`{% static 'assets/images/Hero.png' %}`">
                             </div>
                         </div>
                     </div>
@@ -323,7 +336,7 @@
             </div>
         </div>
     </section>
-    
+
     <style>
         /* Hero Section Styles */
         .hero-section {
@@ -331,7 +344,7 @@
             padding: 120px 0 80px;
             overflow: hidden;
         }
-        
+
         /* Feature Icons */
         .hero-icons {
             display: flex;
@@ -340,7 +353,7 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         .icon-badge {
             width: 70px;
             height: 70px;
@@ -353,43 +366,46 @@
             animation: float 3s ease-in-out infinite;
             transition: transform 0.3s ease;
         }
-        
+
         .icon-badge:hover {
             transform: translateY(-10px) scale(1.1);
         }
-        
+
         .icon-badge.icon-green {
             background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
             box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
             animation-delay: 0.5s;
         }
-        
+
         .icon-badge.icon-red {
             background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
             box-shadow: 0 8px 20px rgba(244, 67, 54, 0.3);
             animation-delay: 1s;
         }
-        
+
         .icon-badge i {
             font-size: 2rem;
             color: white;
         }
-        
+
         @keyframes float {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: translateY(0);
             }
+
             50% {
                 transform: translateY(-15px);
             }
         }
-        
+
         /* Hero Content */
         .hero-content {
             max-width: 900px;
             margin: 0 auto;
         }
-        
+
         .hero-title {
             font-size: 3rem;
             font-weight: 700;
@@ -397,7 +413,7 @@
             line-height: 1.2;
             margin-bottom: 1.5rem;
         }
-        
+
         .hero-subtitle {
             font-size: 1.25rem;
             color: #6c757d;
@@ -405,7 +421,7 @@
             max-width: 700px;
             margin: 0 auto 2rem;
         }
-        
+
         /* Hero Buttons */
         .hero-buttons {
             display: flex;
@@ -413,7 +429,7 @@
             justify-content: center;
             flex-wrap: wrap;
         }
-        
+
         .btn-hero-primary {
             background: linear-gradient(135deg, #4169E1 0%, #1E90FF 100%);
             color: white;
@@ -425,14 +441,14 @@
             box-shadow: 0 8px 20px rgba(65, 105, 225, 0.3);
             transition: all 0.3s ease;
         }
-        
+
         .btn-hero-primary:hover {
             background: linear-gradient(135deg, #1E90FF 0%, #4169E1 100%);
             transform: translateY(-3px);
             box-shadow: 0 12px 28px rgba(65, 105, 225, 0.4);
             color: white;
         }
-        
+
         .btn-hero-secondary {
             background: white;
             color: #1a1a2e;
@@ -443,7 +459,7 @@
             border: 2px solid #dee2e6;
             transition: all 0.3s ease;
         }
-        
+
         .btn-hero-secondary:hover {
             background: #f8f9fa;
             border-color: #4169E1;
@@ -451,21 +467,21 @@
             transform: translateY(-3px);
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
         }
-        
+
         /* Dashboard Preview */
         .dashboard-preview {
             margin-top: 4rem;
             perspective: 1000px;
             width: 100%;
         }
-        
+
         .dashboard-mockup {
             position: relative;
             width: 100%;
             margin: 0 auto;
             animation: fadeInUp 1s ease-out;
         }
-        
+
         .dashboard-mockup img {
             width: 100%;
             border: none;
@@ -473,76 +489,77 @@
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
             transition: transform 0.3s ease;
         }
-        
+
         .dashboard-mockup:hover img {
             transform: translateY(-10px) rotateX(2deg);
         }
-        
+
         @keyframes fadeInUp {
             from {
                 opacity: 0;
                 transform: translateY(40px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .hero-section {
                 padding: 100px 0 60px;
             }
-            
+
             .hero-title {
                 font-size: 2rem;
             }
-            
+
             .hero-subtitle {
                 font-size: 1rem;
             }
-            
+
             .icon-badge {
                 width: 60px;
                 height: 60px;
             }
-            
+
             .icon-badge i {
                 font-size: 1.5rem;
             }
-            
+
             .hero-buttons {
                 flex-direction: column;
                 align-items: stretch;
             }
-            
+
             .btn-hero-primary,
             .btn-hero-secondary {
                 width: 100%;
                 max-width: 300px;
                 margin: 0 auto;
             }
-            
+
             .dashboard-preview {
                 margin-top: 2rem;
             }
         }
-        
+
         @media (max-width: 576px) {
             .hero-title {
                 font-size: 1.75rem;
             }
-            
+
             .hero-icons {
                 gap: 1rem;
             }
-            
+
             .icon-badge {
                 width: 50px;
                 height: 50px;
             }
-            
+
             .icon-badge i {
                 font-size: 1.25rem;
             }
@@ -602,7 +619,8 @@
                     <div class="business-content">
                         <p class="business-label text-uppercase mb-3">For Businesses</p>
                         <h2 class="business-title mb-4">Built for Modern<br>Retail Businesses</h2>
-                        <p class="business-description">Designed for inventory-driven businesses operating across stores, teams, and locations.</p>
+                        <p class="business-description">Designed for inventory-driven businesses operating across
+                            stores, teams, and locations.</p>
                     </div>
                 </div>
 
@@ -615,7 +633,8 @@
                                     <div class="row g-3">
                                         <div class="col-md-4">
                                             <div class="business-card">
-                                                <img src="{% static 'assets/images/1.png' %}" alt="Retail Stores" class="business-card-img">
+                                                <img src="{% static 'assets/images/1.png' %}" alt="Retail Stores"
+                                                    class="business-card-img">
                                                 <div class="business-card-overlay">
                                                     <h5 class="business-card-title">Retail Stores</h5>
                                                 </div>
@@ -623,7 +642,8 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="business-card">
-                                                <img src="{% static 'assets/images/2.png' %}" alt="Grocery & Supermarkets" class="business-card-img">
+                                                <img src="{% static 'assets/images/2.png' %}"
+                                                    alt="Grocery & Supermarkets" class="business-card-img">
                                                 <div class="business-card-overlay">
                                                     <h5 class="business-card-title">Grocery &<br>Supermarkets</h5>
                                                 </div>
@@ -631,7 +651,8 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="business-card">
-                                                <img src="{% static 'assets/images/3.png' %}" alt="Pharmacies" class="business-card-img">
+                                                <img src="{% static 'assets/images/3.png' %}" alt="Pharmacies"
+                                                    class="business-card-img">
                                                 <div class="business-card-overlay">
                                                     <h5 class="business-card-title">Pharmacies</h5>
                                                 </div>
@@ -639,7 +660,8 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="business-card">
-                                                <img src="{% static 'assets/images/4.png' %}" alt="Ware House" class="business-card-img">
+                                                <img src="{% static 'assets/images/4.png' %}" alt="Ware House"
+                                                    class="business-card-img">
                                                 <div class="business-card-overlay">
                                                     <h5 class="business-card-title">Ware House</h5>
                                                 </div>
@@ -647,7 +669,8 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="business-card">
-                                                <img src="{% static 'assets/images/5.png' %}" alt="Boutique" class="business-card-img">
+                                                <img src="{% static 'assets/images/5.png' %}" alt="Boutique"
+                                                    class="business-card-img">
                                                 <div class="business-card-overlay">
                                                     <h5 class="business-card-title">Boutique</h5>
                                                 </div>
@@ -655,7 +678,8 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="business-card">
-                                                <img src="{% static 'assets/images/6.png' %}" alt="Mall" class="business-card-img">
+                                                <img src="{% static 'assets/images/6.png' %}" alt="Mall"
+                                                    class="business-card-img">
                                                 <div class="business-card-overlay">
                                                     <h5 class="business-card-title">Mall</h5>
                                                 </div>
@@ -665,13 +689,15 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Carousel Controls -->
                         <div class="carousel-controls mt-4 text-center">
-                            <button class="carousel-control-btn me-2" type="button" data-bs-target="#businessCarousel" data-bs-slide="prev">
+                            <button class="carousel-control-btn me-2" type="button" data-bs-target="#businessCarousel"
+                                data-bs-slide="prev">
                                 <i class="bi bi-chevron-left"></i>
                             </button>
-                            <button class="carousel-control-btn" type="button" data-bs-target="#businessCarousel" data-bs-slide="next">
+                            <button class="carousel-control-btn" type="button" data-bs-target="#businessCarousel"
+                                data-bs-slide="next">
                                 <i class="bi bi-chevron-right"></i>
                             </button>
                         </div>
@@ -816,33 +842,43 @@
 
         /* Responsive */
         @media (max-width: 991.98px) {
+
             /* Typography Scale Reduction */
             body {
                 font-weight: 400 !important;
             }
-            
-            h1, .hero-title {
-                font-size: 2.1rem !important; /* Reduced from 3rem */
+
+            h1,
+            .hero-title {
+                font-size: 2.1rem !important;
+                /* Reduced from 3rem */
                 line-height: 1.2 !important;
                 font-weight: 600 !important;
             }
-            
-            h2, .section-title, .business-title {
-                font-size: 1.75rem !important; /* Reduced from 2.5rem */
+
+            h2,
+            .section-title,
+            .business-title {
+                font-size: 1.75rem !important;
+                /* Reduced from 2.5rem */
                 line-height: 1.3 !important;
                 font-weight: 600 !important;
             }
-            
-            h3, h4, h5 {
+
+            h3,
+            h4,
+            h5 {
                 font-weight: 600 !important;
             }
-            
+
             .business-card-title {
                 font-size: 1.1rem;
                 font-weight: 500;
             }
 
-            p, .hero-subtitle, .section-description {
+            p,
+            .hero-subtitle,
+            .section-description {
                 font-size: 1rem !important;
                 font-weight: 400 !important;
             }
@@ -862,26 +898,31 @@
                 flex-wrap: nowrap;
                 overflow-x: auto;
                 padding-bottom: 1rem;
-                scrollbar-width: none; /* Firefox */
-                -ms-overflow-style: none; /* IE 10+ */
-                margin-right: -15px; /* Pull to edge */
+                scrollbar-width: none;
+                /* Firefox */
+                -ms-overflow-style: none;
+                /* IE 10+ */
+                margin-right: -15px;
+                /* Pull to edge */
                 padding-right: 15px;
             }
-            
+
             .business-carousel-wrapper .row::-webkit-scrollbar {
-                display: none; /* Safari and Chrome */
+                display: none;
+                /* Safari and Chrome */
             }
 
             .business-carousel-wrapper .col-md-4 {
-                flex: 0 0 85%; /* Card width */
+                flex: 0 0 85%;
+                /* Card width */
                 max-width: 85%;
                 margin-right: 15px;
             }
-            
+
             .business-card {
                 height: 240px;
             }
-            
+
             /* Hide carousel controls on mobile */
             .carousel-controls {
                 display: none;
@@ -892,7 +933,7 @@
             .business-title {
                 font-size: 1.75rem;
             }
-            
+
             .business-card {
                 height: 200px;
                 margin-bottom: 1rem;
@@ -907,7 +948,9 @@
             <div class="text-center mb-5">
                 <p class="section-label text-uppercase mb-2">Sales Operations</p>
                 <h2 class="section-title mb-3">Sales & POS that powers<br>your entire system</h2>
-                <p class="section-description mx-auto">Every transaction updates your business instantly. Sales, pricing, and<br class="d-none d-md-block">inventory stay connected in real time—without manual work.</p>
+                <p class="section-description mx-auto">Every transaction updates your business instantly. Sales,
+                    pricing, and<br class="d-none d-md-block">inventory stay connected in real time—without manual work.
+                </p>
             </div>
 
             <!-- Content -->
@@ -915,10 +958,9 @@
                 <!-- Left Side - Checkout Image -->
                 <div class="col-lg-6 mb-4 mb-lg-0">
                     <div class="checkout-image-wrapper">
-                        <img src="{% static 'assets/images/Sales.png' %}" 
-                             alt="Checkout System" 
-                             class="img-fluid checkout-image"
-                             onerror="this.src='{% static 'assets/images/Sales.png' %}'">
+                        <img src="{% static 'assets/images/Sales.png' %}" alt="Checkout System"
+                            class="img-fluid checkout-image"
+                            onerror="this.src=`{% static 'assets/images/Sales.png' %}`">
                     </div>
                 </div>
 
@@ -926,30 +968,36 @@
                 <div class="col-lg-6">
                     <div class="features-list">
                         <!-- Feature 1 -->
-                        <div class="feature-item mb-5 active" data-feature="0" data-image="{% static 'assets/images/Sales.png' %}">
+                        <div class="feature-item mb-5 active" data-feature="0"
+                            data-image="{% static 'assets/images/Sales.png' %}">
                             <div class="feature-progress mb-3">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title mb-3">Fast Point of Sale</h5>
-                            <p class="feature-description">Process sales instantly with automatic inventory and profit updates at checkout.</p>
+                            <p class="feature-description">Process sales instantly with automatic inventory and profit
+                                updates at checkout.</p>
                         </div>
 
                         <!-- Feature 2 -->
-                        <div class="feature-item mb-5" data-feature="1" data-image="{% static 'assets/images/sales1.png' %}">
+                        <div class="feature-item mb-5" data-feature="1"
+                            data-image="{% static 'assets/images/sales1.png' %}">
                             <div class="feature-progress mb-3">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title mb-3">Smart Cart & Pricing</h5>
-                            <p class="feature-description">Adjust quantities, pricing, and discounts with real-time calculations before checkout.</p>
+                            <p class="feature-description">Adjust quantities, pricing, and discounts with real-time
+                                calculations before checkout.</p>
                         </div>
 
                         <!-- Feature 3 -->
-                        <div class="feature-item mb-5" data-feature="2" data-image="{% static 'assets/images/Sales2.png' %}">
+                        <div class="feature-item mb-5" data-feature="2"
+                            data-image="{% static 'assets/images/Sales2.png' %}">
                             <div class="feature-progress mb-3">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title mb-3">Digital & Print Receipts</h5>
-                            <p class="feature-description">Generate professional receipts instantly—available digitally or print-ready, with full history saved.</p>
+                            <p class="feature-description">Generate professional receipts instantly—available digitally
+                                or print-ready, with full history saved.</p>
                         </div>
 
                         <!-- Feature 4 -->
@@ -958,7 +1006,8 @@
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title mb-3">Real-Time Sales Tracking</h5>
-                            <p class="feature-description">Monitor sales totals, transactions, and revenue across all branches as they happen.</p>
+                            <p class="feature-description">Monitor sales totals, transactions, and revenue across all
+                                branches as they happen.</p>
                         </div>
                     </div>
                 </div>
@@ -980,9 +1029,12 @@
 
                 <!-- Right Side - Description & Button -->
                 <div class="col-lg-6 d-flex flex-column justify-content-center ps-lg-5">
-                    <p class="section-description mb-4">Quicksales connects sales, pricing, and inventory in real time so nothing slips through the cracks.</p>
+                    <p class="section-description mb-4">Quicksales connects sales, pricing, and inventory in real time
+                        so nothing slips through the cracks.</p>
                     <div>
-                        <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-4" style="background-color: #2563EB; border: none; font-size: 0.95rem; font-weight: 600; border-radius: 12px;">Start free trial</a>
+                        <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-4"
+                            style="background-color: #2563EB; border: none; font-size: 0.95rem; font-weight: 600; border-radius: 12px;">Start
+                            free trial</a>
                     </div>
                 </div>
             </div>
@@ -994,10 +1046,9 @@
                         <!-- Background Pattern/Shape -->
                         <div class="dashboard-bg-shape"></div>
                         <!-- Dashboard Image -->
-                        <img src="{% static 'assets/images/Inv.png' %}" 
-                             alt="Inventory Dashboard" 
-                             class="img-fluid dashboard-floating-img"
-                             onerror="this.src='{% static 'assets/images/Inv.png' %}'">
+                        <img src="{% static 'assets/images/Inv.png' %}" alt="Inventory Dashboard"
+                            class="img-fluid dashboard-floating-img"
+                            onerror="this.src=`{% static 'assets/images/Inv.png' %}`">
                     </div>
                 </div>
             </div>
@@ -1024,7 +1075,8 @@
                             </div>
                             <h6 class="feature-title">Physical Count & Variance</h6>
                         </div>
-                        <p class="feature-desc">Compare physical counts with system data to identify shrinkage instantly.</p>
+                        <p class="feature-desc">Compare physical counts with system data to identify shrinkage
+                            instantly.</p>
                     </div>
                 </div>
 
@@ -1080,7 +1132,7 @@
             letter-spacing: -0.02em;
             line-height: 1.1;
         }
-        
+
         .section-description {
             color: #4B5563;
             font-size: 1.15rem;
@@ -1097,9 +1149,12 @@
 
         .dashboard-bg-shape {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-image: 
-                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(45deg, rgba(255, 255, 255, 0.1) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.1) 75%, transparent 75%, transparent);
             background-size: 100px 100px;
             opacity: 0.5;
         }
@@ -1111,13 +1166,13 @@
             position: relative;
             z-index: 2;
             background: white;
-            border: 1px solid rgba(0,0,0,0.05);
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .inventory-feature-item {
             padding-right: 1rem;
         }
-        
+
         .inventory-feature-item .feature-header {
             display: flex;
             align-items: center;
@@ -1125,7 +1180,8 @@
         }
 
         .inventory-feature-item .feature-icon {
-            color: #374151; /* Dark grey */
+            color: #374151;
+            /* Dark grey */
             font-size: 1.2rem;
             width: 24px;
             height: 24px;
@@ -1135,7 +1191,7 @@
             margin-right: 0.75rem;
             flex-shrink: 0;
         }
-        
+
         .inventory-feature-item .feature-title {
             font-size: 1rem;
             font-weight: 700;
@@ -1143,7 +1199,7 @@
             margin-bottom: 0;
             line-height: 1.2;
         }
-        
+
         .inventory-feature-item .feature-desc {
             font-size: 0.9rem;
             color: #6B7280;
@@ -1155,6 +1211,7 @@
             .inventory-dashboard-wrapper {
                 padding: 2rem;
             }
+
             .section-title {
                 font-size: 2rem;
             }
@@ -1295,51 +1352,57 @@
                 <div class="col-lg-5 mb-4 mb-lg-0 order-2 order-lg-1">
                     <div class="branch-features-list">
                         <!-- Feature 1 -->
-                        <div class="branch-feature-item mb-4 active" data-index="0" data-image="{% static 'assets/images/branch.png' %}">
+                        <div class="branch-feature-item mb-4 active" data-index="0"
+                            data-image="{% static 'assets/images/branch.png' %}">
                             <div class="feature-line-progress mb-2">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title">Multi-Branch Management</h5>
-                            <p class="feature-description">Manage multiple store locations with independent sales, inventory, and performance views.</p>
+                            <p class="feature-description">Manage multiple store locations with independent sales,
+                                inventory, and performance views.</p>
                         </div>
 
-                         <!-- Feature 2 -->
-                        <div class="branch-feature-item mb-4" data-index="1" data-image="{% static 'assets/images/branch1.png' %}">
+                        <!-- Feature 2 -->
+                        <div class="branch-feature-item mb-4" data-index="1"
+                            data-image="{% static 'assets/images/branch1.png' %}">
                             <div class="feature-line-progress mb-2">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title">Role-Based Staff Access</h5>
-                            <p class="feature-description">Assign permissions by role to protect sensitive data and streamline operations.</p>
+                            <p class="feature-description">Assign permissions by role to protect sensitive data and
+                                streamline operations.</p>
                         </div>
 
-                         <!-- Feature 3 -->
-                        <div class="branch-feature-item mb-4" data-index="2" data-image="{% static 'assets/images/branch2.png' %}">
+                        <!-- Feature 3 -->
+                        <div class="branch-feature-item mb-4" data-index="2"
+                            data-image="{% static 'assets/images/branch2.png' %}">
                             <div class="feature-line-progress mb-2">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title">Staff Performance Insights</h5>
-                            <p class="feature-description">Track sales and transactions per staff member to drive accountability and growth.</p>
+                            <p class="feature-description">Track sales and transactions per staff member to drive
+                                accountability and growth.</p>
                         </div>
 
-                         <!-- Feature 4 -->
-                        <div class="branch-feature-item mb-4" data-index="3" data-image="{% static 'assets/images/branch3.png' %}">
+                        <!-- Feature 4 -->
+                        <div class="branch-feature-item mb-4" data-index="3"
+                            data-image="{% static 'assets/images/branch3.png' %}">
                             <div class="feature-line-progress mb-2">
                                 <div class="progress-bar"></div>
                             </div>
                             <h5 class="feature-title">Reports & Data Exports</h5>
-                            <p class="feature-description">Generate sales, profit, and audit reports instantly—exportable in CSV or PDF.</p>
+                            <p class="feature-description">Generate sales, profit, and audit reports
+                                instantly—exportable in CSV or PDF.</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Right Side - Image Display -->
                 <div class="col-lg-7 ps-lg-5 order-1 order-lg-2 mb-4 mb-lg-0">
-                     <div class="branch-image-wrapper">
-                        <img src="{% static 'assets/images/Pos1.png' %}" 
-                             alt="Branch Management" 
-                             class="img-fluid branch-image"
-                             id="branch-feature-image"
-                             onerror="this.src='{% static 'assets/images/hero1.jpg' %}'">
+                    <div class="branch-image-wrapper">
+                        <img src="{% static 'assets/images/Pos1.png' %}" alt="Branch Management"
+                            class="img-fluid branch-image" id="branch-feature-image"
+                            onerror="this.src=`{% static 'assets/images/hero1.jpg' %}`">
                     </div>
                 </div>
             </div>
@@ -1359,10 +1422,8 @@
             position: relative;
         }
 
-        .branch-feature-item.active {
-            /* No border change */
-        }
-        
+        /* No border change */
+
         .branch-feature-item .feature-title {
             font-size: 1.1rem;
             font-weight: 700;
@@ -1370,7 +1431,7 @@
             margin-bottom: 0.5rem;
             transition: color 0.3s ease;
         }
-        
+
         .branch-feature-item.active .feature-title {
             color: #111827;
         }
@@ -1381,7 +1442,7 @@
             line-height: 1.5;
             margin-bottom: 0.5rem;
         }
-        
+
         .branch-feature-item.active .feature-description {
             color: #4B5563;
         }
@@ -1392,14 +1453,16 @@
             height: 4px;
             border-radius: 2px;
             overflow: hidden;
-            display: block; /* Always visible track */
-            opacity: 0.3; /* Dimmed when inactive */
+            display: block;
+            /* Always visible track */
+            opacity: 0.3;
+            /* Dimmed when inactive */
         }
-        
+
         .branch-feature-item.active .feature-line-progress {
             opacity: 1;
         }
-        
+
         .feature-line-progress .progress-bar {
             width: 0%;
             height: 100%;
@@ -1421,7 +1484,8 @@
             border-radius: 12px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             width: 100%;
-            max-width: 450px; /* Constrain width */
+            max-width: 450px;
+            /* Constrain width */
             background: white;
             transition: opacity 0.3s ease;
             position: relative;
@@ -1435,7 +1499,8 @@
             <!-- Header -->
             <div class="mb-5">
                 <span class="inventory-badge mb-3">MORE FEATURES</span>
-                <h2 class="section-title fw-bold text-dark mt-2" style="max-width: 800px;">Run Your Business End-to-End<br>With Proper Documentation</h2>
+                <h2 class="section-title fw-bold text-dark mt-2" style="max-width: 800px;">Run Your Business
+                    End-to-End<br>With Proper Documentation</h2>
                 <p class="section-description mt-3" style="max-width: 700px;">
                     Keep clear records of sales, inventory changes, staff activity, and business operations.
                 </p>
@@ -1450,7 +1515,8 @@
                             <i class="bi bi-funnel"></i>
                         </div>
                         <h6 class="feature-title mb-2">Transaction Records</h6>
-                        <p class="feature-desc">Every sale, restock, and adjustment is logged with timestamps for easy reference.</p>
+                        <p class="feature-desc">Every sale, restock, and adjustment is logged with timestamps for easy
+                            reference.</p>
                     </div>
                 </div>
 
@@ -1461,7 +1527,8 @@
                             <i class="bi bi-graph-up-arrow"></i>
                         </div>
                         <h6 class="feature-title mb-2">Inventory Change History</h6>
-                        <p class="feature-desc">Track what changed, when it changed, and why—across products and branches.</p>
+                        <p class="feature-desc">Track what changed, when it changed, and why—across products and
+                            branches.</p>
                     </div>
                 </div>
 
@@ -1472,7 +1539,8 @@
                             <i class="bi bi-pause-btn"></i>
                         </div>
                         <h6 class="feature-title mb-2">Audit-Ready Reports</h6>
-                        <p class="feature-desc">Generate clear records for sales, stock counts, and adjustments whenever needed.</p>
+                        <p class="feature-desc">Generate clear records for sales, stock counts, and adjustments whenever
+                            needed.</p>
                     </div>
                 </div>
 
@@ -1505,7 +1573,8 @@
                             <i class="bi bi-database-check"></i>
                         </div>
                         <h6 class="feature-title mb-2">Exportable Business Data</h6>
-                        <p class="feature-desc">Download records in CSV or PDF formats for sharing, review, or compliance.</p>
+                        <p class="feature-desc">Download records in CSV or PDF formats for sharing, review, or
+                            compliance.</p>
                     </div>
                 </div>
             </div>
@@ -1527,11 +1596,13 @@
 
     <style>
         .more-features-section {
-            background-color: #FDFDFD; /* Very light grey/white */
+            background-color: #FDFDFD;
+            /* Very light grey/white */
         }
-        
+
         .more-feature-item .feature-icon {
-            color: #374151; /* Dark grey */
+            color: #374151;
+            /* Dark grey */
             font-size: 1.2rem;
             width: 24px;
             height: 24px;
@@ -1544,7 +1615,7 @@
             font-weight: 700;
             color: #111827;
         }
-        
+
         .more-feature-item .feature-desc {
             font-size: 0.95rem;
             color: #6B7280;
@@ -1553,7 +1624,8 @@
 
         /* CTA Banner */
         .cta-banner {
-            background-color: #2563EB; /* Blue base */
+            background-color: #2563EB;
+            /* Blue base */
             background: linear-gradient(100deg, #2563EB 0%, #1D4ED8 100%);
             border-radius: 20px;
             padding: 2.5rem 2rem;
@@ -1561,7 +1633,7 @@
             overflow: hidden;
             box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.3);
         }
-        
+
         /* Decorative Shapes for CTA */
         .cta-banner::before {
             content: "";
@@ -1573,7 +1645,7 @@
             background: rgba(0, 0, 0, 0.1);
             transform: rotate(20deg);
         }
-        
+
         .cta-banner::after {
             content: "";
             position: absolute;
@@ -1584,7 +1656,7 @@
             background: rgba(0, 0, 0, 0.1);
             transform: rotate(20deg);
         }
-        
+
         .cta-title {
             color: white;
             font-weight: 700;
@@ -1593,7 +1665,7 @@
             position: relative;
             z-index: 2;
         }
-        
+
         .cta-btn {
             color: #111827;
             font-weight: 600;
@@ -1603,20 +1675,22 @@
             z-index: 2;
             border: none;
         }
-        
+
         .cta-btn:hover {
             background-color: #f3f4f6;
             color: #2563EB;
         }
-        
+
         @media (max-width: 768px) {
             .cta-banner {
                 padding: 2rem 1rem;
                 text-align: center;
             }
+
             .cta-title {
-               font-size: 1.5rem; 
+                font-size: 1.5rem;
             }
+
             .text-md-end {
                 text-align: center !important;
             }
@@ -1624,43 +1698,43 @@
     </style>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const branchItems = document.querySelectorAll('.branch-feature-item');
             const branchImage = document.querySelector('#branch-feature-image');
-            
+
             if (!branchItems.length || !branchImage) return;
-            
+
             let currentIndex = 0;
             let cycleInterval;
-            
+
             function setActiveBranch(index) {
                 branchItems.forEach(item => {
                     item.classList.remove('active');
                     // Reset progress bar - keep it VISIBLE but reset width
                     const bar = item.querySelector('.feature-line-progress .progress-bar');
-                    if(bar) {
+                    if (bar) {
                         bar.style.width = '0%';
                         // Do NOT toggle display, relying on CSS .feature-line-progress { display: block }
                     }
                 });
-                
+
                 const activeItem = branchItems[index];
                 activeItem.classList.add('active');
-                
+
                 // Animate progress
                 const bar = activeItem.querySelector('.feature-line-progress .progress-bar');
-                
-                if(bar) {
+
+                if (bar) {
                     // Force reflow
                     void bar.offsetWidth;
                     setTimeout(() => {
                         bar.style.width = '100%';
                     }, 50);
                 }
-                
+
                 // Update Image
                 const newImg = activeItem.getAttribute('data-image');
-                if(newImg) {
+                if (newImg) {
                     branchImage.style.opacity = '0.5';
                     setTimeout(() => {
                         branchImage.src = newImg;
@@ -1668,36 +1742,36 @@
                     }, 300);
                 }
             }
-            
+
             function startBranchCycle() {
-                if(cycleInterval) clearInterval(cycleInterval);
+                if (cycleInterval) clearInterval(cycleInterval);
                 setActiveBranch(currentIndex);
                 cycleInterval = setInterval(() => {
                     currentIndex = (currentIndex + 1) % branchItems.length;
                     setActiveBranch(currentIndex);
                 }, 5000);
             }
-            
+
             branchItems.forEach((item, index) => {
                 item.addEventListener('click', () => {
                     currentIndex = index;
                     setActiveBranch(currentIndex);
-                    if(cycleInterval) clearInterval(cycleInterval);
+                    if (cycleInterval) clearInterval(cycleInterval);
                     cycleInterval = setInterval(() => {
                         currentIndex = (currentIndex + 1) % branchItems.length;
                         setActiveBranch(currentIndex);
                     }, 5000);
                 });
             });
-            
+
             // Initialization
             setTimeout(startBranchCycle, 500);
         });
     </script>
 
-    
 
-    
+
+
 
 
     <!-- Pricing Section -->
@@ -1708,50 +1782,58 @@
                 <div class="d-inline-block mb-3">
                     <span class="inventory-badge fw-bold">PRICING</span>
                 </div>
-                <h2 class="text-center fw-bold text-dark mb-3 hero-title" style="font-size: 3.5rem;">Get started with our<br>starter plans</h2>
+                <h2 class="text-center fw-bold text-dark mb-3 hero-title" style="font-size: 3.5rem;">Get started with
+                    our<br>starter plans</h2>
                 <p class="text-muted lead mb-5">Flexible plans built to support growing businesses</p>
             </div>
 
             <div class="row g-4 justify-content-center">
                 {% for plan in starter_plans %}
                 <div class="col-lg-4 col-md-6">
-                    <div class="card h-100 p-4 border-0 rounded-4 pricing-card {% if plan.tier == 'growth' %}bg-dark-blue text-white{% else %}bg-white border text-dark{% endif %} shadow-sm">
+                    <div
+                        class="card h-100 p-4 border-0 rounded-4 pricing-card {% if plan.tier == 'growth' %}bg-dark-blue text-white{% else %}bg-white border text-dark{% endif %} shadow-sm">
                         <div class="card-body d-flex flex-column">
-                            <h5 class="fw-bold mb-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark-blue{% endif %} text-capitalize">{{ plan.tier }}</h5>
-                            
+                            <h5
+                                class="fw-bold mb-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark-blue{% endif %} text-capitalize">
+                                {{ plan.tier }}</h5>
+
                             <div class="mb-2">
                                 <span class="display-5 fw-bold">₦{{ plan.price|intcomma }}</span>
                                 <span class="fs-6 opacity-75">/ per month</span>
                             </div>
-                            
+
                             <p class="mb-4 text-sm opacity-75">
                                 {% if plan.tier == 'basic' %}For small brands{% endif %}
                                 {% if plan.tier == 'growth' %}For mid sized organizations{% endif %}
                                 {% if plan.tier == 'premium' %}For large sized organizations{% endif %}
                             </p>
 
-                            <a href="{% url 'register' %}?plan={{ plan.id }}" class="btn btn-lg w-100 fw-bold mb-4 rounded-3 {% if plan.tier == 'growth' %}btn-primary{% else %}btn-light-grey{% endif %}">
+                            <a href="{% url 'register' %}?plan={{ plan.id }}"
+                                class="btn btn-lg w-100 fw-bold mb-4 rounded-3 {% if plan.tier == 'growth' %}btn-primary{% else %}btn-light-grey{% endif %}">
                                 {% if plan.tier == 'basic' %}Start 7 days trial{% else %}Get Started{% endif %}
                             </a>
 
                             <div class="features-list mt-2">
                                 <ul class="list-unstyled mb-0 d-grid gap-2">
                                     <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                        <i
+                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
                                         <span>
-                                            {% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %} 
+                                            {% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %}
                                             {% if plan.max_users == 1 %}user{% else %}users{% endif %}
                                         </span>
                                     </li>
                                     <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                        <i
+                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
                                         <span>{{ plan.max_branches }} Branch{% if plan.max_branches > 1 %}es{% endif %}</span>
                                     </li>
                                     <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                        <i
+                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
                                         <span>Over {{ plan.max_products }} products catalogue</span>
                                     </li>
-                                    
+
                                     {% if plan.tier == 'basic' %}
                                     <li class="d-flex align-items-center">
                                         <i class="bi bi-check-lg me-2 text-dark"></i>
@@ -1804,9 +1886,10 @@
         }
 
         .bg-dark-blue {
-            background-color: #021024 !important; /* Deep Navy */
+            background-color: #021024 !important;
+            /* Deep Navy */
         }
-        
+
         .text-dark-blue {
             color: #021024 !important;
         }
@@ -1816,7 +1899,7 @@
             color: #111827;
             border: 1px solid #E5E7EB;
         }
-        
+
         .btn-light-grey:hover {
             background-color: #E5E7EB;
             color: #000;
@@ -1825,10 +1908,10 @@
         .pricing-card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        
+
         .pricing-card:hover {
             transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
         }
     </style>
 
@@ -1841,9 +1924,11 @@
                     <div class="d-inline-block mb-3">
                         <span class="inventory-badge fw-bold">FAQS</span>
                     </div>
-                    <h2 class="hero-title fw-bold text-dark-blue mb-4" style="font-size: 3rem;">Questions about<br>QuickSales</h2>
+                    <h2 class="hero-title fw-bold text-dark-blue mb-4" style="font-size: 3rem;">Questions
+                        about<br>QuickSales</h2>
                     <p class="text-muted lead pe-lg-5" style="font-size: 1.1rem; line-height: 1.6;">
-                        Everything you need to know about the product and billing. Can’t find the answer you’re looking for? Please chat to our friendly team.
+                        Everything you need to know about the product and billing. Can’t find the answer you’re looking
+                        for? Please chat to our friendly team.
                     </p>
                 </div>
 
@@ -1853,13 +1938,19 @@
                         <!-- Q1 (Highlighted Card Style) -->
                         <div class="accordion-item border-0 mb-3 bg-transparent">
                             <h2 class="accordion-header" id="headingOne">
-                                <button class="accordion-button bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                <button
+                                    class="accordion-button bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne"
+                                    aria-expanded="true" aria-controls="collapseOne">
                                     Is there a free trial available?
                                 </button>
                             </h2>
-                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne"
+                                data-bs-parent="#faqAccordion">
                                 <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
-                                    Yes, you can try us for free for 30 days. If you want, we’ll provide you with a free, personalized 30-minute onboarding call to get you up and running as soon as possible.
+                                    Yes, you can try us for free for 30 days. If you want, we’ll provide you with a
+                                    free, personalized 30-minute onboarding call to get you up and running as soon as
+                                    possible.
                                 </div>
                             </div>
                         </div>
@@ -1867,69 +1958,95 @@
                         <!-- Q2 -->
                         <div class="accordion-item border-0 mb-3 bg-transparent">
                             <h2 class="accordion-header" id="headingTwo">
-                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                <button
+                                    class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo"
+                                    aria-expanded="false" aria-controls="collapseTwo">
                                     Can I change my plan later?
                                 </button>
                             </h2>
-                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo"
+                                data-bs-parent="#faqAccordion">
                                 <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
-                                    Yes, you can upgrade or downgrade your plan at any time from your account settings. Changes will be applied immediately or at the start of the next billing cycle depending on the change.
+                                    Yes, you can upgrade or downgrade your plan at any time from your account settings.
+                                    Changes will be applied immediately or at the start of the next billing cycle
+                                    depending on the change.
                                 </div>
                             </div>
                         </div>
 
-                         <!-- Q3 -->
+                        <!-- Q3 -->
                         <div class="accordion-item border-0 mb-3 bg-transparent">
                             <h2 class="accordion-header" id="headingThree">
-                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                <button
+                                    class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree"
+                                    aria-expanded="false" aria-controls="collapseThree">
                                     What is your cancellation policy?
                                 </button>
                             </h2>
-                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree"
+                                data-bs-parent="#faqAccordion">
                                 <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
-                                    You can cancel your subscription at any time. Your access will remain active until the end of your current billing period, after which you won't be charged again.
+                                    You can cancel your subscription at any time. Your access will remain active until
+                                    the end of your current billing period, after which you won't be charged again.
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Q4 -->
-                         <div class="accordion-item border-0 mb-3 bg-transparent">
+                        <div class="accordion-item border-0 mb-3 bg-transparent">
                             <h2 class="accordion-header" id="headingFour">
-                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                <button
+                                    class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour"
+                                    aria-expanded="false" aria-controls="collapseFour">
                                     Can other info be added to an invoice?
                                 </button>
                             </h2>
-                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour"
+                                data-bs-parent="#faqAccordion">
                                 <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
-                                    Yes, you can customize your invoices with your company logo, tax ID, and specific terms in your organization settings.
+                                    Yes, you can customize your invoices with your company logo, tax ID, and specific
+                                    terms in your organization settings.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Q5 -->
-                         <div class="accordion-item border-0 mb-3 bg-transparent">
+                        <div class="accordion-item border-0 mb-3 bg-transparent">
                             <h2 class="accordion-header" id="headingFive">
-                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                                <button
+                                    class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive"
+                                    aria-expanded="false" aria-controls="collapseFive">
                                     How does billing work?
                                 </button>
                             </h2>
-                            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#faqAccordion">
+                            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive"
+                                data-bs-parent="#faqAccordion">
                                 <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
-                                    We offer monthly billing cycles. You can pay securely via credit card or bank transfer. Invoices are generated automatically for each payment.
+                                    We offer monthly billing cycles. You can pay securely via credit card or bank
+                                    transfer. Invoices are generated automatically for each payment.
                                 </div>
                             </div>
                         </div>
 
                         <!-- Q6 -->
-                         <div class="accordion-item border-0 mb-3 bg-transparent">
+                        <div class="accordion-item border-0 mb-3 bg-transparent">
                             <h2 class="accordion-header" id="headingSix">
-                                <button class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix" aria-expanded="false" aria-controls="collapseSix">
+                                <button
+                                    class="accordion-button collapsed bg-transparent py-3 px-0 fw-bold text-dark-blue border-bottom"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseSix"
+                                    aria-expanded="false" aria-controls="collapseSix">
                                     How do I change my account email?
                                 </button>
                             </h2>
-                            <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix" data-bs-parent="#faqAccordion">
+                            <div id="collapseSix" class="accordion-collapse collapse" aria-labelledby="headingSix"
+                                data-bs-parent="#faqAccordion">
                                 <div class="accordion-body px-0 pb-3 text-muted border-bottom pt-0">
-                                    You can update your email address in your profile settings. A verification link will be sent to your new email to confirm the change.
+                                    You can update your email address in your profile settings. A verification link will
+                                    be sent to your new email to confirm the change.
                                 </div>
                             </div>
                         </div>
@@ -1950,7 +2067,7 @@
             color: #021024;
             box-shadow: none;
         }
-        
+
         /* Plus/Minus Icons using SVG data URIs */
         .custom-accordion .accordion-button::after {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'/%3e%3cline x1='12' y1='8' x2='12' y2='16'/%3e%3cline x1='8' y1='12' x2='16' y2='12'/%3e%3c/svg%3e");
@@ -1961,8 +2078,9 @@
         }
 
         .custom-accordion .accordion-button:not(.collapsed)::after {
-             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'/%3e%3cline x1='8' y1='12' x2='16' y2='12'/%3e%3c/svg%3e");
-             transform: rotate(0deg); /* No rotation needed if swapping svg */
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='10'/%3e%3cline x1='8' y1='12' x2='16' y2='12'/%3e%3c/svg%3e");
+            transform: rotate(0deg);
+            /* No rotation needed if swapping svg */
         }
 
         .custom-accordion .accordion-button {
@@ -1971,36 +2089,34 @@
 
         .custom-accordion .accordion-button:focus {
             box-shadow: none;
-            border-color: rgba(0,0,0,.125);
+            border-color: rgba(0, 0, 0, .125);
         }
-        
+
         /* For items other than the first one (which is card style), remove border radius and padding to match list style */
         .custom-accordion .accordion-item:not(:first-child) .accordion-button {
             padding-left: 0;
             padding-right: 0;
         }
-        
+
         /* Footer Styles */
         .footer-cta-section {
             background-color: #021024;
         }
-        
+
         .main-footer {
             background-color: #021024;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
-        .footer-logo {
-            /* No filter - show original logo colors */
-        }
-        
+
+        /* No filter - show original logo colors */
+
         .social-icon-circle {
-            width: 40px; 
-            height: 40px; 
-            background-color: white; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
     </style>
@@ -2008,9 +2124,11 @@
     <!-- Pre-Footer CTA -->
     <section class="footer-cta-section py-5 text-center text-white">
         <div class="container py-5">
-             <h2 class="display-4 fw-bold mb-4">Increases sales, revenue &<br>operations with QuickSales</h2>
-             <p class="lead mb-5 text-white-50">Improve how your business sells, operates, and<br>manages stock every day with QuickSales</p>
-             <a href="{% url 'register' %}" class="btn bg-primary text-white btn-lg px-5 py-3 rounded-2 fw-bold border-0">Get started today</a>
+            <h2 class="display-4 fw-bold mb-4">Increases sales, revenue &<br>operations with QuickSales</h2>
+            <p class="lead mb-5 text-white-50">Improve how your business sells, operates, and<br>manages stock every day
+                with QuickSales</p>
+            <a href="{% url 'register' %}"
+                class="btn bg-primary text-white btn-lg px-5 py-3 rounded-2 fw-bold border-0">Get started today</a>
         </div>
     </section>
 
@@ -2021,7 +2139,8 @@
                 <!-- Logo Column -->
                 <div class="col-lg-4 col-md-6 pe-lg-5">
                     <div class="mb-4">
-                         <img src="{% static 'assets/images/mqb.png' %}" alt="Marvex QuickSales" class="footer-logo mb-3" style="height: 200px;">
+                        <img src="{% static 'assets/images/mqb.png' %}" alt="Marvex QuickSales" class="footer-logo mb-3"
+                            style="height: 200px;">
                     </div>
                 </div>
 
@@ -2029,9 +2148,16 @@
                 <div class="col-lg-2 col-md-6 offset-lg-1">
                     <h5 class="fw-bold mb-4">About</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-3"><a href="#businesses" class="text-decoration-none text-white-50 hover-text-white">For Businesses</a></li>
-                        <li class="mb-3"><a href="#faqs" class="text-decoration-none text-white-50 hover-text-white">FAQs</a></li>
-                        <li class="mb-3"><a href="#pricing" class="text-decoration-none text-white-50 hover-text-white">Pricing</a></li>
+                        <li class="mb-3"><a href="#businesses"
+                                class="text-decoration-none text-white-50 hover-text-white">For Businesses</a></li>
+                        <li class="mb-3"><a href="#faqs"
+                                class="text-decoration-none text-white-50 hover-text-white">FAQs</a></li>
+                        <li class="mb-3"><a href="#pricing"
+                                class="text-decoration-none text-white-50 hover-text-white">Pricing</a></li>
+                        <li class="mb-3"><a href="#" data-bs-toggle="modal" data-bs-target="#termsModal"
+                                class="text-decoration-none text-white-50 hover-text-white">Terms of Service</a></li>
+                        <li class="mb-3"><a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal"
+                                class="text-decoration-none text-white-50 hover-text-white">Privacy Policy</a></li>
                     </ul>
                 </div>
 
@@ -2039,9 +2165,13 @@
                 <div class="col-lg-2 col-md-6">
                     <h5 class="fw-bold mb-4">Features</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-3"><a href="#more-features" class="text-decoration-none text-white-50 hover-text-white">Sales & POS</a></li>
-                        <li class="mb-3"><a href="#features" class="text-decoration-none text-white-50 hover-text-white">Inventory tracking</a></li>
-                        <li class="mb-3"><a href="#multi-branch" class="text-decoration-none text-white-50 hover-text-white">Multi Branch Operations</a></li>
+                        <li class="mb-3"><a href="#more-features"
+                                class="text-decoration-none text-white-50 hover-text-white">Sales & POS</a></li>
+                        <li class="mb-3"><a href="#features"
+                                class="text-decoration-none text-white-50 hover-text-white">Inventory tracking</a></li>
+                        <li class="mb-3"><a href="#multi-branch"
+                                class="text-decoration-none text-white-50 hover-text-white">Multi Branch Operations</a>
+                        </li>
                     </ul>
                 </div>
 
@@ -2049,17 +2179,17 @@
                 <div class="col-lg-3 col-md-6">
                     <h5 class="fw-bold mb-4">Support</h5>
                     <ul class="list-unstyled">
-                         <li class="mb-3 d-flex align-items-center">
+                        <li class="mb-3 d-flex align-items-center">
                             <div class="social-icon-circle me-3 flex-shrink-0">
                                 <i class="bi bi-send-fill text-dark"></i>
                             </div>
-                            <span class="text-white-50">quicksales@support.com</span>
+                            <span class="text-white-50">info@vextechafrica.com</span>
                         </li>
                         <li class="d-flex align-items-center">
                             <div class="social-icon-circle me-3 flex-shrink-0">
                                 <i class="bi bi-whatsapp text-success" style="font-size: 1.2rem;"></i>
                             </div>
-                             <span class="text-white-50">+234 6589 7648</span>
+                            <span class="text-white-50">+234 901 382 8344</span>
                         </li>
                     </ul>
                 </div>
@@ -2068,15 +2198,233 @@
     </footer>
 
 
-  
+    <!-- Terms of Service Modal -->
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark-blue fs-3" id="termsModalLabel">Terms of Service for
+                        MarvexQS</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-muted pt-4" style="line-height: 1.6;">
+                    <p class="mb-4"><strong>Last Updated:</strong> March 2026</p>
 
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">1. Introduction</h6>
+                    <p>Welcome to MarvexQS (Marvex Quicksales).</p>
+                    <p>These Terms of Service govern your access to and use of the website and services provided through
+                        marvexqs.com. By accessing or using our platform, you agree to be bound by these terms.</p>
+                    <p>If you do not agree with these terms, you should not use the platform.</p>
 
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">2. Description of Service</h6>
+                    <p>MarvexQS is a cloud-based software platform that provides businesses with tools for managing
+                        inventory, sales, and other business operations.</p>
+                    <p>The platform allows users to access digital software services online through a subscription-based
+                        model.</p>
 
-    
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">3. User Accounts</h6>
+                    <p>To access certain features of the platform, users may be required to create an account.</p>
+                    <p>Users agree to:</p>
+                    <ul>
+                        <li>Provide accurate and complete information during registration</li>
+                        <li>Maintain the confidentiality of their account credentials</li>
+                        <li>Accept responsibility for activities conducted under their account</li>
+                    </ul>
+                    <p>MarvexQS reserves the right to suspend or terminate accounts that provide false information or
+                        violate these terms.</p>
 
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">4. Subscription and Payments</h6>
+                    <p>Access to certain features of the platform may require a paid subscription.</p>
+                    <p>Payments made on the platform are processed securely through third-party payment processors such
+                        as Paystack.</p>
+                    <p>By making a payment on the platform, you agree that:</p>
+                    <ul>
+                        <li>Payments are for access to digital software services</li>
+                        <li>Subscription fees may be billed periodically depending on the selected plan</li>
+                        <li>Failure to complete payment may result in restricted access to services</li>
+                    </ul>
 
-   
-    
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">5. Acceptable Use</h6>
+                    <p>Users agree not to use the platform to:</p>
+                    <ul>
+                        <li>Engage in illegal activities</li>
+                        <li>Attempt to gain unauthorized access to the system</li>
+                        <li>Disrupt or interfere with platform operations</li>
+                        <li>Upload malicious software or harmful content</li>
+                    </ul>
+                    <p>Violation of these rules may result in account suspension or termination.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">6. Intellectual Property</h6>
+                    <p>All content, software, and materials on the MarvexQS platform, including logos, branding,
+                        software code, and designs, are the intellectual property of MarvexQS.</p>
+                    <p>Users are not permitted to copy, reproduce, distribute, or modify any part of the platform
+                        without prior written permission.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">7. Service Availability</h6>
+                    <p>While we strive to maintain reliable service, MarvexQS does not guarantee uninterrupted access to
+                        the platform.</p>
+                    <p>Maintenance, updates, or technical issues may occasionally cause temporary interruptions.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">8. Limitation of Liability</h6>
+                    <p>MarvexQS shall not be held liable for any indirect, incidental, or consequential damages
+                        resulting from the use or inability to use the platform.</p>
+                    <p>Users agree that they use the platform at their own risk.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">9. Termination of Service</h6>
+                    <p>MarvexQS reserves the right to suspend or terminate user accounts if:</p>
+                    <ul>
+                        <li>These Terms of Service are violated</li>
+                        <li>Fraudulent or suspicious activity is detected</li>
+                        <li>Required payments are not made</li>
+                    </ul>
+                    <p>Users may also terminate their account at any time.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">10. Changes to These Terms</h6>
+                    <p>MarvexQS may update these Terms of Service from time to time.</p>
+                    <p>Any updates will be posted on this page with the revised date.</p>
+                    <p>Continued use of the platform after changes indicates acceptance of the updated terms.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">11. Governing Law</h6>
+                    <p>These Terms of Service shall be governed by the laws of the Federal Republic of Nigeria.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">12. Contact Information</h6>
+                    <p>For questions regarding these Terms of Service, please contact:</p>
+                    <ul>
+                        <li><strong>Website:</strong> <a href="https://marvexqs.com"
+                                class="text-primary text-decoration-none">https://marvexqs.com</a></li>
+                        <li><strong>Email:</strong> <a href="mailto:info@vextechafrica.com"
+                                class="text-primary text-decoration-none">info@vextechafrica.com</a></li>
+                    </ul>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Policy Modal -->
+    <div class="modal fade" id="privacyModal" tabindex="-1" aria-labelledby="privacyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark-blue fs-3" id="privacyModalLabel">Privacy Policy for
+                        MarvexQS</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-muted pt-4" style="line-height: 1.6;">
+                    <p class="mb-4"><strong>Last Updated:</strong> March 2026</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">1. Introduction</h6>
+                    <p>Welcome to Marvex Quicksales, operated through MarvexQS.</p>
+                    <p>We respect your privacy and are committed to protecting your personal information when you use
+                        our website and services at marvexqs.com.</p>
+                    <p>This Privacy Policy explains how we collect, use, and safeguard your information when you access
+                        our platform.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">2. Information We Collect</h6>
+                    <p>When you use our platform, we may collect the following information:</p>
+
+                    <strong class="d-block mt-3 mb-2 text-dark">Personal Information</strong>
+                    <ul>
+                        <li>Name</li>
+                        <li>Email address</li>
+                        <li>Phone number</li>
+                        <li>Business name</li>
+                        <li>Login credentials</li>
+                    </ul>
+
+                    <strong class="d-block mt-3 mb-2 text-dark">Payment Information</strong>
+                    <p>Payments made on our platform are processed securely through Paystack or other payment
+                        processors.</p>
+                    <p>We do not store full payment card details on our servers.</p>
+
+                    <strong class="d-block mt-3 mb-2 text-dark">Usage Data</strong>
+                    <p>We may automatically collect information such as:</p>
+                    <ul>
+                        <li>IP address</li>
+                        <li>Browser type</li>
+                        <li>Device information</li>
+                        <li>Pages visited on our website</li>
+                        <li>Date and time of visits</li>
+                    </ul>
+                    <p>This information helps us improve our services and platform performance.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">3. How We Use Your Information</h6>
+                    <p>We use the information collected to:</p>
+                    <ul>
+                        <li>Provide access to our software services</li>
+                        <li>Create and manage user accounts</li>
+                        <li>Process subscription payments</li>
+                        <li>Provide customer support</li>
+                        <li>Improve platform performance and features</li>
+                        <li>Communicate important updates regarding our services</li>
+                    </ul>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">4. Data Protection</h6>
+                    <p>We take appropriate security measures to protect user data, including:</p>
+                    <ul>
+                        <li>Secure HTTPS encryption</li>
+                        <li>Protected cloud infrastructure</li>
+                        <li>Restricted access to sensitive data</li>
+                    </ul>
+                    <p>Despite these protections, no internet transmission method is completely secure.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">5. Sharing of Information</h6>
+                    <p>We do not sell or rent your personal information.</p>
+                    <p>We may share limited information with trusted third parties only when necessary, such as:</p>
+                    <ul>
+                        <li>Payment processors</li>
+                        <li>Hosting providers</li>
+                        <li>Legal authorities when required by law</li>
+                    </ul>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">6. Cookies</h6>
+                    <p>Our website may use cookies and similar technologies to:</p>
+                    <ul>
+                        <li>Improve user experience</li>
+                        <li>Remember user preferences</li>
+                        <li>Analyze website performance</li>
+                    </ul>
+                    <p>Users can disable cookies in their browser settings if preferred.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">7. Third-Party Services</h6>
+                    <p>Our platform may integrate with third-party services such as:</p>
+                    <ul>
+                        <li>Payment gateways</li>
+                        <li>Analytics tools</li>
+                        <li>Cloud infrastructure providers</li>
+                    </ul>
+                    <p>These services have their own privacy policies governing the use of your data.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">8. User Rights</h6>
+                    <p>Users may request to:</p>
+                    <ul>
+                        <li>Access their personal data</li>
+                        <li>Update incorrect information</li>
+                        <li>Request deletion of their account and data</li>
+                    </ul>
+                    <p>Requests can be made through our contact channels.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">9. Changes to This Policy</h6>
+                    <p>We may update this Privacy Policy periodically. Updates will be posted on this page with the
+                        revised date.</p>
+
+                    <h6 class="fw-bold text-dark-blue fs-5 mt-4 mb-3">10. Contact Information</h6>
+                    <p>If you have questions regarding this Privacy Policy, you may contact us through the website:</p>
+                    <ul>
+                        <li><strong>Website:</strong> <a href="https://marvexqs.com"
+                                class="text-primary text-decoration-none">https://marvexqs.com</a></li>
+                        <li><strong>Email:</strong> <a href="mailto:info@vextechafrica.com"
+                                class="text-primary text-decoration-none">info@vextechafrica.com</a></li>
+                    </ul>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Remove the standalone footer below if present -->
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
     <script>
@@ -2129,31 +2477,31 @@
             document.querySelectorAll('.plan-card').forEach(card => {
                 const tier = card.dataset.tier;
                 const size = card.dataset.size;
-                
+
                 // Skip if tier or size is invalid
                 if (!tier || !size || !planPricing[tier] || !planPricing[tier][size]) {
                     return;
                 }
-                
+
                 const basePrice = planPricing[tier][size];
                 const finalPrice = Math.round(basePrice * billingMultipliers[frequency]);
-                
+
                 // Update price display with safety checks
                 const priceEl = card.querySelector('.plan-price');
                 const periodEl = card.querySelector('.billing-period');
                 const basePriceEl = card.querySelector('.base-price');
-                
+
                 if (priceEl) priceEl.textContent = finalPrice.toLocaleString('en-NG');
                 if (periodEl) periodEl.textContent = billingLabels[frequency];
                 if (basePriceEl) basePriceEl.textContent = basePrice.toLocaleString('en-NG');
-                
+
                 // Update features
                 const features = planFeatures[tier];
                 if (features) {
                     const usersEl = card.querySelector('.plan-users');
                     const branchesEl = card.querySelector('.plan-branches');
                     const productsEl = card.querySelector('.plan-products');
-                    
+
                     if (usersEl) usersEl.textContent = features.users;
                     if (branchesEl) branchesEl.textContent = features.branches;
                     if (productsEl) productsEl.textContent = features.products;
@@ -2163,7 +2511,7 @@
 
         // Billing frequency tab handling
         document.querySelectorAll('.billing-tab').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 document.querySelectorAll('.billing-tab').forEach(b => b.classList.remove('active', 'bg-white', 'text-[#00004d]'));
                 document.querySelectorAll('.billing-tab').forEach(b => b.classList.add('bg-gray-700', 'text-white'));
                 this.classList.remove('bg-gray-700', 'text-white');
@@ -2177,13 +2525,13 @@
             const basePrice = planPricing[tier][size];
             const frequency = document.querySelector('.billing-tab.active').dataset.frequency;
             const finalPrice = Math.round(basePrice * billingMultipliers[frequency]);
-            
+
             // Check if there's a valid coupon applied
             const card = document.querySelector(`.plan-card[data-tier="${tier}"][data-size="${size}"]`);
             const couponInput = card?.querySelector('.coupon-input');
             const finalPaymentPrice = couponInput?.getAttribute('data-final-price') || finalPrice;
             const couponCode = couponInput?.getAttribute('data-coupon-code');
-            
+
             // Redirect to registration/upgrade page with plan details and coupon if applicable
             const planName = `${tier.toUpperCase()}-${size.toUpperCase()}-${frequency.toUpperCase()}`;
             let url = `{% url 'register' %}?plan=${tier}&size=${size}&frequency=${frequency}&price=${finalPaymentPrice}`;
@@ -2195,7 +2543,7 @@
 
         // Coupon validation
         document.querySelectorAll('.coupon-input').forEach(input => {
-            input.addEventListener('keyup', function(e) {
+            input.addEventListener('keyup', function (e) {
                 const couponCode = this.value.trim();
                 if (couponCode.length === 0) {
                     this.classList.remove('is-valid', 'is-invalid');
@@ -2208,7 +2556,7 @@
                     }
                     return;
                 }
-                
+
                 // Debounce coupon validation
                 clearTimeout(this.validationTimeout);
                 this.validationTimeout = setTimeout(() => {
@@ -2242,129 +2590,130 @@
                     plan_price: finalPrice // Send actual plan price
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    inputElement.classList.add('is-valid');
-                    inputElement.classList.remove('is-invalid');
-                    const discountPercentage = couponCode ? Math.round((data.discount / data.original_amount) * 100) : 0;
-                    inputElement.setAttribute('data-discount', discountPercentage);
-                    inputElement.setAttribute('data-coupon-code', couponCode);
-                    inputElement.setAttribute('data-final-price', Math.round(data.final_amount));
-                    
-                    // Show discount info and update price display
-                    if (originalPriceSpan) {
-                        originalPriceSpan.innerHTML = `Original: ₦<span class="base-price">${data.original_amount.toLocaleString('en-NG')}</span> | Discount: <strong>${discountPercentage}%</strong> ✓`;
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        inputElement.classList.add('is-valid');
+                        inputElement.classList.remove('is-invalid');
+                        const discountPercentage = couponCode ? Math.round((data.discount / data.original_amount) * 100) : 0;
+                        inputElement.setAttribute('data-discount', discountPercentage);
+                        inputElement.setAttribute('data-coupon-code', couponCode);
+                        inputElement.setAttribute('data-final-price', Math.round(data.final_amount));
+
+                        // Show discount info and update price display
+                        if (originalPriceSpan) {
+                            originalPriceSpan.innerHTML = `Original: ₦<span class="base-price">${data.original_amount.toLocaleString('en-NG')}</span> | Discount: <strong>${discountPercentage}%</strong> ✓`;
+                        }
+
+                        // Update the price display to show discounted price
+                        if (priceDisplay) {
+                            priceDisplay.textContent = Math.round(data.final_amount).toLocaleString('en-NG');
+                            priceDisplay.style.color = '#28a745'; // Green for discounted price
+                        }
+                    } else {
+                        inputElement.classList.add('is-invalid');
+                        inputElement.classList.remove('is-valid');
+                        inputElement.setAttribute('data-discount', 0);
+                        inputElement.removeAttribute('data-coupon-code');
+                        inputElement.removeAttribute('data-final-price');
+
+                        // Reset price to original
+                        if (priceDisplay) {
+                            priceDisplay.textContent = finalPrice.toLocaleString('en-NG');
+                            priceDisplay.style.color = '#00004d'; // Original color
+                        }
+
+                        if (originalPriceSpan) {
+                            originalPriceSpan.textContent = data.message || 'Invalid coupon';
+                        }
                     }
-                    
-                    // Update the price display to show discounted price
-                    if (priceDisplay) {
-                        priceDisplay.textContent = Math.round(data.final_amount).toLocaleString('en-NG');
-                        priceDisplay.style.color = '#28a745'; // Green for discounted price
-                    }
-                } else {
+                })
+                .catch(error => {
+                    console.error('Error validating coupon:', error);
                     inputElement.classList.add('is-invalid');
                     inputElement.classList.remove('is-valid');
-                    inputElement.setAttribute('data-discount', 0);
-                    inputElement.removeAttribute('data-coupon-code');
-                    inputElement.removeAttribute('data-final-price');
-                    
-                    // Reset price to original
-                    if (priceDisplay) {
-                        priceDisplay.textContent = finalPrice.toLocaleString('en-NG');
-                        priceDisplay.style.color = '#00004d'; // Original color
-                    }
-                    
-                    if (originalPriceSpan) {
-                        originalPriceSpan.textContent = data.message || 'Invalid coupon';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error validating coupon:', error);
-                inputElement.classList.add('is-invalid');
-                inputElement.classList.remove('is-valid');
-            });
+                });
         }
 
         // Initialize with default monthly pricing
         updatePrices('monthly');
     </script>
-    
-        <!-- Bootstrap Bundle -->
-        <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
 
-        <!-- Sales Features Auto-Cycle Script -->
-        <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                        const items = document.querySelectorAll('.feature-item');
-                        const image = document.querySelector('.checkout-image');
+    <!-- Bootstrap Bundle -->
+    <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
 
-                        if (!items.length || !image) return;
+    <!-- Sales Features Auto-Cycle Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const items = document.querySelectorAll('.feature-item');
+            const image = document.querySelector('.checkout-image');
 
-                        let current = 0;
-                        let timer = null;
+            if (!items.length || !image) return;
 
-                        const activate = (index) => {
-                                items.forEach((item) => {
-                                        item.classList.remove('active');
-                                        const bar = item.querySelector('.progress-bar');
-                                        if (bar) {
-                                                bar.style.width = '0%';
-                                                // Force reflow to restart animation
-                                                void bar.offsetWidth;
-                                        }
-                                });
+            let current = 0;
+            let timer = null;
 
-                                const item = items[index];
-                                item.classList.add('active');
-
-                                const bar = item.querySelector('.progress-bar');
-                                if (bar) {
-                                        setTimeout(() => {
-                                                bar.style.width = '100%';
-                                        }, 50);
-                                }
-
-                                const src = item.getAttribute('data-image');
-                                if (src) {
-                                        image.style.opacity = '0.5';
-                                        setTimeout(() => {
-                                                image.src = src;
-                                                image.style.opacity = '1';
-                                        }, 300);
-                                }
-                        };
-
-                        const startCycle = () => {
-                                if (timer) clearInterval(timer);
-                                activate(current);
-                                timer = setInterval(() => {
-                                        current = (current + 1) % items.length;
-                                        activate(current);
-                                }, 5000);
-                        };
-
-                        items.forEach((item, index) => {
-                                item.addEventListener('click', () => {
-                                        current = index;
-                                        activate(current);
-                                        startCycle();
-                                });
-                        });
-
-                        const list = document.querySelector('.features-list');
-                        if (list) {
-                                list.addEventListener('mouseenter', () => {
-                                        if (timer) clearInterval(timer);
-                                });
-                                list.addEventListener('mouseleave', () => {
-                                        startCycle();
-                                });
-                        }
-
-                        startCycle();
+            const activate = (index) => {
+                items.forEach((item) => {
+                    item.classList.remove('active');
+                    const bar = item.querySelector('.progress-bar');
+                    if (bar) {
+                        bar.style.width = '0%';
+                        // Force reflow to restart animation
+                        void bar.offsetWidth;
+                    }
                 });
-        </script>
+
+                const item = items[index];
+                item.classList.add('active');
+
+                const bar = item.querySelector('.progress-bar');
+                if (bar) {
+                    setTimeout(() => {
+                        bar.style.width = '100%';
+                    }, 50);
+                }
+
+                const src = item.getAttribute('data-image');
+                if (src) {
+                    image.style.opacity = '0.5';
+                    setTimeout(() => {
+                        image.src = src;
+                        image.style.opacity = '1';
+                    }, 300);
+                }
+            };
+
+            const startCycle = () => {
+                if (timer) clearInterval(timer);
+                activate(current);
+                timer = setInterval(() => {
+                    current = (current + 1) % items.length;
+                    activate(current);
+                }, 5000);
+            };
+
+            items.forEach((item, index) => {
+                item.addEventListener('click', () => {
+                    current = index;
+                    activate(current);
+                    startCycle();
+                });
+            });
+
+            const list = document.querySelector('.features-list');
+            if (list) {
+                list.addEventListener('mouseenter', () => {
+                    if (timer) clearInterval(timer);
+                });
+                list.addEventListener('mouseleave', () => {
+                    startCycle();
+                });
+            }
+
+            startCycle();
+        });
+    </script>
 </body>
+
 </html>
