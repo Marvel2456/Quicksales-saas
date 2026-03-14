@@ -34,13 +34,15 @@ CACHE_TIMEOUTS = {
 }
 
 
-def get_organization_cache_key(request, key_prefix):
+def get_organization_cache_key(request, key_prefix, *args, **kwargs):
     """
-    Generate an organization-specific cache key
+    Generate an organization-specific cache key that includes view arguments
     
     Args:
         request: Django request object
         key_prefix: Prefix for the cache key
+        *args: Variable positional arguments from the view
+        **kwargs: Variable keyword arguments from the view (e.g., pk/branch_id)
     
     Returns:
         Organization-specific cache key string
@@ -52,7 +54,12 @@ def get_organization_cache_key(request, key_prefix):
     query_string = request.GET.urlencode()
     query_hash = hashlib.md5(query_string.encode()).hexdigest()[:8] if query_string else 'no-filter'
     
-    return f"{key_prefix}:org:{org_id}:user:{user_id}:query:{query_hash}"
+    # Include view arguments and keyword arguments (like branch pk) in cache key
+    args_str = str(args) if args else ''
+    kwargs_str = str(kwargs) if kwargs else ''
+    args_hash = hashlib.md5(f"{args_str}:{kwargs_str}".encode()).hexdigest()[:8] if args_str or kwargs_str else 'no-params'
+    
+    return f"{key_prefix}:org:{org_id}:user:{user_id}:params:{args_hash}:query:{query_hash}"
 
 
 def cached_view(timeout=300, key_prefix=None):
@@ -83,7 +90,7 @@ def cached_view(timeout=300, key_prefix=None):
                 return view_func(request, *args, **kwargs)
             
             prefix = key_prefix or view_func.__name__
-            cache_key = get_organization_cache_key(request, prefix)
+            cache_key = get_organization_cache_key(request, prefix, *args, **kwargs)
             
             # Try to get from cache
             cached_response = cache.get(cache_key)
@@ -115,9 +122,9 @@ def cache_paginated_data(timeout=300):
             if not request.user.is_authenticated or request.method != 'GET':
                 return view_func(request, *args, **kwargs)
             
-            # Create cache key including page number
+            # Create cache key including page number and view arguments
             page = request.GET.get('page', 1)
-            cache_key = get_organization_cache_key(request, f"{view_func.__name__}:page:{page}")
+            cache_key = get_organization_cache_key(request, f"{view_func.__name__}:page:{page}", *args, **kwargs)
             
             cached_data = cache.get(cache_key)
             if cached_data is not None:

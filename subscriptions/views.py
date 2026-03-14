@@ -518,8 +518,7 @@ def verify_payment(request):
                 else:
                     print(f"ℹ️ Payment already processed")
                     messages.info(request, 'This payment has already been processed.')
-                    
-                return redirect('settings')
+                return redirect('index')
             else:
                 print(f"❌ Payment status not success: {data['data']['status']}")
                 messages.error(request, 'Payment verification failed')

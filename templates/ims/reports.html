@@ -83,13 +83,13 @@
                                         <td class="cell"><span>{{sale.method}}</span></td>
                                         <td class="cell"><span>{{sale.date_updated}}</span></td>
                                         <td class="cell"><span class="badge bg-success">{{sale.get_cart_items}}</span></td>
-                                        <td class="cell">{{sale.final_total_price}}</td>
-                                        <td class="cell">{{sale.total_profit}}</td>
+                                        <td class="cell">₦{{sale.final_total_price}}</td>
+                                        <td class="cell">₦{{sale.total_profit}}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
-                            <h5 class="text-center fw-bold pt-3">Total Profit: ${{total_profits}}</h5>
+                            <h5 class="text-center fw-bold pt-3">Total Profit: ₦{{total_profits}}</h5>
                             <div class="pagination pb-4">
                                 <span class="step-links">
                                   <nav aria-label="Page navigation example">

@@ -164,7 +164,7 @@ def Ticket(request, pk):
                     content=comment_form.cleaned_data['content']
                 )
                 messages.success(request, 'Comment added')
-                return redirect('tickets', pk=ticket.id)
+                return redirect('ticket')
         else:
             # Only owners and managers can update status and assignment
             if not can_assign:

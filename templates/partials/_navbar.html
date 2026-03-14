@@ -23,6 +23,7 @@
                         {% endif %}
                     </a>
                 </div><!--//app-utility-item-->
+                {% if org_role == 'owner' %}
                 <div class="app-utility-item app-notifications-dropdown dropdown">    
                     <a class="dropdown-toggle no-toggle-arrow" id="notifications-dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false" title="Notifications" style="position: relative;">
                         <!--//Bootstrap Icons: https://icons.getbootstrap.com/ -->
@@ -103,6 +104,8 @@
                                                     
                     </div><!--//dropdown-menu-->					        
                 </div><!--//cart-notifications-->
+                {% endif %}
+
                 <div class="app-utility-item" >
                     {% if request.user.is_admin == True %}
                     <a class="" href="" title="Cart" style="visibility:hidden; position: relative;">
