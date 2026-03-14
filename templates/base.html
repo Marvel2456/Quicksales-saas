@@ -209,7 +209,7 @@
                 data: {
                     labels: {{ month_labels|safe }},
                     datasets: [{
-                        label: 'Monthly Sales ($)',
+                        label: 'Monthly Sales (₦)',
                         data: {{ month_values|safe }},
                         fill: true,
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
@@ -241,7 +241,7 @@
                             beginAtZero: true,
                             ticks: {
                                 callback: function(value) {
-                                    return '$' + value.toFixed(2);
+                                    return '₦' + value.toFixed(2);
                                 }
                             }
                         }
@@ -331,7 +331,7 @@
                             labels: dailyLabels,
                             datasets: [
                                 {
-                                    label: 'Daily Revenue ($)',
+                                    label: 'Daily Revenue (₦)',
                                     data: dailyRevenue,
                                     borderColor: 'rgba(75, 192, 75, 1)',
                                     backgroundColor: 'rgba(75, 192, 75, 0.1)',
@@ -340,7 +340,7 @@
                                     fill: true
                                 },
                                 {
-                                    label: 'Daily Profit ($)',
+                                    label: 'Daily Profit (₦)',
                                     data: dailyProfit,
                                     borderColor: 'rgba(255, 159, 64, 1)',
                                     backgroundColor: 'rgba(255, 159, 64, 0.1)',

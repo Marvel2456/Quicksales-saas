@@ -51,7 +51,7 @@
                             <h4 class="app-doc-title truncate mb-0">{{item.branch.name}}</h4>
                             <div class="app-doc-meta">
                                 <ul class="list-unstyled mb-0">
-                                    <li><span class="text-muted">Today's Sales:</span> <strong class="text-success">${{ item.today_sales|floatformat:2 }}</strong></li>
+                                    <li><span class="text-muted">Today's Sales:</span> <strong class="text-success">₦{{ item.today_sales|floatformat:2 }}</strong></li>
                                     <li><span class="text-muted">Transactions:</span> {{ item.transaction_count }}</li>
                                     <li><span class="text-muted">Created On:</span> {{item.branch.created_at|date:"M d, Y"}}</li>
                                 </ul>
