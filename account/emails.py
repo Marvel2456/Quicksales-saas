@@ -10,7 +10,9 @@ from django.contrib.auth.tokens import default_token_generator
 
 def get_protocol():
     """Return https for production, http for development"""
-    return 'https' if settings.ENV == 'production' else 'http'
+    if settings.ENV == 'production' or not settings.DEBUG:
+        return 'https'
+    return 'http'
 
 
 
@@ -185,26 +187,27 @@ def send_subscription_success_email(user, organization, subscription):
     )
 
 
-def send_ticket_created_email(ticket, assigned_to, organization):
+def send_ticket_created_email(ticket, recipient, organization):
     """
-    Send email notification when a ticket is created and assigned to someone
+    Send email notification when a ticket is created.
+    Call once for the owner, and again for the assigned_to person if different.
     """
     subject = f"New Support Ticket: {ticket.title}"
     protocol = get_protocol()
-    
-    ticket_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/ims/ticket/{ticket.id}/"
-    
+
+    ticket_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/ims/tickets/{ticket.id}"
+
     context = {
         'ticket': ticket,
-        'assigned_to': assigned_to,
+        'assigned_to': recipient,
         'organization': organization,
         'ticket_url': ticket_url,
     }
-    
+
     html_message = render_to_string('account/emails/ticket_created_email.html', context)
     plain_message = strip_tags(html_message)
     from_email = settings.DEFAULT_FROM_EMAIL
-    to_email = assigned_to.email
+    to_email = recipient.email
 
     send_mail(
         subject,
@@ -214,3 +217,4 @@ def send_ticket_created_email(ticket, assigned_to, organization):
         html_message=html_message,
         fail_silently=False,
     )
+

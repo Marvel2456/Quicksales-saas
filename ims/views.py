@@ -201,8 +201,16 @@ def createTicket(request):
             ticket.branch = get_request_branch(request, organization)
             ticket.save()
             
-            # Send notification email if ticket is assigned to someone
-            if ticket.assigned_to:
+            # Always notify the owner
+            # We try to get the owner from memberships first, fallback to organization.owned_by
+            owner_membership = organization.memberships.filter(role='owner', is_active=True).first()
+            owner = owner_membership.user if owner_membership else organization.owned_by
+            
+            if owner:
+                send_ticket_created_email(ticket, owner, organization)
+            
+            # Also notify the assigned person if they are different from the owner
+            if ticket.assigned_to and ticket.assigned_to != owner:
                 send_ticket_created_email(ticket, ticket.assigned_to, organization)
             
             messages.success(request, 'Ticket created successfully')

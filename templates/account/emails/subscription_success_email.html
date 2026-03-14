@@ -4,83 +4,43 @@
     <meta charset="UTF-8">
     <title>Subscription Activated</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            background-color: #4CAF50;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-radius: 5px 5px 0 0;
-        }
-        .content {
-            background-color: #f9f9f9;
-            padding: 30px;
-            border: 1px solid #ddd;
-            border-top: none;
-        }
-        .plan-details {
-            background-color: white;
-            padding: 15px;
-            margin: 20px 0;
-            border-left: 4px solid #4CAF50;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 30px;
-            background-color: #4CAF50;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #666;
-            font-size: 12px;
-        }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f6f9; }
+        .header { background-color: #007bff; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background-color: #ffffff; padding: 35px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px; }
+        .plan-details { background-color: #f5f9ff; padding: 20px; margin: 20px 0; border-left: 4px solid #007bff; border-radius: 0 5px 5px 0; }
+        .button { display: inline-block; padding: 14px 35px; background-color: #007bff; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; }
+        .footer { text-align: center; margin-top: 20px; color: #999; font-size: 12px; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🎉 Subscription Activated!</h1>
+        <h1 style="margin: 0;">🎉 Subscription Activated!</h1>
     </div>
     <div class="content">
-        <h2>Hello {{ user.first_name }},</h2>
-        
+        <h2 style="color: #007bff; margin-top: 0;">Hi {{ user.first_name }},</h2>
         <p>Great news! Your subscription to <strong>{{ plan_name }}</strong> for <strong>{{ organization.name }}</strong> has been successfully activated.</p>
-        
         <div class="plan-details">
-            <h3>Subscription Details:</h3>
-            <ul style="list-style: none; padding-left: 0;">
-                <li><strong>Plan:</strong> {{ plan_name }}</li>
-                <li><strong>Organization:</strong> {{ organization.name }}</li>
-                <li><strong>Start Date:</strong> {{ start_date }}</li>
-                <li><strong>End Date:</strong> {{ end_date }}</li>
+            <h3 style="margin-top: 0; color: #007bff;">Subscription Details</h3>
+            <ul style="list-style: none; padding-left: 0; margin: 0;">
+                <li style="padding: 4px 0;"><strong>Plan:</strong> {{ plan_name }}</li>
+                <li style="padding: 4px 0;"><strong>Organization:</strong> {{ organization.name }}</li>
+                <li style="padding: 4px 0;"><strong>Start Date:</strong> {{ start_date }}</li>
+                <li style="padding: 4px 0;"><strong>End Date:</strong> {{ end_date }}</li>
             </ul>
         </div>
-        
         <p>You now have full access to all features included in your plan. Your team can start using the system immediately.</p>
-        
-        <p>
+        <div style="text-align: center; margin: 30px 0;">
             <a href="{{ dashboard_url }}" class="button">Go to Dashboard</a>
-        </p>
-        
+        </div>
         <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-        
         <p>Thank you for choosing Marvex Quicksales!</p>
-        
-        <p>Best regards,<br>
-        <strong>The Marvex Quicksales Team</strong></p>
+        <p>Best regards,<br><strong>The Marvex Quicksales Team</strong></p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+        <p style="color: #666; font-size: 13px; text-align: center;">
+            Need help? Chat with us on WhatsApp:
+            <a href="https://wa.me/2349013828344" style="color: #007bff; text-decoration: none;">+234 901 382 8344</a>
+        </p>
     </div>
-    
     <div class="footer">
         <p>This is an automated message. Please do not reply to this email.</p>
     </div>
