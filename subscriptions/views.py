@@ -467,6 +467,8 @@ def create_payment(request):
                 # Before reusing this reference, check with Squad whether it was already paid.
                 # This catches the case where verify_payment was interrupted (e.g. by a login
                 # redirect) so our DB still shows "pending" but Squad already processed the payment.
+                # It also catches stale references from a different environment (live vs sandbox).
+                squad_knows_ref = False
                 already_paid = False
                 try:
                     squad_verify = requests.get(
@@ -475,11 +477,12 @@ def create_payment(request):
                         timeout=(5, 10),
                     )
                     if squad_verify.status_code == 200:
+                        squad_knows_ref = True
                         verify_status = _extract_status(squad_verify.json())
                         if verify_status in {'success', 'successful', 'completed', 'paid'}:
                             already_paid = True
                 except requests.exceptions.RequestException:
-                    pass  # Network error — fall through to return the checkout URL as-is
+                    pass  # Network error — fall through to discard and recreate
 
                 if already_paid:
                     # Squad processed it but our DB missed it — activate now
@@ -505,15 +508,26 @@ def create_payment(request):
                         )
                     return JsonResponse({"success": True, "message": "Subscription activated!"})
 
-                existing_checkout_url = _infer_checkout_url(existing_payment.transaction_id)
-                print(f"♻️ Reusing existing pending payment: {existing_payment.transaction_id}")
-                return JsonResponse({
-                    "status": "ok",
-                    "reference": existing_payment.transaction_id,
-                    "amount": str(existing_payment.amount),
-                    "currency": "NGN",
-                    "checkout_url": existing_checkout_url,
-                })
+                if not squad_knows_ref:
+                    # Squad doesn't recognise this reference — was created with different keys
+                    # (e.g. live vs sandbox switch) or expired. Void it and create a fresh one.
+                    print(f"⚠️ Squad does not recognise reference {existing_payment.transaction_id} — voiding and recreating")
+                    existing_payment.payment_status = 'failed'
+                    existing_payment.save()
+                    existing_payment.subscription.delete()
+                    # Fall through to create a new transaction below
+
+                else:
+                    # Squad knows the ref and it's still pending — safe to reuse
+                    existing_checkout_url = _infer_checkout_url(existing_payment.transaction_id)
+                    print(f"♻️ Reusing existing pending payment: {existing_payment.transaction_id}")
+                    return JsonResponse({
+                        "status": "ok",
+                        "reference": existing_payment.transaction_id,
+                        "amount": str(existing_payment.amount),
+                        "currency": "NGN",
+                        "checkout_url": existing_checkout_url,
+                    })
 
         # NOTE: Do NOT deactivate existing subscriptions here.
         # Only deactivate them after payment is confirmed in verify_payment.
