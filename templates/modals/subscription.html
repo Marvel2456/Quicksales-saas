@@ -199,6 +199,13 @@ document.addEventListener('DOMContentLoaded', function() {
               console.log('create_payment XHR status:', xhr.status);
               if (xhr.status === 200) {
                 const data = JSON.parse(xhr.responseText);
+                // Payment already activated server-side (e.g. stale pending recovery or free coupon)
+                if (data.success) {
+                  const loader = document.getElementById('payment-loader');
+                  if (loader) loader.remove();
+                  window.location.href = "{% url 'settings' %}";
+                  return;
+                }
                 if (data.reference) {
                   if (data.checkout_url) {
                     console.log('Redirecting to Squad checkout URL:', data.checkout_url);
