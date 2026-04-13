@@ -731,16 +731,22 @@ def verify_payment(request):
         or request.GET.get('transaction_reference')
         or request.GET.get('trx_ref')
     )
-    
+
+    def _safe_redirect():
+        """Redirect to settings if logged in, otherwise to login with next=settings."""
+        from django.urls import reverse as _reverse
+        if request.user.is_authenticated:
+            return redirect('settings')
+        return redirect(f"{_reverse('login')}?next={_reverse('settings')}")
+
     if not reference:
         print(f" No reference provided")
         messages.error(request, 'Invalid payment reference')
-        return redirect('settings')
+        return _safe_redirect()
     
     try:
         print(f"🔍 Verifying payment with reference: {reference}")
-        print(f"👤 Organization: {get_request_organization(request).name}")
-        
+
         # Verify payment with SquadCo
         try:
             response = requests.get(
@@ -755,7 +761,7 @@ def verify_payment(request):
                 "Payment verification timed out. Your current subscription is unchanged. "
                 "If you were charged, please contact support with reference: " + reference
             )
-            return redirect('settings')
+            return _safe_redirect()
         except requests.exceptions.RequestException as net_err:
             print(f"⚠️ Network error verifying payment {reference}: {net_err}")
             messages.warning(
@@ -763,7 +769,7 @@ def verify_payment(request):
                 "Could not reach payment provider. Your current subscription is unchanged. "
                 "Please try again or contact support with reference: " + reference
             )
-            return redirect('settings')
+            return _safe_redirect()
 
         print(f"📡 SquadCo response status: {response.status_code}")
         
@@ -782,7 +788,7 @@ def verify_payment(request):
                     except Payment.DoesNotExist:
                         print(f"❌ Payment not found for reference: {reference}")
                         messages.error(request, 'Payment record not found')
-                        return redirect('settings')
+                        return _safe_redirect()
 
                     if payment.payment_status != 'completed':
                         payment.payment_status = 'completed'
@@ -825,23 +831,23 @@ def verify_payment(request):
                     else:
                         print(f"ℹ️ Payment already processed")
                         messages.info(request, 'This payment has already been processed.')
-                return redirect('settings')
+                return _safe_redirect()
             else:
                 print(f"❌ Payment status not successful: {status}")
                 messages.error(request, 'Payment verification failed')
-                return redirect('settings')
+                return _safe_redirect()
         else:
             print(f"❌ SquadCo API error: {response.status_code}")
             print(f"Response: {response.text}")
             messages.error(request, 'Could not verify payment')
-            return redirect('settings')
+            return _safe_redirect()
             
     except Exception as e:
         print(f"❌ Unexpected error during payment verification: {str(e)}")
         import traceback
         traceback.print_exc()
         messages.error(request, f'An error occurred: {str(e)}')
-        return redirect('settings')
+        return _safe_redirect()
 
 # @login_required
 # def verify_payment(request):
