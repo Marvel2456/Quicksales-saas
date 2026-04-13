@@ -369,8 +369,8 @@ LOGGING = {
     },
 }
 
-# Session Configuration - Logout after 10 minutes of inactivity
-SESSION_COOKIE_AGE = 600  # 10 minutes in seconds
+# Session Configuration - Logout after 30 minutes of inactivity
+SESSION_COOKIE_AGE = 1800  # 30 minutes in seconds
 SESSION_SAVE_EVERY_REQUEST = True  # Refresh expiry on each request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Expire session when browser closes
 
@@ -379,14 +379,19 @@ if ENV == 'production':
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=True)
     
     # Session Cookie Security
+    # SameSite=Lax (not Strict) is required so the session cookie is sent when
+    # third-party payment providers (e.g. Squad) redirect back to our domain
+    # after completing a transaction. Strict blocks the cookie on cross-site
+    # top-level navigations, causing Django to treat the returning user as
+    # unauthenticated and redirecting them to the login page.
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Strict'
+    SESSION_COOKIE_SAMESITE = 'Lax'
     
     # CSRF Cookie Security
     CSRF_COOKIE_SECURE = True
     CSRF_COOKIE_HTTPONLY = True
-    CSRF_COOKIE_SAMESITE = 'Strict'
+    CSRF_COOKIE_SAMESITE = 'Lax'
     
     # HTTP Strict Transport Security (HSTS)
     SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', cast=int, default=31536000)
