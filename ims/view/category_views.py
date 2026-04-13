@@ -69,7 +69,7 @@ def category_list(request, pk):
     if category_contains:
         category_qs = category_qs.filter(category_name__icontains=category_contains)
 
-    paginator = Paginator(category_qs, 3)
+    paginator = Paginator(category_qs, 15)
     category_page = paginator.get_page(page)
     nums = "a" * category_page.paginator.num_pages
 

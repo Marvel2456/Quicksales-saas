@@ -119,34 +119,15 @@ def deactivate_subscription(self, subscription_id: str):
         # Deactivate the subscription
         subscription.is_active = False
         subscription.save()
-        
         logger.info(f"Deactivated subscription {subscription_id}")
         
-        # Send email to owner
+        # Queue the expiry email separately so a mail failure never causes
+        # the deactivation itself to be retried.
         owner = subscription.organization.owned_by
         if owner and owner.email:
-            subject = "Your Marvex Quicksales trial has expired"
-            html_message = render_to_string(
-                "account/emails/trial_expired_email.html",
-                {
-                    'user': owner,
-                    'organization': subscription.organization,
-                    # Direct owner to subscription settings to upgrade/renew
-                    'login_url': f"http://{subscription.organization.slug}.{settings.DOMAIN}/subscriptions/settings/",
-                }
+            task_send_subscription_expired_email.delay(
+                owner.id, subscription.organization.id, subscription_id
             )
-            plain_message = strip_tags(html_message)
-
-            send_mail(
-                subject,
-                plain_message,
-                settings.DEFAULT_FROM_EMAIL,
-                [owner.email],
-                html_message=html_message,
-            )
-            logger.info(f"Sent expiry email to {owner.email}")
-        else:
-            logger.warning(f"No owner email found for subscription {subscription_id}")
             
     except Subscription.DoesNotExist:
         logger.error(f"Subscription {subscription_id} not found")
@@ -276,3 +257,143 @@ def send_subscription_expiry_reminders(self):
     except Exception as exc:
         logger.error(f"Error in send_subscription_expiry_reminders: {exc}")
         raise self.retry(exc=exc, countdown=60)
+
+
+# ---------------------------------------------------------------------------
+# Queued email tasks — all email sending goes through Celery so that a slow
+# or unavailable SMTP server never blocks a web request, and every email is
+# retried automatically on failure.
+# ---------------------------------------------------------------------------
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_verification_email")
+def task_send_verification_email(self, user_id, organization_id):
+    from .models import CustomUser, Organization
+    from .emails import send_verification_email
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        org = Organization.objects.get(id=organization_id)
+        send_verification_email(user, org)
+        logger.info(f"Verification email sent to {user.email}")
+    except Exception as exc:
+        logger.error(f"task_send_verification_email failed for user {user_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_welcome_email")
+def task_send_welcome_email(self, user_id, login_url):
+    from .models import CustomUser
+    from .emails import send_welcome_email
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        send_welcome_email(user, login_url)
+        logger.info(f"Welcome email sent to {user.email}")
+    except Exception as exc:
+        logger.error(f"task_send_welcome_email failed for user {user_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_password_reset_email")
+def task_send_password_reset_email(self, user_id, reset_link):
+    from .models import CustomUser
+    from .emails import send_password_reset_email
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        send_password_reset_email(user, reset_link)
+        logger.info(f"Password reset email sent to {user.email}")
+    except Exception as exc:
+        logger.error(f"task_send_password_reset_email failed for user {user_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_subscription_success_email")
+def task_send_subscription_success_email(self, user_id, organization_id, subscription_id):
+    from .models import CustomUser, Organization
+    from subscriptions.models import Subscription
+    from .emails import send_subscription_success_email
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        org = Organization.objects.get(id=organization_id)
+        subscription = Subscription.objects.get(id=subscription_id)
+        send_subscription_success_email(user, org, subscription)
+        logger.info(f"Subscription success email sent to {user.email}")
+    except Exception as exc:
+        logger.error(f"task_send_subscription_success_email failed for user {user_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_staff_invitation_email")
+def task_send_staff_invitation_email(self, user_id, organization_id, branch_id, password, login_url):
+    from .models import CustomUser, Organization, Branch
+    from .emails import send_staff_invitation_email
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        org = Organization.objects.get(id=organization_id)
+        branch = Branch.objects.get(id=branch_id)
+        send_staff_invitation_email(user, org, branch, password, login_url)
+        logger.info(f"Staff invitation email sent to {user.email}")
+    except Exception as exc:
+        logger.error(f"task_send_staff_invitation_email failed for user {user_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_staff_added_email")
+def task_send_staff_added_email(self, to_email, org_name, role, login_url):
+    """Plain notification email when an existing user is added to an org."""
+    try:
+        send_mail(
+            subject=f'Added to {org_name}',
+            message=f'You have been added to {org_name} as {role}. Login at {login_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[to_email],
+            fail_silently=False,
+        )
+        logger.info(f"Staff-added email sent to {to_email}")
+    except Exception as exc:
+        logger.error(f"task_send_staff_added_email failed for {to_email}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_ticket_created_email")
+def task_send_ticket_created_email(self, ticket_id, recipient_id, organization_id):
+    from .models import CustomUser, Organization
+    from .emails import send_ticket_created_email
+    try:
+        from ims.models import Ticket
+        ticket = Ticket.objects.get(id=ticket_id)
+        recipient = CustomUser.objects.get(id=recipient_id)
+        org = Organization.objects.get(id=organization_id)
+        send_ticket_created_email(ticket, recipient, org)
+        logger.info(f"Ticket email sent to {recipient.email} for ticket {ticket_id}")
+    except Exception as exc:
+        logger.error(f"task_send_ticket_created_email failed ticket {ticket_id}: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=5, default_retry_delay=60, name="task_send_subscription_expired_email")
+def task_send_subscription_expired_email(self, user_id, organization_id, subscription_id):
+    """Send the subscription-expired email to the owner (called by deactivate_subscription)."""
+    from .models import CustomUser, Organization
+    try:
+        user = CustomUser.objects.get(id=user_id)
+        org = Organization.objects.get(id=organization_id)
+        subject = "Your Marvex Quicksales subscription has expired"
+        html_message = render_to_string(
+            "account/emails/trial_expired_email.html",
+            {
+                'user': user,
+                'organization': org,
+                'login_url': f"http://{org.slug}.{settings.DOMAIN}/subscriptions/settings/",
+            }
+        )
+        plain_message = strip_tags(html_message)
+        send_mail(
+            subject,
+            plain_message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=html_message,
+        )
+        logger.info(f"Subscription expired email sent to {user.email}")
+    except Exception as exc:
+        logger.error(f"task_send_subscription_expired_email failed user {user_id}: {exc}")
+        raise self.retry(exc=exc)

@@ -78,7 +78,7 @@
                   </small>
                 </div>
                 
-                <button class="btn btn-primary w-100 select-plan-btn-modal">
+                <button type="button" class="btn btn-primary w-100 select-plan-btn-modal">
                   <span class="btn-text text-white">Get Started</span>
                   <span class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;">
                     <span class="visually-hidden">Loading...</span>
@@ -98,7 +98,7 @@
   </div>
 </div>
 
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://checkout.squadco.com/widget/squad.min.js"></script>
 <style>
     .select-plan-btn-modal:disabled {
         opacity: 0.8;
@@ -114,6 +114,10 @@
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  if (window.__squadPlanModalInitialized) {
+    return;
+  }
+  window.__squadPlanModalInitialized = true;
     // Billing frequency tab handling
     document.querySelectorAll('.billing-tab-modal').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -183,81 +187,139 @@ document.addEventListener('DOMContentLoaded', function() {
             button.disabled = true;
             if (spinner) spinner.style.display = 'inline-block';
             
-            // Initialize Paystack payment
-            const handler = PaystackPop.setup({
-                key: '{{ PAYSTACK_PUBLIC_KEY }}',
-                email: '{{ request.user.email }}',
-                amount: finalPrice * 100,
-                currency: "NGN",
-                ref: '' + Math.floor((Math.random() * 1000000000) + 1),
-                callback: function(response) {
-                    console.log('✅ Payment successful, reference:', response.reference);
-                    
-                    // Show loader
-                    const loaderHtml = '<div id="payment-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;"><div style="text-align: center;"><div class="spinner-border text-white" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div><p class="text-white mt-3">Processing your payment...</p></div></div>';
-                    document.body.insertAdjacentHTML('beforeend', loaderHtml);
-                    
-                    // Use XMLHttpRequest for subscription requests
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', "{% url 'create_payment' %}", true);
-                    xhr.setRequestHeader('Content-Type', 'application/json');
-                    xhr.setRequestHeader('X-CSRFToken', "{{ csrf_token }}");
-                    
-                    xhr.onload = function() {
-                        console.log('create_payment XHR status:', xhr.status);
-                        if (xhr.status === 200) {
-                            console.log('✓ Payment record created, redirecting in 2 seconds...');
-                            setTimeout(() => {
-                                window.location.href = "{% url 'verify_payment' %}?reference=" + response.reference;
-                            }, 2000);
-                        } else {
-                            console.error('❌ XHR Error:', xhr.status, xhr.responseText);
-                            const loader = document.getElementById('payment-loader');
-                            if (loader) loader.remove();
-                            button.disabled = false;
-                            if (spinner) spinner.style.display = 'none';
-                            // Show toast instead of alert
-                            const toast = document.createElement('div');
-                            toast.className = 'toast show position-fixed bottom-0 end-0 m-3';
-                            toast.style.zIndex = '9999';
-                            toast.innerHTML = `<div class="toast-body bg-danger text-white">Payment processing error. Please contact support.<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>`;
-                            document.body.appendChild(toast);
-                        }
-                    };
-                    
-                    xhr.onerror = function() {
-                        console.error('❌ XHR Network Error');
-                        const loader = document.getElementById('payment-loader');
-                        if (loader) loader.remove();
-                        button.disabled = false;
-                        if (spinner) spinner.style.display = 'none';
-                        // Show toast instead of alert
-                        const toast = document.createElement('div');
-                        toast.className = 'toast show position-fixed bottom-0 end-0 m-3';
-                        toast.style.zIndex = '9999';
-                        toast.innerHTML = `<div class="toast-body bg-danger text-white">Payment processing error. Please contact support.<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>`;
-                        document.body.appendChild(toast);
-                    };
-                    
-                    const payload = JSON.stringify({
-                        reference: response.reference,
-                        tier: tier,
-                        size: size,
-                        frequency: frequency,
-                        amount: finalPrice,
-                        coupon_code: couponCode
-                    });
-                    
-                    console.log('Sending XHR payload:', payload);
-                    xhr.send(payload);
-                },
-                onClose: function() {
-                    console.log('Payment dialog closed');
+            const loaderHtml = '<div id="payment-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999;"><div style="text-align: center;"><div class="spinner-border text-white" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div><p class="text-white mt-3">Loading secure payment...</p></div></div>';
+            document.body.insertAdjacentHTML('beforeend', loaderHtml);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', "{% url 'create_payment' %}", true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-CSRFToken', "{{ csrf_token }}");
+
+            xhr.onload = function() {
+              console.log('create_payment XHR status:', xhr.status);
+              if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.reference) {
+                  if (data.checkout_url) {
+                    console.log('Redirecting to Squad checkout URL:', data.checkout_url);
+                    window.location.href = data.checkout_url;
+                    return;
+                  }
+
+                  const rawPublicKey = ('{{ SQUAD_PUBLIC_KEY }}' || '').trim();
+                  console.log('Squad public key prefix:', rawPublicKey.slice(0, 15));
+
+                  if (!rawPublicKey) {
+                    throw new Error('Squad public key is missing. Set SQUAD_PUBLIC_KEY in environment.');
+                  }
+
+                  // Remove our loading overlay NOW so it doesn't block the Squad popup
+                  const loaderEl = document.getElementById('payment-loader');
+                  if (loaderEl) loaderEl.remove();
+
+                  if (typeof squad === 'undefined') {
+                    console.error('❌ Squad widget script not loaded (window.squad is undefined)');
                     button.disabled = false;
                     if (spinner) spinner.style.display = 'none';
+                    const t = document.createElement('div');
+                    t.className = 'toast show position-fixed bottom-0 end-0 m-3';
+                    t.style.zIndex = '9999';
+                    t.innerHTML = '<div class="toast-body bg-danger text-white">Payment widget failed to load. Check your connection and refresh.<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>';
+                    document.body.appendChild(t);
+                    return;
+                  }
+
+                  const callbackUrl = window.location.hostname.includes('localhost')
+                    ? null
+                    : (window.location.origin + "{% url 'verify_payment' %}");
+
+                  const widgetConfig = {
+                    key: rawPublicKey,
+                    email: '{{ request.user.email|escapejs }}',
+                    amount: Math.round(finalPrice * 100),
+                    currency_code: 'NGN',
+                    transaction_ref: data.reference,
+                    onClose: function() {
+                      button.disabled = false;
+                      if (spinner) spinner.style.display = 'none';
+                    },
+                    onSuccess: function(response) {
+                      const ref = (response && (response.transaction_ref || response.reference)) || data.reference;
+                      window.location.href = "{% url 'verify_payment' %}?reference=" + encodeURIComponent(ref);
+                    }
+                  };
+
+                  if (callbackUrl) {
+                    widgetConfig.callback_url = callbackUrl;
+                  }
+
+                  console.log('Initialising Squad widget, ref:', data.reference, 'amount (kobo):', widgetConfig.amount);
+
+                  try {
+                    const widget = new squad(widgetConfig);
+                    widget.setup();
+                    widget.open();
+                  } catch (e) {
+                    console.error('❌ Squad widget error:', e);
+                    button.disabled = false;
+                    if (spinner) spinner.style.display = 'none';
+                    const t = document.createElement('div');
+                    t.className = 'toast show position-fixed bottom-0 end-0 m-3';
+                    t.style.zIndex = '9999';
+                    t.innerHTML = '<div class="toast-body bg-danger text-white">Payment widget error: ' + e.message + '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>';
+                    document.body.appendChild(t);
+                  }
+                  return;
                 }
+                console.error('❌ Missing reference in response:', data);
+              } else {
+                console.error('❌ XHR Error:', xhr.status, xhr.responseText);
+              }
+
+              let errorMessage = 'Unable to start SquadCo payment. Please try again.';
+              try {
+                const errData = JSON.parse(xhr.responseText || '{}');
+                if (errData.error) {
+                  errorMessage = errData.error;
+                }
+              } catch (e) {
+                // Keep default fallback message.
+              }
+
+              const loader = document.getElementById('payment-loader');
+              if (loader) loader.remove();
+              button.disabled = false;
+              if (spinner) spinner.style.display = 'none';
+              const toast = document.createElement('div');
+              toast.className = 'toast show position-fixed bottom-0 end-0 m-3';
+              toast.style.zIndex = '9999';
+              toast.innerHTML = `<div class="toast-body bg-danger text-white">${errorMessage}<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>`;
+              document.body.appendChild(toast);
+            };
+
+            xhr.onerror = function() {
+              console.error('❌ XHR Network Error');
+              const loader = document.getElementById('payment-loader');
+              if (loader) loader.remove();
+              button.disabled = false;
+              if (spinner) spinner.style.display = 'none';
+              const toast = document.createElement('div');
+              toast.className = 'toast show position-fixed bottom-0 end-0 m-3';
+              toast.style.zIndex = '9999';
+              toast.innerHTML = `<div class="toast-body bg-danger text-white">Payment network error. Please try again.<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button></div>`;
+              document.body.appendChild(toast);
+            };
+
+            const payload = JSON.stringify({
+              tier: tier,
+              size: size,
+              frequency: frequency,
+              amount: finalPrice,
+              coupon_code: couponCode
             });
-            handler.openIframe();
+
+            console.log('Sending XHR payload:', payload);
+            xhr.send(payload);
         });
     });
     

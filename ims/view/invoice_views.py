@@ -368,3 +368,109 @@ def delete_invoice(request, pk):
         return redirect('invoices', pk=branch_id)
 
     return redirect('invoice_detail', pk=invoice.id)
+
+
+@role_required(roles=['owner'])
+@login_required
+def edit_invoice(request, pk):
+    """Edit a pending or closed invoice. Paid invoices cannot be edited."""
+    organization = get_request_organization(request)
+    invoice = get_object_or_404(Invoice, id=pk, organization=organization)
+
+    if invoice.status == 'paid':
+        messages.error(request, 'Paid invoices cannot be edited.')
+        return redirect('invoice_detail', pk=invoice.id)
+
+    branch = invoice.branch
+    inventory_qs = Inventory.objects.filter(
+        branch=branch,
+        organization=organization,
+        product__branch=branch,
+        product__organization=organization,
+        quantity__gt=0,
+    ).select_related('product').order_by('product__product_name')
+
+    if request.method == 'POST':
+        customer_name = request.POST.get('customer_name', '').strip()
+        customer_email = request.POST.get('customer_email', '').strip()
+        customer_phone = request.POST.get('customer_phone', '').strip()
+        notes = request.POST.get('notes', '').strip()
+        due_date = request.POST.get('due_date') or None
+        payment_method = request.POST.get('payment_method', '')
+
+        inventory_ids = request.POST.getlist('inventory_id[]')
+        quantities = request.POST.getlist('quantity[]')
+
+        if not inventory_ids or not any(quantities):
+            messages.error(request, 'Please add at least one item to the invoice.')
+            return redirect('edit_invoice', pk=invoice.id)
+
+        # Validate stock before making any changes
+        for inv_id, qty in zip(inventory_ids, quantities):
+            try:
+                inv = Inventory.objects.get(id=inv_id, branch=branch, organization=organization)
+                qty_int = int(qty) if qty else 0
+                if qty_int <= 0:
+                    continue
+                if qty_int > inv.quantity:
+                    messages.error(
+                        request,
+                        f'Insufficient stock for {inv.product.product_name}. Available: {inv.quantity}.',
+                    )
+                    return redirect('edit_invoice', pk=invoice.id)
+            except Inventory.DoesNotExist:
+                continue
+
+        # Update invoice header fields
+        invoice.customer_name = customer_name or None
+        invoice.customer_email = customer_email or None
+        invoice.customer_phone = customer_phone or None
+        invoice.notes = notes or None
+        invoice.due_date = due_date
+        invoice.payment_method = payment_method or None
+        invoice.save()
+
+        # Replace all line items
+        invoice.items.all().delete()
+        total = 0.0
+        valid_count = 0
+        for inv_id, qty in zip(inventory_ids, quantities):
+            try:
+                inv = Inventory.objects.get(id=inv_id, branch=branch, organization=organization)
+                qty_int = int(qty) if qty else 0
+                if qty_int <= 0:
+                    continue
+                unit_price = inv.sale_price or 0.0
+                item_total = unit_price * qty_int
+                InvoiceItem.objects.create(
+                    invoice=invoice,
+                    organization=organization,
+                    branch=branch,
+                    inventory=inv,
+                    quantity=qty_int,
+                    unit_price=unit_price,
+                    total=item_total,
+                )
+                total += item_total
+                valid_count += 1
+            except Inventory.DoesNotExist:
+                continue
+
+        if valid_count == 0:
+            messages.error(request, 'Please add at least one valid product.')
+            return redirect('edit_invoice', pk=invoice.id)
+
+        invoice.total_amount = total
+        invoice.save(update_fields=['total_amount'])
+
+        messages.success(request, f'Invoice {invoice.invoice_number} updated successfully.')
+        return redirect('invoice_detail', pk=invoice.id)
+
+    existing_items = invoice.items.select_related('inventory__product').all()
+    context = {
+        'invoice': invoice,
+        'branch': branch,
+        'inventory': inventory_qs,
+        'existing_items': existing_items,
+    }
+    return render(request, 'ims/edit_invoice.html', context)

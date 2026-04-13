@@ -89,6 +89,15 @@
                                             <button class="btn-sm app-btn-secondary" data-bs-toggle="modal"
                                                 data-bs-target="#editStaffModal{{staff.user.pk}}"><i
                                                     class="fa-solid fa-pen-to-square"></i></button>&nbsp;
+                                            {% if staff.user.must_change_password %}
+                                            <form method="post" action="{% url 'reinvite_staff' staff.user.pk %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn-sm btn-outline-primary"
+                                                    title="Resend invitation email with a new password">
+                                                    <i class="fa-solid fa-paper-plane"></i> Re-invite
+                                                </button>
+                                            </form>&nbsp;
+                                            {% endif %}
                                             {% if staff.org_role != 'owner' %}
                                             {% if staff.is_active %}
                                             <button class="btn-sm btn-outline-danger" data-bs-toggle="modal"

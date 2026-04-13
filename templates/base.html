@@ -207,10 +207,10 @@
             const lineChart = new Chart(lineCtx.getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: {{ month_labels|safe }},
+                    labels: {{ month_labels|default:"[]"|safe }},
                     datasets: [{
                         label: 'Monthly Sales (₦)',
-                        data: {{ month_values|safe }},
+                        data: {{ month_values|default:"[]"|safe }},
                         fill: true,
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
                         borderColor: 'rgba(54, 162, 235, 1)',
@@ -309,14 +309,14 @@
         // Area Chart - Revenue vs Profit (Daily)
         const areaCtx = document.getElementById('revenueVsProfitChart');
         console.log('areaCtx:', areaCtx);
-        console.log('daily_labels:', {{ daily_labels|safe }});
-        console.log('daily_revenue_values:', {{ daily_revenue_values|safe }});
-        console.log('daily_profit_values:', {{ daily_profit_values|safe }});
+        console.log('daily_labels:', {{ daily_labels|default:"[]"|safe }});
+        console.log('daily_revenue_values:', {{ daily_revenue_values|default:"[]"|safe }});
+        console.log('daily_profit_values:', {{ daily_profit_values|default:"[]"|safe }});
         
         if (areaCtx) {
-            const dailyLabels = {{ daily_labels|safe }};
-            const dailyRevenue = {{ daily_revenue_values|safe }};
-            const dailyProfit = {{ daily_profit_values|safe }};
+            const dailyLabels = {{ daily_labels|default:"[]"|safe }};
+            const dailyRevenue = {{ daily_revenue_values|default:"[]"|safe }};
+            const dailyProfit = {{ daily_profit_values|default:"[]"|safe }};
             
             console.log('dailyLabels:', dailyLabels);
             console.log('dailyRevenue:', dailyRevenue);
@@ -412,7 +412,7 @@
         })
     </script>
     <script>
-        let user = '{{request.user}}'
+        let user = '{{ request.user|escapejs }}';
     </script>
     <script>
         function getCookie(name) {
@@ -430,7 +430,7 @@
             }
             return cookieValue;
         }
-        const csrftoken = getCookie('csrftoken');
+        window.csrftoken = getCookie('csrftoken');
     </script>
     <script>
         (function () {

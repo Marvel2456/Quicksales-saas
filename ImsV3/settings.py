@@ -115,7 +115,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'subscriptions.context_processors.paystack_public_key',
+                'subscriptions.context_processors.squadco_public_key',
                 'subscriptions.context_processors.subscription_context',
                 'ims.context_processors.ticket_notifications',
                 'account.context_processors.organization_role',
@@ -319,8 +319,10 @@ LOGIN_URL = 'login'  # Points to account:login URL
 # }
 
 
-PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='')
-PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
+SQUAD_PUBLIC_KEY = config('SQUAD_PUBLIC_KEY', default='')
+SQUAD_SECRET_KEY = config('SQUAD_SECRET_KEY', default='')
+SQUAD_MERCHANT_ID = config('SQUAD_MERCHANT_ID', default='')
+SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='https://sandbox-api-d.squadco.com')
 
 
 LOGGING_CONFIG = 'logging.config.dictConfig'

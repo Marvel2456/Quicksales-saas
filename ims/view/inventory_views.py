@@ -11,7 +11,7 @@ from django.http import JsonResponse, HttpResponse
 import csv
 import json
 from account.decorators import role_required
-from account.utils import get_request_organization
+from account.utils import get_request_organization, get_request_org_role
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from ims.view_caching import cached_view
@@ -95,6 +95,7 @@ def inventory_list(request, pk):
         'form': form,
         'inventory_page': inventory_page,
         'nums': nums,
+        'org_role': get_request_org_role(request, organization),
     }
     return render(request, 'ims/inventory.html', context)
 

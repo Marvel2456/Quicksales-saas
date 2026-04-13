@@ -99,6 +99,7 @@ class Subscription(models.Model):
     PROVIDER_CHOICES = (
         ("stripe", "Stripe"),
         ("paystack", "Paystack"),
+        ("squadco", "SquadCo"),
     )
     CURRENCY_CHOICES = (
         ("USD", "USD"),

@@ -16,6 +16,11 @@
                 <a href="{% url 'invoice_pdf' invoice.id %}" class="btn btn-outline-dark" target="_blank">
                     ⬇ Download PDF
                 </a>
+                {% if invoice.status != 'paid' %}
+                <a href="{% url 'edit_invoice' invoice.id %}" class="btn btn-outline-primary">
+                    ✎ Edit Invoice
+                </a>
+                {% endif %}
                 {% if invoice.status == 'pending' %}
                 <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmPaymentModal">
                     ✓ Confirm Payment

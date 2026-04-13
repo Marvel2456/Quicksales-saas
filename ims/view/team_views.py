@@ -20,6 +20,7 @@ from account.utils import get_request_organization
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from account.emails import send_staff_invitation_email
+from account.tasks import task_send_staff_invitation_email, task_send_staff_added_email
 from django.conf import settings
 from django.views.decorators.http import require_POST
 
@@ -151,44 +152,31 @@ def staffs(request, pk):
             login_url = f"http://{organization.slug}.{settings.DOMAIN}/account/login/"
             
             if created:
-                # New user - send invitation email with password
-                try:
-                    send_staff_invitation_email(
-                        user=staff_user,
-                        organization=organization,
-                        branch=branch,
-                        password=raw_password,
-                        login_url=login_url
-                    )
-                    messages.success(
-                        request, 
-                        f"Staff account created for {staff_user.get_full_name()} ({staff_user.email}). "
-                        f"An invitation email has been sent with login credentials."
-                    )
-                except Exception as e:
-                    messages.warning(
-                        request,
-                        f"Staff account created but email failed to send. Please provide credentials manually. Error: {str(e)}"
-                    )
+                # New user - send invitation email with password (queued, non-blocking)
+                task_send_staff_invitation_email.delay(
+                    user_id=staff_user.id,
+                    organization_id=organization.id,
+                    branch_id=branch.id,
+                    password=raw_password,
+                    login_url=login_url,
+                )
+                messages.success(
+                    request, 
+                    f"Staff account created for {staff_user.get_full_name()} ({staff_user.email}). "
+                    f"An invitation email has been sent with login credentials."
+                )
             else:
-                # Existing user - send notification
-                try:
-                    send_mail(
-                        subject=f'Added to {organization.name}',
-                        message=f'You have been added to {organization.name} as {role}. Login at {login_url}',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[staff_user.email],
-                        fail_silently=False,
-                    )
-                    messages.success(
-                        request,
-                        f"{staff_user.get_full_name()} added to organization."
-                    )
-                except Exception as e:
-                    messages.warning(
-                        request,
-                        f"User added but email notification failed: {str(e)}"
-                    )
+                # Existing user - send notification (queued)
+                task_send_staff_added_email.delay(
+                    to_email=staff_user.email,
+                    org_name=organization.name,
+                    role=role,
+                    login_url=login_url,
+                )
+                messages.success(
+                    request,
+                    f"{staff_user.get_full_name()} added to organization."
+                )
             
             # Create notification for owner about new staff member
             if organization.owned_by and organization.owned_by != request.user:
@@ -373,6 +361,50 @@ def activate_staff(request):
 
 @role_required(roles=['owner'])
 @login_required
+def reinvite_staff(request, pk):
+    """Resend the invitation email to a staff member whose invite was not received."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    organization = get_request_organization(request)
+
+    try:
+        from account.models import OrganizationMembership
+        membership = OrganizationMembership.objects.select_related('user', 'branch').get(
+            user__id=pk,
+            organization=organization,
+        )
+    except OrganizationMembership.DoesNotExist:
+        messages.error(request, "Staff member not found in this organization.")
+        return redirect(request.META.get('HTTP_REFERER', 'branchteam'))
+
+    staff_user = membership.user
+    branch = membership.branch
+    login_url = f"http://{organization.slug}.{settings.DOMAIN}/account/login/"
+
+    # Generate a fresh temporary password and force a reset on next login
+    new_password = get_random_string(length=12)
+    staff_user.set_password(new_password)
+    staff_user.must_change_password = True
+    staff_user.save(update_fields=['password', 'must_change_password'])
+
+    task_send_staff_invitation_email.delay(
+        user_id=staff_user.id,
+        organization_id=organization.id,
+        branch_id=branch.id,
+        password=new_password,
+        login_url=login_url,
+    )
+
+    messages.success(
+        request,
+        f"Invitation re-sent to {staff_user.email}. A new temporary password has been issued."
+    )
+    return redirect(request.META.get('HTTP_REFERER', 'branchteam'))
+
+
+@role_required(roles=['owner'])
+@login_required
 def branchRecord(request):
     # Use organization from middleware context (supports multi-org)
     organization = get_request_organization(request)
@@ -424,7 +456,7 @@ def record(request, pk):
     query_params = request.GET.copy()
     query_params.pop('page', None)
 
-    paginator = Paginator(logs, 25)
+    paginator = Paginator(logs, 15)
     page_number = request.GET.get('page')
     logs_page = paginator.get_page(page_number)
 

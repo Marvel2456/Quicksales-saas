@@ -4,6 +4,7 @@ from datetime import datetime, date
 from .models import Sale, ErrorTicket, TicketComment
 from account.models import CustomUser, Branch, ActivityLog
 from account.emails import send_ticket_created_email
+from account.tasks import task_send_ticket_created_email
 from django.contrib.auth.decorators import login_required
 from . forms import *
 from django.core.paginator import Paginator
@@ -100,7 +101,7 @@ def errorTicket(request):
     if status:
         qs = qs.filter(status=status)
 
-    paginator = Paginator(qs, 10)
+    paginator = Paginator(qs, 15)
     page_num = request.GET.get('page')
     ticket_page = paginator.get_page(page_num)
     nums = "a" * ticket_page.paginator.num_pages
@@ -207,11 +208,11 @@ def createTicket(request):
             owner = owner_membership.user if owner_membership else organization.owned_by
             
             if owner:
-                send_ticket_created_email(ticket, owner, organization)
+                task_send_ticket_created_email.delay(ticket.id, owner.id, organization.id)
             
             # Also notify the assigned person if they are different from the owner
             if ticket.assigned_to and ticket.assigned_to != owner:
-                send_ticket_created_email(ticket, ticket.assigned_to, organization)
+                task_send_ticket_created_email.delay(ticket.id, ticket.assigned_to.id, organization.id)
             
             messages.success(request, 'Ticket created successfully')
             return redirect('ticket')

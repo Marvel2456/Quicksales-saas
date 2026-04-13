@@ -55,10 +55,12 @@
                                 </thead>
                                 <tbody>
                                     <div class="m-2 py-2">
+                                        {% if org_role != 'manager' %}
                                         <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addInventoryModal">
                                             <i class="fas fa-plus"></i>
                                             Add Inventory
                                         </a>
+                                        {% endif %}
                                     </div>    
                                     {% for inventory in inventory_page %}
                                     <tr>
@@ -67,14 +69,20 @@
                                         <td class="cell">{{inventory.store_quantity}}</span></td>
                                         <td class="cell">{{inventory.last_updated}}</td>
                                         <td class="cell">
-                                            {% if inventory.store_quantity > inventory.reorder_level %}
+                                            {% if org_role == 'manager' %}
+                                            <span class="badge bg-secondary" title="Managers cannot restock">restock</span>
+                                            {% elif inventory.store_quantity > inventory.reorder_level %}
                                             <span class="badge bg-success"><a class="btn-sm app-btn-success" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#addRestockModal{{inventory.pk}}">restock</a></span>
                                             {% elif inventory.store_quantity <= inventory.reorder_level %}
                                             <span class="badge bg-danger"><a class="btn-sm app-btn-success" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#addRestockModal{{inventory.pk}}">restock</a></span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">
+                                            {% if org_role == 'manager' %}
+                                            <a class="btn-sm app-btn-secondary disabled" style="cursor:not-allowed; opacity:0.5;" title="Managers cannot set reorder level"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            {% else %}
                                             <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#reorderModal{{inventory.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% include 'modals/delete_inventory.html' %}
