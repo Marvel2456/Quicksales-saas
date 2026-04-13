@@ -464,6 +464,47 @@ def create_payment(request):
                 .first()
             )
             if existing_payment and existing_payment.transaction_id:
+                # Before reusing this reference, check with Squad whether it was already paid.
+                # This catches the case where verify_payment was interrupted (e.g. by a login
+                # redirect) so our DB still shows "pending" but Squad already processed the payment.
+                already_paid = False
+                try:
+                    squad_verify = requests.get(
+                        f"{settings.SQUAD_API_BASE_URL}/transaction/verify/{existing_payment.transaction_id}",
+                        headers=_squad_headers(),
+                        timeout=(5, 10),
+                    )
+                    if squad_verify.status_code == 200:
+                        verify_status = _extract_status(squad_verify.json())
+                        if verify_status in {'success', 'successful', 'completed', 'paid'}:
+                            already_paid = True
+                except requests.exceptions.RequestException:
+                    pass  # Network error — fall through to return the checkout URL as-is
+
+                if already_paid:
+                    # Squad processed it but our DB missed it — activate now
+                    print(f"⚠️ Stale pending payment detected (Squad already processed): {existing_payment.transaction_id}")
+                    subscription = existing_payment.subscription
+                    existing_payment.payment_status = 'completed'
+                    existing_payment.save()
+                    subscription.is_active = True
+                    subscription.save()
+                    Subscription.objects.filter(
+                        organization=subscription.organization,
+                        is_active=True,
+                    ).exclude(id=subscription.id).update(is_active=False)
+                    if subscription.end_date > timezone.now():
+                        deactivate_subscription.apply_async(
+                            args=[str(subscription.id)],
+                            eta=subscription.end_date,
+                        )
+                    owner = subscription.organization.owned_by
+                    if owner and owner.email:
+                        task_send_subscription_success_email.delay(
+                            owner.id, subscription.organization.id, subscription.id
+                        )
+                    return JsonResponse({"success": True, "message": "Subscription activated!"})
+
                 existing_checkout_url = _infer_checkout_url(existing_payment.transaction_id)
                 print(f"♻️ Reusing existing pending payment: {existing_payment.transaction_id}")
                 return JsonResponse({
@@ -683,7 +724,6 @@ def create_payment(request):
 
 
 
-@login_required
 def verify_payment(request):
     reference = (
         request.GET.get('reference')
@@ -785,7 +825,7 @@ def verify_payment(request):
                     else:
                         print(f"ℹ️ Payment already processed")
                         messages.info(request, 'This payment has already been processed.')
-                return redirect('index')
+                return redirect('settings')
             else:
                 print(f"❌ Payment status not successful: {status}")
                 messages.error(request, 'Payment verification failed')
