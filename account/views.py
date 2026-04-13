@@ -15,13 +15,18 @@ from .decorators import role_required, check_branch_limit
 from ims.models import Sale, SalesItem, Inventory
 from django.core.paginator import Paginator
 from django.conf import settings
-from .emails import send_welcome_email, send_verification_email, get_protocol, send_password_reset_email
+from .emails import get_protocol
 from .utils import get_request_branch, get_request_org_role, get_request_organization
 from django.http import HttpResponse, JsonResponse
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth.tokens import default_token_generator
-from .tasks import deactivate_subscription
+from .tasks import (
+    deactivate_subscription,
+    task_send_verification_email,
+    task_send_welcome_email,
+    task_send_password_reset_email,
+)
 from django.utils.timezone import make_aware
 
 # Create your views here.
@@ -137,7 +142,7 @@ class OwnerRegisterView(View):
                 )
                 
                 # Send verification email for the new organization
-                send_verification_email(user, organization)
+                task_send_verification_email.delay(user.id, organization.id)
                 
                 messages.success(
                     request,
@@ -181,7 +186,7 @@ class OwnerRegisterView(View):
                 )
 
                 # Send email verification
-                send_verification_email(user, organization)
+                task_send_verification_email.delay(user.id, organization.id)
                 messages.success(
                     request,
                     'Registration successful! Please check your email to verify your account.'
@@ -210,7 +215,7 @@ def verifyEmail(request, uidb64, token):
         if organization:
             protocol = get_protocol()
             login_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/account/login/"
-            send_welcome_email(user, login_url)
+            task_send_welcome_email.delay(user.id, login_url)
 
         messages.success(request, "Email verified successfully. You can now log in.")
         return redirect('login')
@@ -518,7 +523,7 @@ def forgot_password(request):
                     domain = f"{user.organization.slug}.{settings.DOMAIN}"
 
                 reset_link = f"{protocol}://{domain}/account/reset-password/{uid}/{token}/"
-                send_password_reset_email(user, reset_link)
+                task_send_password_reset_email.delay(user.id, reset_link)
 
             messages.success(
                 request,
@@ -581,6 +586,11 @@ def createBranch(request):
         return redirect('login')
     
     branch = Branch.objects.filter(organization=organization).all()
+
+    search_query = request.GET.get('branch', '').strip()
+    if search_query:
+        branch = branch.filter(name__icontains=search_query)
+
     form = CreateBranchForm()
 
     if request.method == 'POST':
@@ -718,7 +728,7 @@ def accountView(request):
 @login_required(login_url='login')
 def notifications_view(request):
     qs = request.user.notifications.all().order_by('-created_at')
-    paginator = Paginator(qs, 20)
+    paginator = Paginator(qs, 15)
     page = request.GET.get('page')
     notifications = paginator.get_page(page)
 
@@ -726,6 +736,16 @@ def notifications_view(request):
         'notifications': notifications
     }
     return render(request, 'account/notifications.html', context)
+
+
+@login_required(login_url='login')
+def notifications_page(request):
+    """HTMX partial: returns one page of notification list items."""
+    qs = request.user.notifications.all().order_by('-created_at')
+    paginator = Paginator(qs, 15)
+    page = request.GET.get('page', 1)
+    notifications = paginator.get_page(page)
+    return render(request, 'account/partials/notifications_page.html', {'notifications': notifications})
 
 
 @login_required(login_url='login')

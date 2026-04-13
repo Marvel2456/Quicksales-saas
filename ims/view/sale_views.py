@@ -584,7 +584,7 @@ def sales(request, pk):
             sale_qs = sale_qs.filter(completed=False, cancelled=False)
 
     # Now paginate the filtered queryset
-    paginator = Paginator(sale_qs, 10)
+    paginator = Paginator(sale_qs, 15)
     page = request.GET.get('page')
     sale_page = paginator.get_page(page)
     nums = "a" * sale_page.paginator.num_pages

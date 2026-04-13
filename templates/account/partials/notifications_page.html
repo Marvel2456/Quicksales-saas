@@ -1,0 +1,52 @@
+{% for n in notifications %}
+    <li class="list-group-item d-flex justify-content-between align-items-start {% if not n.is_read %}bg-light{% endif %}">
+        <div class="ms-2 me-auto">
+            <div class="fw-semibold">
+                {% if n.notification_type == 'success' %}
+                    <span class="badge bg-success me-2"><i class="fas fa-check-circle"></i></span>
+                {% elif n.notification_type == 'error' %}
+                    <span class="badge bg-danger me-2"><i class="fas fa-exclamation-circle"></i></span>
+                {% elif n.notification_type == 'warning' %}
+                    <span class="badge bg-warning text-dark me-2"><i class="fas fa-exclamation-triangle"></i></span>
+                {% else %}
+                    <span class="badge bg-info text-dark me-2"><i class="fas fa-info-circle"></i></span>
+                {% endif %}
+                {{ n.created_at|date:'M d, Y H:i' }}
+                {% if not n.is_read %}
+                    <span class="badge bg-primary ms-2">New</span>
+                {% endif %}
+            </div>
+            <div class="mt-1">{{ n.message }}</div>
+        </div>
+        <div class="btn-group" role="group">
+            {% if not n.is_read %}
+            <a href="{% url 'notification_mark_read' n.id %}"
+               class="btn btn-sm btn-outline-primary"
+               title="Mark as read">
+                <i class="fas fa-check"></i>
+            </a>
+            {% endif %}
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger btn-delete-notification"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteNotificationModal"
+                    data-url="{% url 'notification_delete' n.id %}"
+                    data-message="{{ n.message|truncatechars:80 }}"
+                    title="Delete">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </li>
+{% endfor %}
+
+{% if notifications.has_next %}
+<li id="infinite-scroll-trigger"
+    hx-get="{% url 'notifications_page' %}?page={{ notifications.next_page_number }}"
+    hx-trigger="revealed"
+    hx-swap="outerHTML"
+    hx-target="this"
+    class="list-group-item text-center text-muted py-3">
+    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    Loading more...
+</li>
+{% endif %}

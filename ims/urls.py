@@ -18,12 +18,12 @@ from ims.view.sale_views import (
     updateCart, updateQuantity, deleteCartItem, cart, export_sales_csv, export_profit_csv, profitData,
     create_new_sale, switch_sale, cancel_sale
 )
-from ims.view.team_views import (staffs, staff, edit_staff, deactivate_staff, activate_staff, record, 
-                                 branchTeam, branchRecord)
+from ims.view.team_views import (staffs, staff, edit_staff, deactivate_staff, activate_staff, record,
+                                 branchTeam, branchRecord, reinvite_staff)
 from ims.view.test_signal_view import test_low_stock_signal_view
 from ims.view.invoice_views import (
     branch_invoices, invoices, create_invoice, invoice_detail,
-    invoice_pdf, confirm_payment, close_invoice, delete_invoice
+    invoice_pdf, confirm_payment, close_invoice, delete_invoice, edit_invoice
 )
 
 
@@ -125,6 +125,7 @@ urlpatterns = [
     path('edit_staff/', edit_staff, name='edit_staff'),
     path('deactivate_staff/', deactivate_staff, name='deactivate_staff'),
     path('activate_staff/', activate_staff, name='activate_staff'),
+    path('reinvite_staff/<uuid:pk>/', reinvite_staff, name='reinvite_staff'),
     path('branchrecord/', branchRecord, name='branchrecord'),
     path('records/<uuid:pk>/', record, name='records'),
 
@@ -150,6 +151,7 @@ urlpatterns = [
     path('invoice/<uuid:pk>/confirm/', confirm_payment, name='confirm_payment'),
     path('invoice/<uuid:pk>/close/', close_invoice, name='close_invoice'),
     path('invoice/<uuid:pk>/delete/', delete_invoice, name='delete_invoice'),
+    path('invoice/<uuid:pk>/edit/', edit_invoice, name='edit_invoice'),
 ]
 # watch out if the value of the variance changes or it is stamped to each date
 # what happens when users logs in to another POS and makes sale note: should not be possible

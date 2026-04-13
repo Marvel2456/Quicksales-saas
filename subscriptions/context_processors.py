@@ -2,8 +2,8 @@ from django.conf import settings
 from .utils import get_active_subscription, get_usage_stats, get_subscription_status
 
 
-def paystack_public_key(request):
-    return {"PAYSTACK_PUBLIC_KEY": settings.PAYSTACK_PUBLIC_KEY}
+def squadco_public_key(request):
+    return {"SQUAD_PUBLIC_KEY": settings.SQUAD_PUBLIC_KEY}
 
 
 def subscription_context(request):

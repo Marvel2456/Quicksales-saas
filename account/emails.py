@@ -162,6 +162,7 @@ def send_subscription_success_email(user, organization, subscription):
     subject = _("Subscription Activated Successfully")
     
     protocol = get_protocol()
+    login_url = f"{protocol}://{organization.slug}.{settings.DOMAIN}/account/login/"
     context = {
         'user': user,
         'organization': organization,
@@ -169,7 +170,7 @@ def send_subscription_success_email(user, organization, subscription):
         'plan_name': subscription.plan.name,
         'start_date': subscription.start_date.strftime('%B %d, %Y'),
         'end_date': subscription.end_date.strftime('%B %d, %Y'),
-        'dashboard_url': f"{protocol}://{organization.slug}.{settings.DOMAIN}/",
+        'dashboard_url': login_url,
     }
     
     html_message = render_to_string('account/emails/subscription_success_email.html', context)

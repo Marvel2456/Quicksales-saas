@@ -25,6 +25,7 @@ urlpatterns = [
     path('settings/update-branding/', views.update_organization_branding, name='update_organization_branding'),
     # Notifications
     path('notifications/', views.notifications_view, name='notifications'),
+    path('notifications/page/', views.notifications_page, name='notifications_page'),
     path('notifications/<uuid:pk>/delete/', views.delete_notification, name='notification_delete'),
     path('notifications/<uuid:pk>/mark-read/', views.mark_notification_read, name='notification_mark_read'),
     path('notifications/mark-all-read/', views.mark_all_notifications_read, name='notifications_mark_all_read'),

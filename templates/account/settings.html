@@ -62,11 +62,11 @@
                             <div class="mb-2">
                                 <strong>Expires:</strong> {{ subscription.end_date|date:"Y-m-d" }}
                             </div>
-                            <div class="mb-4">
-                                <strong>Invoices:</strong> 
+                            {% comment %} <div class="mb-4">
+                                <strong>Invoices:</strong> {% endcomment %}
                                 {% comment %} Add the button to view the subscription history {% endcomment %}
                                 {% comment %} <a href="{% url 'invoices' subscription.id %}">view</a> {% endcomment %}
-                            </div>
+                            {% comment %} </div> {% endcomment %} 
                         {% else %}
                             <div class="mb-2"><strong>Current Plan:</strong> None</div>
                             <div class="mb-2"><strong>Status:</strong> <span class="badge bg-secondary">No Active Plan</span></div>

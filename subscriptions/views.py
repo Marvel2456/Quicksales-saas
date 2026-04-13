@@ -12,12 +12,94 @@ from django.urls import reverse
 from django.http import JsonResponse
 import uuid
 import json
+import time
 from django.utils import timezone
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
-from account.tasks import deactivate_subscription
-from account.emails import send_subscription_success_email
+from account.tasks import deactivate_subscription, task_send_subscription_success_email
 from decimal import Decimal
+
+
+def _squad_headers():
+    headers = {
+        "Authorization": f"Bearer {settings.SQUAD_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+    if settings.SQUAD_MERCHANT_ID:
+        headers["MerchantId"] = settings.SQUAD_MERCHANT_ID
+    return headers
+
+
+def _extract_checkout_url(data):
+    """Handle possible SquadCo response shapes for redirect URL."""
+    if not isinstance(data, dict):
+        return None
+    payload = data.get("data", data)
+    if not isinstance(payload, dict):
+        return None
+    candidates = [
+        payload.get("checkout_url"),
+        payload.get("payment_link"),
+        payload.get("redirect_link"),
+        payload.get("authorization_url"),
+        payload.get("url"),
+    ]
+    return next((value for value in candidates if value), None)
+
+
+def _extract_status(data):
+    """Handle possible SquadCo response status fields."""
+    if not isinstance(data, dict):
+        return ""
+    payload = data.get("data", data)
+    if not isinstance(payload, dict):
+        return ""
+    return str(
+        payload.get("status")
+        or payload.get("payment_status")
+        or payload.get("transaction_status")
+        or ""
+    ).lower()
+
+
+def _infer_checkout_url(transaction_ref):
+    """Build a hosted checkout URL for a known Squad transaction reference."""
+    api_base = (settings.SQUAD_API_BASE_URL or "").lower()
+    checkout_host = "sandbox-pay.squadco.com" if "sandbox" in api_base else "pay.squadco.com"
+    return f"https://{checkout_host}/{transaction_ref}"
+
+
+def _squad_api_bases():
+    """Return the Squad API base URL. No failover — the alternate sandbox endpoint
+    uses different credentials and causes 403 errors."""
+    configured = (settings.SQUAD_API_BASE_URL or "https://sandbox-api-d.squadco.com").rstrip("/")
+    return [configured]
+
+
+def _validate_squad_config():
+    """Return (ok, message) for required SquadCo config."""
+    secret_key = (settings.SQUAD_SECRET_KEY or "").strip()
+    merchant_id = (settings.SQUAD_MERCHANT_ID or "").strip()
+
+    if not secret_key:
+        return False, "SquadCo secret key is missing. Set SQUAD_SECRET_KEY in environment."
+
+    if secret_key.startswith("sandbox_pk_") or secret_key.startswith("live_pk_") or secret_key.startswith("pk_"):
+        return False, "SquadCo keys appear swapped. Put sandbox_sk_... in SQUAD_SECRET_KEY and sandbox_pk_... in SQUAD_PUBLIC_KEY."
+
+    # SquadCo sandbox keys are typically prefixed with sandbox_sk_
+    # Keep this permissive for live keys while still catching obvious misconfiguration.
+    if not (
+        secret_key.startswith("sandbox_sk_")
+        or secret_key.startswith("live_sk_")
+        or secret_key.startswith("sk_")
+    ):
+        return False, "SquadCo secret key format is invalid. Expected sandbox_sk_... (or live key in production)."
+
+    if not merchant_id:
+        return False, "SquadCo merchant ID is missing. Set SQUAD_MERCHANT_ID in environment."
+
+    return True, "ok"
 
 
 def get_or_create_plan(tier, size, billing_frequency):
@@ -232,6 +314,10 @@ def cancel_plan(request, subscription_id):
 
 @login_required
 def init_payment(request, plan_id):
+    config_ok, config_message = _validate_squad_config()
+    if not config_ok:
+        return JsonResponse({"error": config_message}, status=400)
+
     organization = get_request_organization(request)
     plan = get_object_or_404(Plan, id=plan_id)
 
@@ -245,14 +331,14 @@ def init_payment(request, plan_id):
         if not success:
             return JsonResponse({"error": message}, status=400)
 
-    amount = int(final_amount * 100)  # Paystack expects kobo
+    amount_minor = int(final_amount * 100)
     reference = str(uuid.uuid4())
 
     # create inactive subscription first
     subscription = Subscription.objects.create(
         organization=organization,
         plan=plan,
-        provider="paystack",
+        provider="squadco",
         currency="NGN",
         start_date=timezone.now(),
         end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
@@ -263,7 +349,7 @@ def init_payment(request, plan_id):
     payment = Payment.objects.create(
         subscription=subscription,
         amount=final_amount,
-        payment_method="paystack",
+        payment_method="squadco",
         transaction_id=reference,
         payment_status="pending",
         coupon=coupon,
@@ -279,19 +365,32 @@ def init_payment(request, plan_id):
         coupon.uses += 1
         coupon.save()
 
-    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
     data = {
         "email": request.user.email,
-        "amount": amount,
-        "reference": reference,
+        "amount": amount_minor,
+        "currency": "NGN",
+        "transaction_ref": reference,
         "callback_url": request.build_absolute_uri(reverse("verify_payment")),
     }
-    resp = requests.post("https://api.paystack.co/transaction/initialize", headers=headers, json=data)
+    resp = requests.post(
+        f"{settings.SQUAD_API_BASE_URL}/transaction/initiate",
+        headers=_squad_headers(),
+        json=data,
+        timeout=30,
+    )
 
-    if resp.status_code != 200:
+    if resp.status_code not in (200, 201):
         return JsonResponse({"error": "Unable to initialize payment"}, status=400)
 
-    return JsonResponse(resp.json()["data"])  # contains `authorization_url`
+    response_data = resp.json()
+    checkout_url = _extract_checkout_url(response_data)
+    if not checkout_url:
+        return JsonResponse({"error": "Payment initialized but no checkout URL returned"}, status=400)
+
+    return JsonResponse({
+        "reference": reference,
+        "checkout_url": checkout_url,
+    })
 
 
 
@@ -300,6 +399,10 @@ def init_payment(request, plan_id):
 def create_payment(request):
     if request.method != 'POST':
         return JsonResponse({"error": "Method not allowed"}, status=405)
+
+    config_ok, config_message = _validate_squad_config()
+    if not config_ok:
+        return JsonResponse({"error": config_message}, status=400)
     
     try:
         data = json.loads(request.body)
@@ -323,6 +426,7 @@ def create_payment(request):
         amount = data.get("amount", float(plan.price))
         coupon_code = data.get("coupon_code", "")
         is_free = data.get("is_free", False)
+        org = get_request_organization(request)
 
         coupon = None
         
@@ -333,7 +437,7 @@ def create_payment(request):
                 if not coupon.is_valid():
                     print(f"❌ Coupon expired: {coupon_code}")
                     return JsonResponse({"error": "Coupon is no longer valid"}, status=400)
-                if CouponRedemption.objects.filter(coupon=coupon, organization=get_request_organization(request)).exists():
+                if CouponRedemption.objects.filter(coupon=coupon, organization=org).exists():
                     print(f"❌ Coupon already used: {coupon_code}")
                     return JsonResponse({"error": "Coupon already used"}, status=400)
                 print(f"✓ Coupon valid: {coupon_code}")
@@ -341,20 +445,41 @@ def create_payment(request):
                 print(f"❌ Coupon not found: {coupon_code}")
                 return JsonResponse({"error": "Invalid coupon code"}, status=400)
         
-        # Deactivate previous subscriptions for this organization
-        old_subs = Subscription.objects.filter(
-            organization=get_request_organization(request),
-            is_active=True
-        )
-        count = old_subs.count()
-        if count > 0:
-            old_subs.update(is_active=False)
-            print(f"✓ Deactivated {count} previous subscription(s)")
-        
+        # Check for an existing pending payment for this org + plan to avoid
+        # creating duplicate Squad transactions (Squad rejects if one is already pending).
+        # Use select_for_update inside atomic() to prevent two simultaneous requests
+        # both passing this check and creating duplicate transactions.
+        with transaction.atomic():
+            existing_payment = (
+                Payment.objects
+                .select_for_update()
+                .filter(
+                    subscription__organization=org,
+                    subscription__plan=plan,
+                    payment_status="pending",
+                    payment_method="squadco",
+                )
+                .select_related("subscription")
+                .order_by("-created_at")
+                .first()
+            )
+            if existing_payment and existing_payment.transaction_id:
+                existing_checkout_url = _infer_checkout_url(existing_payment.transaction_id)
+                print(f"♻️ Reusing existing pending payment: {existing_payment.transaction_id}")
+                return JsonResponse({
+                    "status": "ok",
+                    "reference": existing_payment.transaction_id,
+                    "amount": str(existing_payment.amount),
+                    "currency": "NGN",
+                    "checkout_url": existing_checkout_url,
+                })
+
+        # NOTE: Do NOT deactivate existing subscriptions here.
+        # Only deactivate them after payment is confirmed in verify_payment.
         subscription = Subscription.objects.create(
-            organization=get_request_organization(request),
+            organization=org,
             plan=plan,
-            provider="paystack",
+            provider="squadco",
             currency="NGN",
             start_date=timezone.now(),
             end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
@@ -367,7 +492,7 @@ def create_payment(request):
             # Record redemption
             CouponRedemption.objects.create(
                 coupon=coupon,
-                organization=get_request_organization(request),
+                organization=org,
                 subscription=subscription,
             )
             coupon.uses += 1
@@ -394,13 +519,12 @@ def create_payment(request):
                     eta=subscription.end_date
                 )
             
-            # Send email
-            try:
-                owner = subscription.organization.owned_by
-                if owner and owner.email:
-                    send_subscription_success_email(owner, subscription.organization, subscription)
-            except Exception as email_error:
-                print(f"Email error: {email_error}")
+            # Queue confirmation email — never blocks the request
+            owner = subscription.organization.owned_by
+            if owner and owner.email:
+                task_send_subscription_success_email.delay(
+                    owner.id, subscription.organization.id, subscription.id
+                )
 
             # Surface success to UI via Django messages (shown as toast on next page)
             try:
@@ -411,29 +535,144 @@ def create_payment(request):
             print(f"✓ Free month subscription activated immediately")
             return JsonResponse({"success": True, "message": "Subscription activated with free month coupon!"})
         
-        # For paid plans, create pending payment
+        # For paid plans, register the transaction with Squad first so the widget can load it.
+        transaction_reference = reference or uuid.uuid4().hex
+
+        squad_payload = {
+            "email": request.user.email,
+            "amount": int(float(amount) * 100),  # kobo
+            "currency": "NGN",
+            "initiate_type": "inline",
+            "transaction_ref": transaction_reference,
+            "callback_url": request.build_absolute_uri(reverse("verify_payment")),
+            "payment_channels": ["card", "bank", "ussd", "transfer"],
+        }
+        print(f"📡 Registering transaction with Squad: ref={transaction_reference} amount={squad_payload['amount']}")
+
+        squad_resp = None
+        last_request_error = None
+        max_attempts = 2
+        api_bases = _squad_api_bases()
+
+        for attempt in range(1, max_attempts + 1):
+            for api_base in api_bases:
+                try:
+                    squad_resp = requests.post(
+                        f"{api_base}/transaction/initiate",
+                        headers=_squad_headers(),
+                        json=squad_payload,
+                        timeout=(8, 25),
+                    )
+                    print(f"📡 Squad initiate reachable via {api_base}")
+                    break
+                except requests.exceptions.Timeout as timeout_err:
+                    last_request_error = timeout_err
+                    print(
+                        f"⚠️ Squad /transaction/initiate timeout on {api_base} "
+                        f"(attempt {attempt}/{max_attempts})"
+                    )
+                except requests.exceptions.RequestException as req_err:
+                    last_request_error = req_err
+                    print(
+                        f"⚠️ Squad request error on {api_base} "
+                        f"(attempt {attempt}/{max_attempts}): {req_err}"
+                    )
+
+            if squad_resp is not None:
+                break
+
+            if attempt < max_attempts:
+                time.sleep(1.5 * attempt)
+
+        squad_data_payload = {}
+
+        if squad_resp is None:
+            print(f"⚠️ Squad /transaction/initiate failed after {max_attempts} attempts: {last_request_error}")
+
+            # Recovery path: if initiate timed out but Squad still created the transaction,
+            # verify by reference and continue without forcing the user to retry manually.
+            try:
+                verify_resp = None
+                for api_base in api_bases:
+                    try:
+                        verify_resp = requests.get(
+                            f"{api_base}/transaction/verify/{transaction_reference}",
+                            headers=_squad_headers(),
+                            timeout=(8, 15),
+                        )
+                        if verify_resp.status_code == 200:
+                            break
+                    except requests.exceptions.RequestException as verify_call_err:
+                        print(f"⚠️ Verify timeout/error on {api_base}: {verify_call_err}")
+
+                if verify_resp is not None and verify_resp.status_code == 200:
+                    verify_data = verify_resp.json()
+                    verify_payload = verify_data.get("data") or {}
+                    if verify_payload.get("transaction_ref"):
+                        inferred_url = _infer_checkout_url(verify_payload.get("transaction_ref"))
+                        verify_payload.setdefault("checkout_url", inferred_url)
+                        squad_data_payload = verify_payload
+                        print(
+                            f"⚠️ Recovered transaction after timeout via verify endpoint: {verify_payload.get('transaction_ref')}"
+                        )
+                    else:
+                        return JsonResponse({"error": "Payment provider timed out. Please try again."}, status=503)
+                else:
+                    return JsonResponse({"error": "Payment provider timed out. Please try again."}, status=503)
+            except requests.exceptions.RequestException as verify_err:
+                print(f"❌ Timeout recovery verify failed: {verify_err}")
+                return JsonResponse({"error": "Payment provider timed out. Please try again."}, status=503)
+        else:
+            print(f"📡 Squad initiate response: {squad_resp.status_code} {squad_resp.text[:300]}")
+
+            if squad_resp.status_code not in (200, 201):
+                err_text = squad_resp.text[:300] if squad_resp.text else "(no body)"
+                return JsonResponse({"error": f"Unable to initialize payment: {err_text}"}, status=400)
+
+            squad_data = squad_resp.json()
+            # Squad may return a transaction_ref in data — use it; fall back to ours.
+            squad_data_payload = squad_data.get("data") or {}
+
+        confirmed_ref = squad_data_payload.get("transaction_ref") or transaction_reference
+        checkout_url = _extract_checkout_url({"data": squad_data_payload})
+
+        if not checkout_url and confirmed_ref:
+            checkout_url = _infer_checkout_url(confirmed_ref)
+
+        if not checkout_url:
+            response_snippet = squad_resp.text[:300] if squad_resp is not None else str(squad_data_payload)[:300]
+            print(f"❌ Squad initiate returned no checkout_url: {response_snippet}")
+            return JsonResponse({"error": "Squad did not return checkout URL"}, status=400)
+
+        print(f"✓ Squad transaction registered, ref: {confirmed_ref}")
+
         payment = Payment.objects.create(
             subscription=subscription,
             amount=amount,
-            payment_method="paystack",
-            transaction_id=reference or f"pending_{subscription.id}",
+            payment_method="squadco",
+            transaction_id=confirmed_ref,
             payment_status="pending",
             coupon=coupon,
         )
-        
+
         # Record coupon redemption after payment
         if coupon:
             CouponRedemption.objects.create(
                 coupon=coupon,
-                organization=get_request_organization(request),
+                organization=org,
                 subscription=subscription,
             )
             coupon.uses += 1
             coupon.save()
-        
-        print(f"✓ Payment record created: {payment.id} (amount: ₦{amount}, reference: {reference})")
 
-        return JsonResponse({"status": "ok"})
+        print(f"✓ Payment record created: {payment.id} (amount: ₦{amount}, reference: {confirmed_ref})")
+        return JsonResponse({
+            "status": "ok",
+            "reference": confirmed_ref,
+            "amount": str(amount),
+            "currency": "NGN",
+            "checkout_url": checkout_url,
+        })
     
     except Exception as e:
         print(f"❌ Error in create_payment: {str(e)}")
@@ -446,7 +685,12 @@ def create_payment(request):
 
 @login_required
 def verify_payment(request):
-    reference = request.GET.get('reference')
+    reference = (
+        request.GET.get('reference')
+        or request.GET.get('transaction_ref')
+        or request.GET.get('transaction_reference')
+        or request.GET.get('trx_ref')
+    )
     
     if not reference:
         print(f" No reference provided")
@@ -457,44 +701,69 @@ def verify_payment(request):
         print(f"🔍 Verifying payment with reference: {reference}")
         print(f"👤 Organization: {get_request_organization(request).name}")
         
-        # Verify payment with Paystack
-        headers = {
-            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
-        }
-        response = requests.get(
-            f'https://api.paystack.co/transaction/verify/{reference}',
-            headers=headers
-        )
-        
-        print(f"📡 Paystack response status: {response.status_code}")
+        # Verify payment with SquadCo
+        try:
+            response = requests.get(
+                f"{settings.SQUAD_API_BASE_URL}/transaction/verify/{reference}",
+                headers=_squad_headers(),
+                timeout=(8, 25),
+            )
+        except requests.exceptions.Timeout:
+            print(f"⚠️ Timeout verifying payment {reference} — existing subscription preserved")
+            messages.warning(
+                request,
+                "Payment verification timed out. Your current subscription is unchanged. "
+                "If you were charged, please contact support with reference: " + reference
+            )
+            return redirect('settings')
+        except requests.exceptions.RequestException as net_err:
+            print(f"⚠️ Network error verifying payment {reference}: {net_err}")
+            messages.warning(
+                request,
+                "Could not reach payment provider. Your current subscription is unchanged. "
+                "Please try again or contact support with reference: " + reference
+            )
+            return redirect('settings')
+
+        print(f"📡 SquadCo response status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
-            print(f"✅ Paystack data: {data.get('data', {}).get('status')}")
+            status = _extract_status(data)
+            print(f"✅ SquadCo data: {status}")
             
-            if data['data']['status'] == 'success':
-                # Get the payment record using transaction_id (not reference)
-                try:
-                    payment = Payment.objects.get(transaction_id=reference)
-                    print(f"💳 Found payment record: {payment.id}")
-                except Payment.DoesNotExist:
-                    print(f"❌ Payment not found for reference: {reference}")
-                    print(f"Available transactions: {list(Payment.objects.filter(subscription__organization=get_request_organization(request)).values_list('transaction_id', flat=True))}")
-                    messages.error(request, 'Payment record not found')
-                    return redirect('settings')
-                
-                # Only update if not already completed
-                if payment.payment_status != 'completed':
-                    with transaction.atomic():
+            if status in {'success', 'successful', 'completed', 'paid'}:
+                # Use select_for_update inside atomic() to prevent two simultaneous
+                # verify_payment calls from double-activating the subscription.
+                with transaction.atomic():
+                    try:
+                        payment = Payment.objects.select_for_update().get(transaction_id=reference)
+                        print(f"💳 Found payment record: {payment.id}")
+                    except Payment.DoesNotExist:
+                        print(f"❌ Payment not found for reference: {reference}")
+                        messages.error(request, 'Payment record not found')
+                        return redirect('settings')
+
+                    if payment.payment_status != 'completed':
                         payment.payment_status = 'completed'
                         payment.save()
                         print(f"✓ Payment marked as completed")
                         
-                        # Activate subscription
+                        # Activate the new subscription
                         subscription = payment.subscription
                         subscription.is_active = True
                         subscription.save()
                         print(f"✓ Subscription activated: {subscription.id}")
+
+                        # NOW deactivate all other active subscriptions for this org
+                        old_subs = Subscription.objects.filter(
+                            organization=subscription.organization,
+                            is_active=True,
+                        ).exclude(id=subscription.id)
+                        count = old_subs.count()
+                        if count > 0:
+                            old_subs.update(is_active=False)
+                            print(f"✓ Deactivated {count} previous subscription(s)")
                         
                         # Schedule deactivation task using Celery
                         if subscription.end_date > timezone.now():
@@ -504,27 +773,25 @@ def verify_payment(request):
                             )
                             print(f"✓ Deactivation scheduled for: {subscription.end_date}")
                         
-                        # Send subscription success email
-                        try:
-                            owner = subscription.organization.owned_by
-                            if owner and owner.email:
-                                send_subscription_success_email(owner, subscription.organization, subscription)
-                                print(f"✓ Email sent to: {owner.email}")
-                        except Exception as email_error:
-                            # Log but don't fail the payment if email fails
-                            print(f"⚠️ Failed to send subscription email: {email_error}")
+                        # Queue confirmation email — never blocks the payment redirect
+                        owner = subscription.organization.owned_by
+                        if owner and owner.email:
+                            task_send_subscription_success_email.delay(
+                                owner.id, subscription.organization.id, subscription.id
+                            )
+                            print(f"✓ Subscription email queued for: {owner.email}")
                         
                         messages.success(request, 'Payment successful! Your subscription is now active.')
-                else:
-                    print(f"ℹ️ Payment already processed")
-                    messages.info(request, 'This payment has already been processed.')
+                    else:
+                        print(f"ℹ️ Payment already processed")
+                        messages.info(request, 'This payment has already been processed.')
                 return redirect('index')
             else:
-                print(f"❌ Payment status not success: {data['data']['status']}")
+                print(f"❌ Payment status not successful: {status}")
                 messages.error(request, 'Payment verification failed')
                 return redirect('settings')
         else:
-            print(f"❌ Paystack API error: {response.status_code}")
+            print(f"❌ SquadCo API error: {response.status_code}")
             print(f"Response: {response.text}")
             messages.error(request, 'Could not verify payment')
             return redirect('settings')
@@ -572,18 +839,22 @@ def verify_payment(request):
 
 
 @csrf_exempt
-def paystack_webhook(request):
+def squadco_webhook(request):
     print("🔥 Webhook endpoint hit")
     print("Headers:", request.headers)
     print("Body:", request.body)
     
     payload = request.body
     print("🔔 Raw webhook payload:", payload)
-    signature = request.headers.get("X-Paystack-Signature")
+    signature = (
+        request.headers.get("X-Squad-Signature")
+        or request.headers.get("X-Squadco-Signature")
+        or request.headers.get("X-Paystack-Signature")
+    )
 
     import hmac, hashlib
     expected = hmac.new(
-        settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
+        settings.SQUAD_SECRET_KEY.encode("utf-8"),
         payload,
         hashlib.sha512
     ).hexdigest()
@@ -594,8 +865,19 @@ def paystack_webhook(request):
     event = json.loads(payload.decode("utf-8"))
     print("✅ Parsed event:", event) 
 
-    if event["event"] == "charge.success":
-        reference = event["data"]["reference"]
+    event_name = str(event.get("event") or event.get("type") or "").lower()
+    status = _extract_status(event)
+
+    if event_name in {"charge.success", "transaction.success", "payment.success"} or status in {"success", "successful", "completed", "paid"}:
+        data = event.get("data", {}) if isinstance(event, dict) else {}
+        reference = (
+            data.get("reference")
+            or data.get("transaction_ref")
+            or data.get("transaction_reference")
+            or data.get("trx_ref")
+        )
+        if not reference:
+            return HttpResponse(status=200)
 
         with transaction.atomic():
             try:
@@ -615,13 +897,12 @@ def paystack_webhook(request):
                             eta=subscription.end_date
                         )
                     
-                    # Send subscription success email
-                    try:
-                        owner = subscription.organization.owned_by
-                        if owner and owner.email:
-                            send_subscription_success_email(owner, subscription.organization, subscription)
-                    except Exception as email_error:
-                        print(f"Webhook email failed: {email_error}")
+                    # Queue subscription success email
+                    owner = subscription.organization.owned_by
+                    if owner and owner.email:
+                        task_send_subscription_success_email.delay(
+                            owner.id, subscription.organization.id, subscription.id
+                        )
             except Payment.DoesNotExist:
                 pass
 

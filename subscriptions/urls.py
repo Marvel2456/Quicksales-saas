@@ -10,8 +10,10 @@ urlpatterns = [
     path("plan/verify/", views.verify_payment, name="verify_payment"),
     path("plan/cancel/<uuid:subscription_id>/", views.cancel_plan, name="cancel_plan"),
 
-    # Paystack webhook (asynchronous notification from Paystack)
-    path("webhook/paystack/", views.paystack_webhook, name="paystack_webhook"),
+    # SquadCo webhook (asynchronous payment notification)
+    path("webhook/squadco/", views.squadco_webhook, name="squadco_webhook"),
+    # Backward-compatible alias
+    path("webhook/paystack/", views.squadco_webhook, name="paystack_webhook"),
     
     # Coupon endpoints
     path("api/validate-coupon/", coupon_views.validate_coupon_api, name="validate_coupon_api"),
