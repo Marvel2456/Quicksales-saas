@@ -62,6 +62,14 @@
         .modal-dialog {
             touch-action: pan-y;
         }
+        /* Eliminate 300ms tap delay on modal inputs on iOS */
+        .modal input,
+        .modal textarea,
+        .modal select,
+        .modal button,
+        .modal a {
+            touch-action: manipulation;
+        }
     </style>
     
     <!-- Toast Notifications CSS -->
@@ -525,35 +533,39 @@
     </script>
 
     <script>
-        // iOS/Chrome on iPhone fix:
-        // When a Bootstrap modal opens, Bootstrap adds overflow:hidden to <body>,
-        // which on iOS causes the virtual keyboard to dismiss or the backdrop to
-        // intercept taps on inputs inside the modal.
-        // Fix: temporarily allow body scroll while an input inside a modal is focused.
+        // iOS/Chrome on iPhone fix — touch coordinate mismatch
+        //
+        // Root cause: Bootstrap locks scroll by adding overflow:hidden to <body>.
+        // On iOS, this silently scrolls the page to the top, but the modal is
+        // position:fixed relative to the ORIGINAL viewport position. Subsequent
+        // taps are offset — they land where the inputs used to be on screen, not
+        // where they are now, so nothing responds.
+        //
+        // Fix: instead of overflow:hidden, freeze the body with position:fixed
+        // at the current scroll offset. This prevents scroll without moving the
+        // page, keeping touch coordinates aligned with the modal content.
         (function () {
             var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (!isIOS) return;
 
-            document.addEventListener('focusin', function (e) {
-                var tag = e.target.tagName;
-                if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') &&
-                    e.target.closest('.modal')) {
-                    document.body.style.overflow = '';
-                    document.body.style.position = '';
-                }
+            var savedScrollY = 0;
+
+            document.addEventListener('show.bs.modal', function () {
+                savedScrollY = window.scrollY || window.pageYOffset;
+                document.body.style.position = 'fixed';
+                document.body.style.top = '-' + savedScrollY + 'px';
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.overflow = 'hidden';
             });
 
-            document.addEventListener('focusout', function (e) {
-                var tag = e.target.tagName;
-                if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') &&
-                    e.target.closest('.modal')) {
-                    // Slight delay so Bootstrap doesn't fight us
-                    setTimeout(function () {
-                        if (!document.activeElement.closest('.modal')) {
-                            document.body.style.overflow = 'hidden';
-                        }
-                    }, 150);
-                }
+            document.addEventListener('hidden.bs.modal', function () {
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.overflow = '';
+                window.scrollTo(0, savedScrollY);
             });
         })();
     </script>
