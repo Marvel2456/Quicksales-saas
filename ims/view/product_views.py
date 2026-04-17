@@ -251,12 +251,28 @@ def upload_product(request):
                             
                             if product:
                                 # Update existing product
-                                product.category = category
-                                product.brand = str(row.get('brand', '')).strip()
-                                product.unit = str(row.get('unit', '')).strip()
-                                product.batch_no = str(row.get('batch_no', '')).strip()
-                                product.save()
-                                is_new_product = False
+                                # Do NOT reassign branch — the product may exist on another
+                                # branch and we don't want to steal it. Instead, if the product
+                                # belongs to a different branch, create a branch-specific copy.
+                                if product.branch != branch:
+                                    product = Product.objects.create(
+                                        organization=organization,
+                                        branch=branch,
+                                        product_name=product_name,
+                                        category=category,
+                                        brand=str(row.get('brand', '')).strip(),
+                                        unit=str(row.get('unit', '')).strip(),
+                                        batch_no=str(row.get('batch_no', '')).strip(),
+                                        product_code=str(uuid.uuid4())[:8].upper(),
+                                    )
+                                    is_new_product = True
+                                else:
+                                    product.category = category
+                                    product.brand = str(row.get('brand', '')).strip()
+                                    product.unit = str(row.get('unit', '')).strip()
+                                    product.batch_no = str(row.get('batch_no', '')).strip()
+                                    product.save()
+                                    is_new_product = False
                             else:
                                 # Create new product
                                 product = Product.objects.create(
@@ -361,8 +377,8 @@ def upload_product(request):
                 qty = data['quantity']
                 reorder_level = data.get('reorder_level') or 0
 
-                # Find or create product scoped to organization
-                product = Product.objects.filter(organization=organization, product_name__iexact=product_name).first()
+                # Find or create product scoped to organization AND branch
+                product = Product.objects.filter(organization=organization, branch=branch, product_name__iexact=product_name).first()
                 created = False
                 if product is None:
                     product = Product(
@@ -379,7 +395,6 @@ def upload_product(request):
                     created = True
                 else:
                     # Update metadata if changed
-                    product.branch = branch
                     product.category = category
                     product.brand = brand
                     product.unit = unit
