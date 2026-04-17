@@ -45,7 +45,7 @@ class Product(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["organization", "product_name"], name="unique_product_per_org"),
+            models.UniqueConstraint(fields=["organization", "branch", "product_name"], name="unique_product_per_org_branch"),
         ]
         indexes = [
             models.Index(fields=['organization', 'category']),
