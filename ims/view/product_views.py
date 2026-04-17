@@ -220,7 +220,8 @@ def upload_product(request):
                                 error_count += 1
                                 continue
                             
-                            # Get or create category (case-insensitive)
+                            # Get or create category (case-insensitive match first,
+                            # then get_or_create to handle concurrent uploads safely)
                             category = Category.objects.filter(
                                 organization=organization,
                                 branch=branch,
@@ -228,12 +229,13 @@ def upload_product(request):
                             ).first()
                             
                             if not category:
-                                category = Category.objects.create(
+                                category, cat_created = Category.objects.get_or_create(
                                     organization=organization,
                                     branch=branch,
-                                    category_name=category_name
+                                    category_name=category_name,
                                 )
-                                messages.info(request, f"New category '{category_name}' created.")
+                                if cat_created:
+                                    messages.info(request, f"New category '{category_name}' created.")
                             
                             product_name = str(row.get('product_name', '')).strip()
                             if not product_name:
