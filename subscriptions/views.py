@@ -520,7 +520,7 @@ def create_payment(request):
                 else:
                     # Squad knows the ref and it's still pending — safe to reuse
                     existing_checkout_url = _infer_checkout_url(existing_payment.transaction_id)
-                    print(f"♻️ Reusing existing pending payment: {existing_payment.transaction_id}")
+                    print(f"Reusing existing pending payment: {existing_payment.transaction_id}")
                     return JsonResponse({
                         "status": "ok",
                         "reference": existing_payment.transaction_id,

@@ -17,7 +17,7 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "categories"
         constraints = [
-            models.UniqueConstraint(fields=["organization", "category_name"], name="unique_category_per_org"),
+            models.UniqueConstraint(fields=["organization", "branch", "category_name"], name="unique_category_per_org_branch"),
         ]
         indexes = [
             models.Index(fields=['organization', '-date_created']),
