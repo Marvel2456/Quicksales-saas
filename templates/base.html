@@ -7,7 +7,7 @@
     <!-- Meta -->
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
     
     <meta name="description" content="">
@@ -47,6 +47,20 @@
             color: #02296e;
             border-color: #02296e;
             background: #fff;
+        }
+
+        /* iOS tap fix: ensure <a> elements used as buttons are tappable */
+        a[data-bs-toggle], a[data-bs-dismiss] {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* iOS modal input fix: prevent body scroll lock from swallowing taps */
+        .modal {
+            -webkit-overflow-scrolling: touch;
+        }
+        .modal-dialog {
+            touch-action: pan-y;
         }
     </style>
     
@@ -510,6 +524,39 @@
         })();
     </script>
 
+    <script>
+        // iOS/Chrome on iPhone fix:
+        // When a Bootstrap modal opens, Bootstrap adds overflow:hidden to <body>,
+        // which on iOS causes the virtual keyboard to dismiss or the backdrop to
+        // intercept taps on inputs inside the modal.
+        // Fix: temporarily allow body scroll while an input inside a modal is focused.
+        (function () {
+            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (!isIOS) return;
+
+            document.addEventListener('focusin', function (e) {
+                var tag = e.target.tagName;
+                if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') &&
+                    e.target.closest('.modal')) {
+                    document.body.style.overflow = '';
+                    document.body.style.position = '';
+                }
+            });
+
+            document.addEventListener('focusout', function (e) {
+                var tag = e.target.tagName;
+                if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') &&
+                    e.target.closest('.modal')) {
+                    // Slight delay so Bootstrap doesn't fight us
+                    setTimeout(function () {
+                        if (!document.activeElement.closest('.modal')) {
+                            document.body.style.overflow = 'hidden';
+                        }
+                    }, 150);
+                }
+            });
+        })();
+    </script>
 
 </body>
 </html>

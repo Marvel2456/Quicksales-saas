@@ -52,7 +52,7 @@
                                 </thead>
                                 {% if org_role == 'owner' %}
                                 <div class="m-2 py-2">
-                                    <a class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                                    <a href="#" role="button" class="btn app-btn-secondary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                                         <i class="fas fa-plus"></i>
                                         Add Product
                                     </a>
@@ -64,7 +64,7 @@
                                 {% include 'modals/add_product.html' %}
                                 {% else %}
                                 <div class="m-2 py-2" style="display:None;">
-                                    <a class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addProductModal">
+                                    <a href="#" role="button" class="btn app-btn-secondary " data-bs-toggle="modal" data-bs-target="#addProductModal">
                                         <i class="fas fa-plus"></i>
                                         Add Product
                                     </a>
@@ -78,13 +78,13 @@
                                         <td class="cell"><span class="note">{{product.updated_at}}</span></td>
                                         {% if org_role == 'owner' %}
                                         <td class="cell">
-                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{product.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
-                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{product.pk}}"><i class="fa-solid fa-trash-can"></i></a>
+                                            <a href="#" role="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{product.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a href="#" role="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{product.pk}}"><i class="fa-solid fa-trash-can"></i></a>
                                         </td>
                                         {% else %}
                                         <td class="cell" style="display:None;">
-                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{product.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
-                                            <a class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{product.pk}}"><i class="fa-solid fa-trash-can"></i></a>
+                                            <a href="#" role="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{product.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a href="#" role="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{product.pk}}"><i class="fa-solid fa-trash-can"></i></a>
                                         </td>
                                         {% endif %}
                                     </tr>

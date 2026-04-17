@@ -658,7 +658,7 @@ def create_payment(request):
                         if verify_resp.status_code == 200:
                             break
                     except requests.exceptions.RequestException as verify_call_err:
-                        print(f"⚠️ Verify timeout/error on {api_base}: {verify_call_err}")
+                        print(f"Verify timeout/error on {api_base}: {verify_call_err}")
 
                 if verify_resp is not None and verify_resp.status_code == 200:
                     verify_data = verify_resp.json()
