@@ -70,6 +70,67 @@
         .modal a {
             touch-action: manipulation;
         }
+
+        /* ── iOS Custom Bottom Sheet ───────────────────────────────── */
+        #ios-sheet-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1999;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #ios-sheet-backdrop.qs-active { display: block; }
+
+        #ios-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border-radius: 18px 18px 0 0;
+            z-index: 2000;
+            max-height: 88vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transform: translateY(100%);
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+        }
+        {% comment %} marvex touch fix {% endcomment %}
+        #ios-sheet.qs-open { transform: translateY(0); }
+
+        #ios-sheet-handle {
+            width: 44px;
+            height: 4px;
+            background: #d1d5db;
+            border-radius: 2px;
+            margin: 14px auto 10px;
+        }
+        #ios-sheet-body {
+            padding: 0 16px 24px;
+        }
+        /* Remove Bootstrap card border inside the sheet */
+        #ios-sheet-body .card {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        /* Style inputs inside sheet for easy touch */
+        #ios-sheet-body .form-control,
+        #ios-sheet-body .form-select {
+            font-size: 16px; /* prevents iOS auto-zoom on input focus */
+            padding: 12px;
+            border-radius: 10px;
+            touch-action: manipulation;
+        }
+        #ios-sheet-body .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            touch-action: manipulation;
+            min-height: 48px; /* comfortable tap target */
+        }
     </style>
     
     <!-- Toast Notifications CSS -->
@@ -146,6 +207,13 @@
         </div>
         
         {% include 'partials/_footer.html' %}
+    </div>
+
+    <!-- iOS Custom Bottom Sheet — replaces Bootstrap modals on iPhone/iPad -->
+    <div id="ios-sheet-backdrop" aria-hidden="true"></div>
+    <div id="ios-sheet" role="dialog" aria-modal="true">
+        <div id="ios-sheet-handle"></div>
+        <div id="ios-sheet-body"></div>
     </div>
     
     
@@ -533,40 +601,73 @@
     </script>
 
     <script>
-        // iOS/Chrome on iPhone fix — touch coordinate mismatch
+        // ── iOS Custom Bottom Sheet ────────────────────────────────────────
+        // On iPhone/iPad, Bootstrap modals are broken: body scroll-lock shifts
+        // the page to top, making touch coordinates wrong so inputs don't focus.
         //
-        // Root cause: Bootstrap locks scroll by adding overflow:hidden to <body>.
-        // On iOS, this silently scrolls the page to the top, but the modal is
-        // position:fixed relative to the ORIGINAL viewport position. Subsequent
-        // taps are offset — they land where the inputs used to be on screen, not
-        // where they are now, so nothing responds.
-        //
-        // Fix: instead of overflow:hidden, freeze the body with position:fixed
-        // at the current scroll offset. This prevents scroll without moving the
-        // page, keeping touch coordinates aligned with the modal content.
+        // Instead of fighting Bootstrap on iOS, we intercept every modal trigger
+        // tap and show our own bottom sheet that:
+        //   • Does NOT lock body scroll
+        //   • Uses position:fixed bottom:0 — coordinates never shift
+        //   • Clones the exact same form fields from the hidden Bootstrap modal
+        //   • Submits to the same Django URL — no backend changes needed
         (function () {
             var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (!isIOS) return;
 
-            var savedScrollY = 0;
+            var backdrop = document.getElementById('ios-sheet-backdrop');
+            var sheet    = document.getElementById('ios-sheet');
+            var body     = document.getElementById('ios-sheet-body');
 
-            document.addEventListener('show.bs.modal', function () {
-                savedScrollY = window.scrollY || window.pageYOffset;
-                document.body.style.position = 'fixed';
-                document.body.style.top = '-' + savedScrollY + 'px';
-                document.body.style.left = '0';
-                document.body.style.right = '0';
-                document.body.style.overflow = 'hidden';
-            });
+            function openSheet(targetSelector) {
+                var source = document.querySelector(targetSelector);
+                if (!source) return;
 
-            document.addEventListener('hidden.bs.modal', function () {
-                document.body.style.position = '';
-                document.body.style.top = '';
-                document.body.style.left = '';
-                document.body.style.right = '';
-                document.body.style.overflow = '';
-                window.scrollTo(0, savedScrollY);
-            });
+                var content = source.querySelector('.modal-content');
+                if (!content) return;
+
+                // Clone the form content into the sheet
+                body.innerHTML = '';
+                var clone = content.cloneNode(true);
+                body.appendChild(clone);
+
+                // Wire close buttons to close the sheet (not Bootstrap dismiss)
+                body.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(function (el) {
+                    el.removeAttribute('data-bs-dismiss');
+                    el.addEventListener('click', closeSheet);
+                });
+
+                // Open
+                backdrop.classList.add('qs-active');
+                sheet.classList.add('qs-open');
+
+                // Focus first input once animation ends (keyboard appears reliably)
+                setTimeout(function () {
+                    var first = body.querySelector('input:not([type=hidden]), textarea, select');
+                    if (first) first.focus();
+                }, 300);
+            }
+
+            function closeSheet() {
+                sheet.classList.remove('qs-open');
+                backdrop.classList.remove('qs-active');
+                setTimeout(function () { body.innerHTML = ''; }, 280);
+            }
+
+            // Tap backdrop to dismiss
+            backdrop.addEventListener('click', closeSheet);
+
+            // Intercept ALL data-bs-toggle="modal" taps in capture phase
+            // (runs before Bootstrap gets the event, preventing it from opening its version)
+            document.addEventListener('click', function (e) {
+                var trigger = e.target.closest('[data-bs-toggle="modal"]');
+                if (!trigger) return;
+                var target = trigger.getAttribute('data-bs-target') || trigger.getAttribute('href');
+                if (!target) return;
+                e.preventDefault();
+                e.stopPropagation();
+                openSheet(target);
+            }, true);
         })();
     </script>
 
