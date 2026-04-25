@@ -92,12 +92,13 @@
             z-index: 2000;
             max-height: 88vh;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            /* -webkit-overflow-scrolling:touch removed — it creates an iOS GPU
+               compositing layer that breaks touch routing to inputs inside it */
             transform: translateY(100%);
+            will-change: transform;
             transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
             padding-bottom: env(safe-area-inset-bottom, 16px);
         }
-        {% comment %} marvex touch fix {% endcomment %}
         #ios-sheet.qs-open { transform: translateY(0); }
 
         #ios-sheet-handle {
@@ -119,11 +120,16 @@
         }
         /* Style inputs inside sheet for easy touch */
         #ios-sheet-body .form-control,
-        #ios-sheet-body .form-select {
+        #ios-sheet-body .form-select,
+        #ios-sheet-body input,
+        #ios-sheet-body textarea {
             font-size: 16px; /* prevents iOS auto-zoom on input focus */
             padding: 12px;
             border-radius: 10px;
             touch-action: manipulation;
+            -webkit-user-select: text;  /* iOS must allow text selection/input */
+            user-select: text;
+            pointer-events: auto;
         }
         #ios-sheet-body .btn {
             padding: 12px 24px;
@@ -132,7 +138,7 @@
             min-height: 48px; /* comfortable tap target */
         }
     </style>
-    
+    {% comment %} new push {% endcomment %}
     <!-- Toast Notifications CSS -->
     <style>
         @keyframes slideInRight {
@@ -641,17 +647,34 @@
                 backdrop.classList.add('qs-active');
                 sheet.classList.add('qs-open');
 
-                // Focus first input once animation ends (keyboard appears reliably)
+                // After the slide-up animation finishes, REMOVE the CSS transform.
+                // Reason: transform: translateY(0) keeps the element on an iOS GPU
+                // compositing layer, which silently breaks input focus — taps land
+                // on the layer but the browser never routes them to the text field.
+                // Clearing the inline transform returns the sheet to normal flow
+                // where input events work correctly.
                 setTimeout(function () {
+                    sheet.style.webkitTransform = 'none';
+                    sheet.style.transform = 'none';
+                    // Focus first input now that we're off the GPU layer
                     var first = body.querySelector('input:not([type=hidden]), textarea, select');
-                    if (first) first.focus();
+                    if (first) { first.focus(); }
                 }, 300);
             }
 
             function closeSheet() {
-                sheet.classList.remove('qs-open');
-                backdrop.classList.remove('qs-active');
-                setTimeout(function () { body.innerHTML = ''; }, 280);
+                // Clear the inline 'none' override so the CSS transition can
+                // animate the sheet back down. Two rAFs ensure the browser
+                // registers the style removal before we trigger the transition.
+                sheet.style.webkitTransform = '';
+                sheet.style.transform = '';
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () {
+                        sheet.classList.remove('qs-open');
+                        backdrop.classList.remove('qs-active');
+                        setTimeout(function () { body.innerHTML = ''; }, 280);
+                    });
+                });
             }
 
             // Tap backdrop to dismiss
