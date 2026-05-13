@@ -7,7 +7,7 @@ from .models import Plan, Subscription, Payment, Coupon, CouponRedemption
 
 @admin.register(Plan)
 class PlanAdmin(ModelAdmin):
-    list_display = ('name', 'tier', 'size', 'billing_frequency', 'price', 'max_users', 'max_branches', 'max_products', 'created_at')
+    list_display = ('name', 'tier', 'size', 'billing_frequency', 'price', 'disable_store', 'max_users', 'max_branches', 'max_products', 'created_at')
     search_fields = ('name', 'tier', 'size')
     list_filter = ('tier', 'size', 'billing_frequency')
     ordering = ('-created_at',)
@@ -23,6 +23,7 @@ class PlanAdmin(ModelAdmin):
         'price',
         'duration_in_days',
         'description',
+        'disable_store',
         'max_users',
         'max_branches',
         'max_products',
