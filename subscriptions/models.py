@@ -12,6 +12,7 @@ class Plan(models.Model):
         ('basic', 'Basic'),
         ('growth', 'Growth'),
         ('premium', 'Premium'),
+        ('invoice', 'Invoice'),
     )
     SIZE_CHOICES = (
         ('starter', 'Starter'),
@@ -35,6 +36,7 @@ class Plan(models.Model):
     max_users = models.IntegerField(default=1)
     max_branches = models.IntegerField(default=1, blank=True, null=True)
     max_products = models.IntegerField(default=100, blank=True, null=True)
+    disable_store = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 

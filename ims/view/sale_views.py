@@ -12,6 +12,7 @@ import csv
 import json
 from account.decorators import role_required
 from account.utils import get_request_organization
+from subscriptions.utils import get_active_subscription
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.db.models import Sum
@@ -22,11 +23,22 @@ from ims.view_caching import cached_view
 # Write your views here.
 
 
+def _store_disabled_for_org(organization):
+    subscription = get_active_subscription(organization)
+    if not subscription or not subscription.plan:
+        return False
+    return bool(getattr(subscription.plan, 'disable_store', False))
+
+
 @role_required(roles=['owner'])
 @login_required
 def branchStore(request):
     # Use organization from middleware context (supports multi-org)
     organization = get_request_organization(request)
+    if _store_disabled_for_org(organization):
+        messages.warning(request, 'Store is not available on your current plan.')
+        return redirect('index')
+
     branch_qs = Branch.objects.filter(organization=organization)
 
     paginator = Paginator(branch_qs, 15)
@@ -53,6 +65,9 @@ def branchStore(request):
 def store(request, pk):
     """Store view - optimized with select_related and proper pagination"""
     organization = get_request_organization(request)
+    if _store_disabled_for_org(organization):
+        messages.warning(request, 'Store is not available on your current plan.')
+        return redirect('invoices', pk=pk)
     
     # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)

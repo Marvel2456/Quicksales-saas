@@ -120,14 +120,16 @@ def get_or_create_plan(tier, size, billing_frequency):
     tier_features = {
         'basic': {'users': 1, 'branches': 1, 'products': 100},
         'growth': {'users': 5, 'branches': 5, 'products': 1000},
-        'premium': {'users': 20, 'branches': 20, 'products': 5000}
+        'premium': {'users': 20, 'branches': 20, 'products': 5000},
+        'invoice': {'users': 5, 'branches': 5, 'products': 1000}
     }
     
     # Define base prices based on tier and size
     base_prices = {
         'basic': {'starter': 15000, 'large': 25000, 'xl': 40000},
         'growth': {'starter': 35000, 'large': 60000, 'xl': 100000},
-        'premium': {'starter': 80000, 'large': 150000, 'xl': 250000}
+        'premium': {'starter': 80000, 'large': 150000, 'xl': 250000},
+        'invoice': {'starter': 30000, 'large': 50000, 'xl': 85000}
     }
     
     # Get base price
@@ -168,8 +170,14 @@ def get_or_create_plan(tier, size, billing_frequency):
             'max_users': features['users'],
             'max_branches': features['branches'],
             'max_products': features['products'],
+            'disable_store': tier_upper == 'invoice',
         }
     )
+
+    # Keep plan feature flag aligned even if plan already existed.
+    if tier_upper == 'invoice' and not plan.disable_store:
+        plan.disable_store = True
+        plan.save(update_fields=['disable_store'])
     
     return plan
 

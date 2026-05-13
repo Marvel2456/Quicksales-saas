@@ -20,6 +20,11 @@ def subscription_context(request):
     subscription = get_active_subscription(organization)
     usage_stats = get_usage_stats(organization)
     status = get_subscription_status(organization)
+    disable_store_sidebar = bool(
+        subscription
+        and subscription.plan
+        and getattr(subscription.plan, 'disable_store', False)
+    )
     
     return {
         'active_subscription': subscription,
@@ -28,4 +33,5 @@ def subscription_context(request):
         'can_create_user': usage_stats['users']['can_create'],
         'can_create_branch': usage_stats['branches']['can_create'],
         'can_create_product': usage_stats['products']['can_create'],
+        'disable_store_sidebar': disable_store_sidebar,
     }

@@ -84,7 +84,7 @@
 
         #ios-sheet {
             position: fixed;
-            bottom: 0;
+            bottom: -100vh;
             left: 0;
             right: 0;
             background: #fff;
@@ -92,14 +92,10 @@
             z-index: 2000;
             max-height: 88vh;
             overflow-y: auto;
-            /* -webkit-overflow-scrolling:touch removed — it creates an iOS GPU
-               compositing layer that breaks touch routing to inputs inside it */
-            transform: translateY(100%);
-            will-change: transform;
-            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: bottom 0.24s ease;
             padding-bottom: env(safe-area-inset-bottom, 16px);
         }
-        #ios-sheet.qs-open { transform: translateY(0); }
+        #ios-sheet.qs-open { bottom: 0; }
 
         #ios-sheet-handle {
             width: 44px;
@@ -136,6 +132,13 @@
             border-radius: 10px;
             touch-action: manipulation;
             min-height: 48px; /* comfortable tap target */
+        }
+        #ios-sheet-body input,
+        #ios-sheet-body textarea,
+        #ios-sheet-body select {
+            pointer-events: auto !important;
+            -webkit-appearance: none;
+            appearance: none;
         }
     </style>
     {% comment %} new push {% endcomment %}
@@ -624,6 +627,9 @@
             var backdrop = document.getElementById('ios-sheet-backdrop');
             var sheet    = document.getElementById('ios-sheet');
             var body     = document.getElementById('ios-sheet-body');
+            var sourceModal = null;
+            var movedContent = null;
+            var contentPlaceholder = null;
 
             function openSheet(targetSelector) {
                 var source = document.querySelector(targetSelector);
@@ -632,10 +638,15 @@
                 var content = source.querySelector('.modal-content');
                 if (!content) return;
 
-                // Clone the form content into the sheet
+                // Move real modal content into the sheet so native input events,
+                // validation, and form submit behavior stay intact on iOS.
+                sourceModal = source;
+                movedContent = content;
+                contentPlaceholder = document.createComment('qs-ios-modal-placeholder');
+                content.parentNode.insertBefore(contentPlaceholder, content);
+
                 body.innerHTML = '';
-                var clone = content.cloneNode(true);
-                body.appendChild(clone);
+                body.appendChild(content);
 
                 // Wire close buttons to close the sheet (not Bootstrap dismiss)
                 body.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(function (el) {
@@ -647,38 +658,42 @@
                 backdrop.classList.add('qs-active');
                 sheet.classList.add('qs-open');
 
-                // After the slide-up animation finishes, REMOVE the CSS transform.
-                // Reason: transform: translateY(0) keeps the element on an iOS GPU
-                // compositing layer, which silently breaks input focus — taps land
-                // on the layer but the browser never routes them to the text field.
-                // Clearing the inline transform returns the sheet to normal flow
-                // where input events work correctly.
+                // Focus first input on open
                 setTimeout(function () {
-                    sheet.style.webkitTransform = 'none';
-                    sheet.style.transform = 'none';
-                    // Focus first input now that we're off the GPU layer
                     var first = body.querySelector('input:not([type=hidden]), textarea, select');
-                    if (first) { first.focus(); }
-                }, 300);
+                    if (first) {
+                        first.removeAttribute('readonly');
+                        first.focus();
+                    }
+                }, 220);
             }
 
             function closeSheet() {
-                // Clear the inline 'none' override so the CSS transition can
-                // animate the sheet back down. Two rAFs ensure the browser
-                // registers the style removal before we trigger the transition.
-                sheet.style.webkitTransform = '';
-                sheet.style.transform = '';
-                requestAnimationFrame(function () {
-                    requestAnimationFrame(function () {
-                        sheet.classList.remove('qs-open');
-                        backdrop.classList.remove('qs-active');
-                        setTimeout(function () { body.innerHTML = ''; }, 280);
-                    });
-                });
+                sheet.classList.remove('qs-open');
+                backdrop.classList.remove('qs-active');
+
+                // Restore moved modal content to its original place.
+                setTimeout(function () {
+                    if (movedContent && contentPlaceholder && contentPlaceholder.parentNode) {
+                        contentPlaceholder.parentNode.insertBefore(movedContent, contentPlaceholder);
+                        contentPlaceholder.remove();
+                    }
+                    body.innerHTML = '';
+                    sourceModal = null;
+                    movedContent = null;
+                    contentPlaceholder = null;
+                }, 240);
             }
 
             // Tap backdrop to dismiss
             backdrop.addEventListener('click', closeSheet);
+
+            // Make iOS reliably focus controls when tapped inside the sheet.
+            body.addEventListener('click', function (e) {
+                var field = e.target.closest('input, textarea, select');
+                if (!field || field.disabled) return;
+                setTimeout(function () { field.focus(); }, 0);
+            });
 
             // Intercept ALL data-bs-toggle="modal" taps in capture phase
             // (runs before Bootstrap gets the event, preventing it from opening its version)
