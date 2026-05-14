@@ -631,9 +631,18 @@
             var movedContent = null;
             var contentPlaceholder = null;
 
+            function isNonSheetModal(modalEl) {
+                if (!modalEl) return false;
+                // Keep this modal available for forced auth/session flows.
+                return modalEl.id === 'session-expired-modal';
+            }
+
             function openSheet(targetSelector) {
+                if (sheet.classList.contains('qs-open')) return;
                 var source = document.querySelector(targetSelector);
                 if (!source) return;
+
+                if (isNonSheetModal(source)) return;
 
                 var content = source.querySelector('.modal-content');
                 if (!content) return;
@@ -663,7 +672,7 @@
                     var first = body.querySelector('input:not([type=hidden]), textarea, select');
                     if (first) {
                         first.removeAttribute('readonly');
-                        first.focus();
+                        first.focus({ preventScroll: true });
                     }
                 }, 220);
             }
@@ -688,12 +697,22 @@
             // Tap backdrop to dismiss
             backdrop.addEventListener('click', closeSheet);
 
+            // Block Bootstrap from opening native modal UI on iOS.
+            document.addEventListener('show.bs.modal', function (e) {
+                if (isNonSheetModal(e.target)) return;
+                e.preventDefault();
+                e.stopPropagation();
+            }, true);
+
             // Make iOS reliably focus controls when tapped inside the sheet.
-            body.addEventListener('click', function (e) {
+            function focusFieldFromTap(e) {
                 var field = e.target.closest('input, textarea, select');
                 if (!field || field.disabled) return;
-                setTimeout(function () { field.focus(); }, 0);
-            });
+                field.removeAttribute('readonly');
+                field.focus({ preventScroll: true });
+            }
+            body.addEventListener('touchend', focusFieldFromTap, { passive: true });
+            body.addEventListener('click', focusFieldFromTap);
 
             // Intercept ALL data-bs-toggle="modal" taps in capture phase
             // (runs before Bootstrap gets the event, preventing it from opening its version)
@@ -704,7 +723,17 @@
                 if (!target) return;
                 e.preventDefault();
                 e.stopPropagation();
+                if (e.stopImmediatePropagation) e.stopImmediatePropagation();
                 openSheet(target);
+            }, true);
+
+            // Some iOS browsers dispatch touchstart first; block Bootstrap there too.
+            document.addEventListener('touchstart', function (e) {
+                var trigger = e.target.closest('[data-bs-toggle="modal"]');
+                if (!trigger) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.stopImmediatePropagation) e.stopImmediatePropagation();
             }, true);
         })();
     </script>
