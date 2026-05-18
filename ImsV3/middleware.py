@@ -80,21 +80,21 @@ class OrganizationContextMiddleware(MiddlewareMixin):
             
             # Try to get membership based on active_org_id in session
             if active_org_id:
-                try:
-                    membership = request.user.memberships.select_related(
-                        'organization', 'branch'
-                    ).get(
-                        organization_id=active_org_id,
-                        is_active=True
-                    )
+                membership = request.user.memberships.select_related(
+                    'organization', 'branch'
+                ).filter(
+                    organization_id=active_org_id,
+                    is_active=True,
+                ).first()
+                if membership:
                     request.organization = membership.organization
                     request.branch = membership.branch
                     request.user._current_role = membership.role  # Store role for this request
                     return None
-                except OrganizationMembership.DoesNotExist:
-                    # Invalid org ID in session, clear it
-                    if 'active_organization_id' in request.session:
-                        del request.session['active_organization_id']
+
+                # Invalid org ID in session, clear it
+                if 'active_organization_id' in request.session:
+                    del request.session['active_organization_id']
             
             # No active org in session, get first available membership
             first_membership = request.user.memberships.select_related(

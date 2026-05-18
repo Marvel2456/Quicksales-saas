@@ -19,16 +19,16 @@ def organization_role(request):
         return {"org_role": None}
     
     # Try to get membership-based role first
-    try:
-        membership = OrganizationMembership.objects.get(
-            user=user,
-            organization=organization,
-            is_active=True
-        )
+    membership = OrganizationMembership.objects.filter(
+        user=user,
+        organization=organization,
+        is_active=True,
+    ).first()
+    if membership:
         return {"org_role": membership.role}
-    except OrganizationMembership.DoesNotExist:
-        # Fallback to global user role for legacy users
-        return {"org_role": getattr(user, "role", None)}
+
+    # Fallback to global user role for legacy users
+    return {"org_role": getattr(user, "role", None)}
 
 
 def active_branch(request):

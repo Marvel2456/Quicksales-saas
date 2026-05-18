@@ -26,14 +26,11 @@ def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='log
             
             if organization:
                 # Multi-org mode: check membership role
-                try:
-                    membership = user.memberships.get(
-                        organization_id=organization.id,
-                        is_active=True
-                    )
-                    user_role = membership.role
-                except OrganizationMembership.DoesNotExist:
-                    user_role = None
+                membership = user.memberships.filter(
+                    organization_id=organization.id,
+                    is_active=True,
+                ).first()
+                user_role = membership.role if membership else None
             else:
                 # Legacy mode: use global user role
                 user_role = user.role

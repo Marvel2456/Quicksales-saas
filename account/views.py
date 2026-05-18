@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import SetPasswordForm
-from .models import CustomUser, ActivityLog, Branch, Organization, Notification
+from .models import CustomUser, ActivityLog, Branch, Organization, Notification, OrganizationMembership
 from subscriptions.models import Subscription, Plan
 from .forms import *
 from django.db import transaction
@@ -244,10 +244,13 @@ def loginUser(request):
         
         try:
             user = CustomUser.objects.get(email__iexact=email)
-            from account.models import OrganizationMembership
-            
             # Verify user has access to this organization
-            membership = user.memberships.get(organization_id=org_id, is_active=True)
+            membership = user.memberships.filter(
+                organization_id=org_id,
+                is_active=True,
+            ).select_related('organization').first()
+            if not membership:
+                raise OrganizationMembership.DoesNotExist
             
             request.session['selected_org_id'] = org_id
             request.session.modified = True
@@ -302,7 +305,12 @@ def loginUser(request):
             else:
                 # Multi-org user - get membership
                 try:
-                    membership = user.memberships.get(organization_id=org_id, is_active=True)
+                    membership = user.memberships.filter(
+                        organization_id=org_id,
+                        is_active=True,
+                    ).select_related('organization', 'branch').first()
+                    if not membership:
+                        raise OrganizationMembership.DoesNotExist
                     log_org = membership.organization
                     log_branch = membership.branch
                     role_for_session = membership.role
@@ -386,8 +394,11 @@ def loginUser(request):
             else:
                 # Get role from membership for the selected organization
                 try:
-                    membership = user.memberships.get(organization_id=org_id, is_active=True)
-                    redirect_role = membership.role
+                    membership = user.memberships.filter(
+                        organization_id=org_id,
+                        is_active=True,
+                    ).first()
+                    redirect_role = membership.role if membership else user.role
                 except:
                     redirect_role = user.role  # Fallback to user role
 
@@ -435,8 +446,6 @@ def loginUser(request):
         
         try:
             user = CustomUser.objects.get(email__iexact=email)
-            from account.models import OrganizationMembership
-            
             # Get all active organizations for this user
             orgs = user.memberships.filter(is_active=True).select_related('organization')
             
