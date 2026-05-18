@@ -6,13 +6,14 @@ services:
   web:
     networks:
       - app-net
-    build: .
+    build:
+      context: .
     container_name: quicksales
     command: >
       sh -c "
       python manage.py collectstatic --noinput &&
       python manage.py migrate &&
-      gunicorn ImsV3.wsgi:application --bind 0.0.0.0:8000 --workers=2 --timeout=120
+      gunicorn ImsV3.wsgi:application --bind 0.0.0.0:8000 --workers=2 --timeout=120 --access-logfile - --error-logfile - --log-level info --capture-output
       "
     ports:
       - 8000:8000
@@ -55,7 +56,8 @@ services:
   celery_worker:
     networks:
       - app-net
-    build: .
+    build:
+      context: .
     container_name: quicksales_celery_worker
     command: celery -A ImsV3 worker --loglevel=info --concurrency=2
     volumes:
@@ -70,7 +72,8 @@ services:
   celery_beat:
     networks:
       - app-net
-    build: .
+    build:
+      context: .
     container_name: quicksales_celery_beat
     command: celery -A ImsV3 beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
