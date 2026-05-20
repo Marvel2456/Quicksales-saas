@@ -4,6 +4,38 @@
 
 {% block content %}
 
+<style>
+    .staff-table .staff-email-cell {
+        min-width: 220px;
+    }
+
+    .staff-table .staff-email-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .staff-table .staff-email-link {
+        color: #2f5ef0;
+        text-decoration: none;
+        font-weight: 500;
+        white-space: nowrap;
+        word-break: normal;
+        overflow-wrap: normal;
+    }
+
+    .staff-table .staff-email-link:hover {
+        color: #1e40af;
+    }
+
+    @media (max-width: 767.98px) {
+        .staff-table .staff-email-cell {
+            min-width: 260px;
+        }
+    }
+</style>
+
 <div class="app-content pt-3 p-md-3 p-lg-4">
     <div class="container-xl">
 
@@ -42,10 +74,10 @@
                 <div class="app-card app-card-orders-table shadow-sm mb-5">
                     <div class="app-card-body">
                         <div class="table-responsive">
-                            <table class="table app-table-hover mb-0 text-left" id="example">
+                            <table class="table app-table-hover mb-0 text-left staff-table" id="example">
                                 <thead>
                                     <tr>
-                                        <th class="cell">Email</th>
+                                        <th class="cell staff-email-cell">Email</th>
                                         <th class="cell">Name</th>
                                         <th class="cell">Phone Number</th>
                                         <th class="cell">Role</th>
@@ -64,15 +96,11 @@
                                     </div>
                                     {% for staff in staff_page %}
                                     <tr>
-                                        <td class="cell">
-                                            <div class="email-cell-wrapper"
-                                                style="display: flex; align-items: center; gap: 8px;">
+                                        <td class="cell staff-email-cell">
+                                            <div class="staff-email-wrapper">
                                                 <i class="fa-solid fa-envelope"
                                                     style="color: #2f5ef0; font-size: 14px; flex-shrink: 0;"></i>
-                                                <a href=""
-                                                    style="color: #2f5ef0; text-decoration: none; word-break: break-all; font-weight: 500; transition: color 0.2s ease;"
-                                                    onmouseover="this.style.color='#1e40af'"
-                                                    onmouseout="this.style.color='#2f5ef0'">{{staff.user.email}}</a>
+                                                <a href="" class="staff-email-link">{{staff.user.email}}</a>
                                             </div>
                                         </td>
                                         <td class="cell">{{staff.user.first_name}} {{staff.user.last_name}}</td>
