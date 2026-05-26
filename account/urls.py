@@ -5,6 +5,7 @@ from . import org_views
 
 urlpatterns = [
     path('login/', views.loginUser, name='login'),
+    path('resend-verification/', views.resend_verification_email, name='resend_verification_email'),
     path('logout/', views.logoutUser, name='logout'),
     path('forgot-password/', views.forgot_password, name='forgot_password'),
     path('reset-password/sent/', views.password_reset_sent, name='password_reset_sent'),

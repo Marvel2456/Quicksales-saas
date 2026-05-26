@@ -32,6 +32,24 @@ from django.utils.timezone import make_aware
 # Create your views here.
 
 
+def _get_verification_organization(user):
+    organization = user.owned_organizations.order_by('-created_at').first()
+    if organization:
+        return organization
+
+    membership = user.memberships.filter(is_active=True).select_related('organization').order_by('-date_joined').first()
+    if membership:
+        return membership.organization
+
+    return user.organization
+
+
+def _render_verification_sent(request, email):
+    return render(request, 'account/verification_email_sent.html', {
+        'email': email,
+    })
+
+
 class OwnerRegisterView(View):
     def get(self, request):
         form = OwnerRegisterForm()
@@ -187,10 +205,7 @@ class OwnerRegisterView(View):
 
                 # Send email verification
                 task_send_verification_email.delay(user.id, organization.id)
-                messages.success(
-                    request,
-                    'Registration successful! Please check your email to verify your account.'
-                )
+                return _render_verification_sent(request, email)
             
             return redirect("login")
 
@@ -228,6 +243,29 @@ def check_email(request):
         exists = CustomUser.objects.filter(email__iexact=email).exists()
         return JsonResponse({'exists': exists})
     return JsonResponse({'exists': False})
+
+
+def resend_verification_email(request):
+    if request.method != 'POST':
+        return redirect('login')
+
+    email = request.POST.get('email', '').strip()
+
+    if not email:
+        messages.error(request, 'Enter your email address to resend verification.')
+        return redirect('login')
+
+    user = CustomUser.objects.filter(email__iexact=email).first()
+    if user and not user.is_active:
+        organization = _get_verification_organization(user)
+        if organization:
+            task_send_verification_email.delay(user.id, organization.id)
+
+    messages.success(
+        request,
+        'If an unverified account exists for that email, a verification email has been sent.'
+    )
+    return redirect('login')
 
 def loginUser(request):
     """Multi-step login: email -> organization select -> password"""
@@ -446,6 +484,13 @@ def loginUser(request):
         
         try:
             user = CustomUser.objects.get(email__iexact=email)
+            if not user.is_active:
+                return render(request, 'account/login.html', {
+                    'error': 'Your account is not verified yet. Resend the verification email below.',
+                    'email': email,
+                    'show_resend_verification': True,
+                })
+
             # Get all active organizations for this user
             orgs = user.memberships.filter(is_active=True).select_related('organization')
             

@@ -183,6 +183,23 @@
             background: var(--primary-dark);
         }
 
+        .secondary-btn {
+            width: 100%;
+            background: #eff6ff;
+            color: var(--primary);
+            border: 1px solid #bfdbfe;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .secondary-btn:hover {
+            background: #dbeafe;
+        }
+
         .auth-footer {
             margin-top: 18px;
             font-size: 12px;
@@ -238,6 +255,14 @@
 
                 <button type="submit" class="primary-btn">Continue <i class="bi bi-arrow-right ms-2"></i></button>
             </form>
+
+            {% if show_resend_verification and email %}
+            <form method="post" action="{% url 'resend_verification_email' %}">
+                {% csrf_token %}
+                <input type="hidden" name="email" value="{{ email }}">
+                <button type="submit" class="secondary-btn">Resend verification email</button>
+            </form>
+            {% endif %}
 
             <div class="auth-footer">
                 Don't have an account yet? <a href="{% url 'register' %}">Sign up</a>
