@@ -102,6 +102,60 @@ def _validate_squad_config():
     return True, "ok"
 
 
+def _finalize_successful_payment(reference):
+    """Idempotently finalize a successful payment by reference.
+
+    Returns a tuple: (status, payment)
+    status values:
+      - "completed_now": transitioned from pending to completed
+      - "already_completed": payment had already been processed
+      - "not_found": no payment exists for the reference
+    """
+    with transaction.atomic():
+        try:
+            payment = Payment.objects.select_for_update().get(transaction_id=reference)
+        except Payment.DoesNotExist:
+            return "not_found", None
+
+        if payment.payment_status == "completed":
+            return "already_completed", payment
+
+        payment.payment_status = "completed"
+        payment.save(update_fields=["payment_status", "updated_at"])
+
+        subscription = None
+        if payment.subscription_id:
+            subscription = (
+                Subscription.objects
+                .select_related("organization", "organization__owned_by")
+                .get(id=payment.subscription_id)
+            )
+        if subscription:
+            if not subscription.is_active:
+                subscription.is_active = True
+                subscription.save(update_fields=["is_active", "updated_at"])
+
+            # Enforce single active subscription for the organization.
+            Subscription.objects.filter(
+                organization=subscription.organization,
+                is_active=True,
+            ).exclude(id=subscription.id).update(is_active=False)
+
+            if subscription.end_date > timezone.now():
+                deactivate_subscription.apply_async(
+                    args=[str(subscription.id)],
+                    eta=subscription.end_date,
+                )
+
+            owner = subscription.organization.owned_by
+            if owner and owner.email:
+                task_send_subscription_success_email.delay(
+                    owner.id, subscription.organization.id, subscription.id
+                )
+
+        return "completed_now", payment
+
+
 def get_or_create_plan(tier, size, billing_frequency):
     """Get or create a Plan based on tier, size, and billing frequency"""
     # Define plan properties based on tier and size
@@ -342,6 +396,26 @@ def init_payment(request, plan_id):
     amount_minor = int(final_amount * 100)
     reference = str(uuid.uuid4())
 
+    existing_pending_payment = (
+        Payment.objects
+        .filter(
+            subscription__organization=organization,
+            subscription__plan=plan,
+            payment_status="pending",
+            payment_method="squadco",
+            amount=final_amount,
+            coupon=coupon,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+    if existing_pending_payment:
+        checkout_url = _infer_checkout_url(existing_pending_payment.transaction_id)
+        return JsonResponse({
+            "reference": existing_pending_payment.transaction_id,
+            "checkout_url": checkout_url,
+        })
+
     # create inactive subscription first
     subscription = Subscription.objects.create(
         organization=organization,
@@ -493,27 +567,9 @@ def create_payment(request):
                     pass  # Network error — fall through to discard and recreate
 
                 if already_paid:
-                    # Squad processed it but our DB missed it — activate now
+                    # Squad processed it but our DB missed it — finalize idempotently.
                     print(f"⚠️ Stale pending payment detected (Squad already processed): {existing_payment.transaction_id}")
-                    subscription = existing_payment.subscription
-                    existing_payment.payment_status = 'completed'
-                    existing_payment.save()
-                    subscription.is_active = True
-                    subscription.save()
-                    Subscription.objects.filter(
-                        organization=subscription.organization,
-                        is_active=True,
-                    ).exclude(id=subscription.id).update(is_active=False)
-                    if subscription.end_date > timezone.now():
-                        deactivate_subscription.apply_async(
-                            args=[str(subscription.id)],
-                            eta=subscription.end_date,
-                        )
-                    owner = subscription.organization.owned_by
-                    if owner and owner.email:
-                        task_send_subscription_success_email.delay(
-                            owner.id, subscription.organization.id, subscription.id
-                        )
+                    _finalize_successful_payment(existing_payment.transaction_id)
                     return JsonResponse({"success": True, "message": "Subscription activated!"})
 
                 if not squad_knows_ref:
@@ -801,58 +857,18 @@ def verify_payment(request):
             print(f"✅ SquadCo data: {status}")
             
             if status in {'success', 'successful', 'completed', 'paid'}:
-                # Use select_for_update inside atomic() to prevent two simultaneous
-                # verify_payment calls from double-activating the subscription.
-                with transaction.atomic():
-                    try:
-                        payment = Payment.objects.select_for_update().get(transaction_id=reference)
-                        print(f"💳 Found payment record: {payment.id}")
-                    except Payment.DoesNotExist:
-                        print(f"❌ Payment not found for reference: {reference}")
-                        messages.error(request, 'Payment record not found')
-                        return _safe_redirect()
+                finalize_status, payment = _finalize_successful_payment(reference)
+                if finalize_status == 'not_found':
+                    print(f"❌ Payment not found for reference: {reference}")
+                    messages.error(request, 'Payment record not found')
+                    return _safe_redirect()
 
-                    if payment.payment_status != 'completed':
-                        payment.payment_status = 'completed'
-                        payment.save()
-                        print(f"✓ Payment marked as completed")
-                        
-                        # Activate the new subscription
-                        subscription = payment.subscription
-                        subscription.is_active = True
-                        subscription.save()
-                        print(f"✓ Subscription activated: {subscription.id}")
-
-                        # NOW deactivate all other active subscriptions for this org
-                        old_subs = Subscription.objects.filter(
-                            organization=subscription.organization,
-                            is_active=True,
-                        ).exclude(id=subscription.id)
-                        count = old_subs.count()
-                        if count > 0:
-                            old_subs.update(is_active=False)
-                            print(f"✓ Deactivated {count} previous subscription(s)")
-                        
-                        # Schedule deactivation task using Celery
-                        if subscription.end_date > timezone.now():
-                            deactivate_subscription.apply_async(
-                                args=[str(subscription.id)],
-                                eta=subscription.end_date
-                            )
-                            print(f"✓ Deactivation scheduled for: {subscription.end_date}")
-                        
-                        # Queue confirmation email — never blocks the payment redirect
-                        owner = subscription.organization.owned_by
-                        if owner and owner.email:
-                            task_send_subscription_success_email.delay(
-                                owner.id, subscription.organization.id, subscription.id
-                            )
-                            print(f"✓ Subscription email queued for: {owner.email}")
-                        
-                        messages.success(request, 'Payment successful! Your subscription is now active.')
-                    else:
-                        print(f"ℹ️ Payment already processed")
-                        messages.info(request, 'This payment has already been processed.')
+                if finalize_status == 'completed_now':
+                    print(f"✓ Payment finalized: {payment.id}")
+                    messages.success(request, 'Payment successful! Your subscription is now active.')
+                else:
+                    print(f"ℹ️ Payment already processed")
+                    messages.info(request, 'This payment has already been processed.')
                 return _safe_redirect()
             else:
                 print(f"❌ Payment status not successful: {status}")
@@ -948,30 +964,6 @@ def squadco_webhook(request):
             return HttpResponse(status=200)
 
         with transaction.atomic():
-            try:
-                payment = Payment.objects.select_for_update().get(transaction_id=reference)
-                if payment.payment_status != "completed":
-                    payment.payment_status = "completed"
-                    payment.save()
-
-                    subscription = payment.subscription
-                    subscription.is_active = True
-                    subscription.save()
-                    
-                    # Schedule deactivation task
-                    if subscription.end_date > timezone.now():
-                        deactivate_subscription.apply_async(
-                            args=[str(subscription.id)],
-                            eta=subscription.end_date
-                        )
-                    
-                    # Queue subscription success email
-                    owner = subscription.organization.owned_by
-                    if owner and owner.email:
-                        task_send_subscription_success_email.delay(
-                            owner.id, subscription.organization.id, subscription.id
-                        )
-            except Payment.DoesNotExist:
-                pass
+            _finalize_successful_payment(reference)
 
     return HttpResponse(status=200)
