@@ -505,27 +505,24 @@ def create_payment(request):
             plan = get_or_create_plan(tier, size, frequency)
             print(f"✓ Plan retrieved: {plan.tier} {plan.size} {plan.billing_frequency} - ₦{plan.price}")
         
-        amount = data.get("amount", float(plan.price))
         coupon_code = data.get("coupon_code", "")
-        is_free = data.get("is_free", False)
         org = get_request_organization(request)
 
         coupon = None
+        final_amount = Decimal(str(plan.price))
         
-        # Handle coupon if provided
+        # Handle coupon server-side so frontend cannot override payable amount.
         if coupon_code:
-            try:
-                coupon = Coupon.objects.get(code__iexact=coupon_code)
-                if not coupon.is_valid():
-                    print(f"❌ Coupon expired: {coupon_code}")
-                    return JsonResponse({"error": "Coupon is no longer valid"}, status=400)
-                if CouponRedemption.objects.filter(coupon=coupon, organization=org).exists():
-                    print(f"❌ Coupon already used: {coupon_code}")
-                    return JsonResponse({"error": "Coupon already used"}, status=400)
-                print(f"✓ Coupon valid: {coupon_code}")
-            except Coupon.DoesNotExist:
-                print(f"❌ Coupon not found: {coupon_code}")
-                return JsonResponse({"error": "Invalid coupon code"}, status=400)
+            success, discounted_amount, message, coupon = apply_coupon(coupon_code, org, plan)
+            if not success:
+                print(f"❌ Coupon invalid: {coupon_code} ({message})")
+                return JsonResponse({"error": message}, status=400)
+            final_amount = discounted_amount
+            print(f"✓ Coupon applied: {coupon_code}, final amount: ₦{final_amount}")
+        else:
+            print(f"✓ No coupon. Plan amount: ₦{final_amount}")
+
+        is_free = final_amount <= Decimal('0.00')
         
         # Check for an existing pending payment for this org + plan to avoid
         # creating duplicate Squad transactions (Squad rejects if one is already pending).
@@ -540,6 +537,8 @@ def create_payment(request):
                     subscription__plan=plan,
                     payment_status="pending",
                     payment_method="squadco",
+                    amount=final_amount,
+                    coupon=coupon,
                 )
                 .select_related("subscription")
                 .order_by("-created_at")
@@ -659,7 +658,7 @@ def create_payment(request):
 
         squad_payload = {
             "email": request.user.email,
-            "amount": int(float(amount) * 100),  # kobo
+            "amount": int(final_amount * 100),  # kobo
             "currency": "NGN",
             "initiate_type": "inline",
             "transaction_ref": transaction_reference,
@@ -767,7 +766,7 @@ def create_payment(request):
 
         payment = Payment.objects.create(
             subscription=subscription,
-            amount=amount,
+            amount=final_amount,
             payment_method="squadco",
             transaction_id=confirmed_ref,
             payment_status="pending",
@@ -784,11 +783,11 @@ def create_payment(request):
             coupon.uses += 1
             coupon.save()
 
-        print(f"✓ Payment record created: {payment.id} (amount: ₦{amount}, reference: {confirmed_ref})")
+        print(f"✓ Payment record created: {payment.id} (amount: ₦{final_amount}, reference: {confirmed_ref})")
         return JsonResponse({
             "status": "ok",
             "reference": confirmed_ref,
-            "amount": str(amount),
+            "amount": str(final_amount),
             "currency": "NGN",
             "checkout_url": checkout_url,
         })

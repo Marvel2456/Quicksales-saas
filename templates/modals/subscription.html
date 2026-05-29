@@ -29,41 +29,40 @@
             {% regroup tier_group.list by size as size_groups %}
             {% for size_group in size_groups %}
             <div class="col-md-6">
-              {% with monthly_plan=size_group.list|dictsort:"billing_frequency"|last %}
-              {% with annual_plan=size_group.list|dictsort:"billing_frequency"|first %}
+              {% with plan_ref=size_group.list.0 %}
               <div class="card shadow-sm p-3 h-100 plan-card-modal" 
-                   data-tier="{{ monthly_plan.tier }}" 
-                   data-size="{{ monthly_plan.size }}"
-                   data-monthly-price="{{ monthly_plan.price }}"
-                   data-monthly-id="{{ monthly_plan.id }}"
-                   data-annual-price="{{ annual_plan.price }}"
-                   data-annual-id="{{ annual_plan.id }}">
+                   data-tier="{{ plan_ref.tier }}" 
+                   data-size="{{ plan_ref.size }}"
+                   data-monthly-price="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price }}{% endif %}{% endfor %}"
+                   data-monthly-id="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.id }}{% endif %}{% endfor %}"
+                   data-annual-price="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.price }}{% endif %}{% endfor %}"
+                   data-annual-id="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.id }}{% endif %}{% endfor %}">
                 <div class="text-center mb-3">
-                  {% if monthly_plan.size == 'starter' %}
+                  {% if plan_ref.size == 'starter' %}
                     <span style="font-size: 2rem;">⭐</span>
-                  {% elif monthly_plan.size == 'large' %}
+                  {% elif plan_ref.size == 'large' %}
                     <span style="font-size: 2rem;">🚀</span>
                   {% else %}
                     <span style="font-size: 2rem;">👑</span>
                   {% endif %}
                 </div>
-                <h6 class="card-title text-center">{{ monthly_plan.tier|title }} {{ monthly_plan.size|title }}</h6>
+                <h6 class="card-title text-center">{{ plan_ref.tier|title }} {{ plan_ref.size|title }}</h6>
                 <div class="text-center mb-3">
-                  <div class="h4 fw-bold text-primary">₦<span class="plan-price-modal">{{ monthly_plan.price|floatformat:0 }}</span></div>
+                  <div class="h4 fw-bold text-primary">₦<span class="plan-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price|floatformat:0 }}{% endif %}{% endfor %}</span></div>
                   <small class="text-muted"><span class="billing-period-modal">per month</span></small>
                 </div>
                 
                 <!-- Features -->
                 <ul class="list-unstyled mb-3 small" style="height: 120px; overflow-y: auto;">
-                  <li>✔ <strong>{{ monthly_plan.max_users }}</strong> User{{ monthly_plan.max_users|pluralize }}</li>
-                  <li>✔ <strong>{{ monthly_plan.max_branches }}</strong> Branch{{ monthly_plan.max_branches|pluralize:"es" }}</li>
-                  <li>✔ <strong>{{ monthly_plan.max_products }}</strong> Products</li>
+                  <li>✔ <strong>{{ plan_ref.max_users }}</strong> User{{ plan_ref.max_users|pluralize }}</li>
+                  <li>✔ <strong>{{ plan_ref.max_branches }}</strong> Branch{{ plan_ref.max_branches|pluralize:"es" }}</li>
+                  <li>✔ <strong>{{ plan_ref.max_products }}</strong> Products</li>
                   <li>✔ Basic Analytics</li>
-                  {% if monthly_plan.tier != 'basic' %}
+                  {% if plan_ref.tier != 'basic' %}
                     <li>✔ Advanced Reports</li>
                     <li>✔ API Access</li>
                   {% endif %}
-                  {% if monthly_plan.tier == 'premium' %}
+                  {% if plan_ref.tier == 'premium' %}
                     <li>✔ Custom Branding</li>
                     <li>✔ Priority Support</li>
                     <li>✔ Dedicated Manager</li>
@@ -72,9 +71,9 @@
                 
                 <!-- Coupon Input -->
                 <div class="mb-3">
-                  <input type="text" class="form-control coupon-input-modal form-control-sm" placeholder="Coupon (optional)" data-tier="{{ monthly_plan.tier }}" data-size="{{ monthly_plan.size }}">
+                  <input type="text" class="form-control coupon-input-modal form-control-sm" placeholder="Coupon (optional)" data-tier="{{ plan_ref.tier }}" data-size="{{ plan_ref.size }}">
                   <small class="text-muted d-block mt-1">
-                    <span class="original-price-modal text-xs">Original: ₦<span class="base-price-modal">{{ monthly_plan.price|floatformat:0 }}</span></span>
+                    <span class="original-price-modal text-xs">Original: ₦<span class="base-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price|floatformat:0 }}{% endif %}{% endfor %}</span></span>
                   </small>
                 </div>
                 
@@ -85,7 +84,6 @@
                   </span>
                 </button>
               </div>
-              {% endwith %}
               {% endwith %}
             </div>
             {% endfor %}
