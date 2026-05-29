@@ -351,6 +351,16 @@ LOGGING = {
         },
     },
     "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
         "procrastinate": {
             "handlers": ["procrastinate"],
             "level": "DEBUG",
@@ -366,6 +376,10 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "ERROR",
     },
 }
 
