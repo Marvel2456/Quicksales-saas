@@ -1,5 +1,6 @@
 import secrets
 import string
+from django.core.exceptions import ValidationError
 
 from account.models import Branch, OrganizationMembership
 
@@ -21,13 +22,17 @@ def get_request_organization(request):
 
     org_id = request.session.get("active_organization_id")
     if org_id:
-        membership = OrganizationMembership.objects.filter(
-            user=user,
-            organization_id=org_id,
-            is_active=True,
-        ).select_related("organization").first()
-        if membership:
-            return membership.organization
+        try:
+            membership = OrganizationMembership.objects.filter(
+                user=user,
+                organization_id=org_id,
+                is_active=True,
+            ).select_related("organization").first()
+            if membership:
+                return membership.organization
+        except (ValidationError, ValueError, TypeError):
+            # Stale or malformed session value (e.g., pre-UUID IDs): clear and fallback.
+            request.session.pop("active_organization_id", None)
 
     return getattr(user, "organization", None)
 
@@ -63,16 +68,16 @@ def get_request_branch(request, organization=None):
     if organization:
         active_branch_id = request.session.get("active_branch_id")
         if active_branch_id:
-            branch_obj = Branch.objects.filter(
-                id=active_branch_id,
-                organization=organization,
-            ).first()
-            if branch_obj:
-                return branch_obj
-
-    branch = getattr(request, "branch", None)
-    if branch and (not organization or branch.organization_id == organization.id):
-        return branch
+            try:
+                branch_obj = Branch.objects.filter(
+                    id=active_branch_id,
+                    organization=organization,
+                ).first()
+                if branch_obj:
+                    return branch_obj
+            except (ValidationError, ValueError, TypeError):
+                # Stale or malformed session value (e.g., pre-UUID IDs): clear and fallback.
+                request.session.pop("active_branch_id", None)
 
         membership = OrganizationMembership.objects.filter(
             user=user,
@@ -81,5 +86,9 @@ def get_request_branch(request, organization=None):
         ).select_related("branch").first()
         if membership:
             return membership.branch
+
+    branch = getattr(request, "branch", None)
+    if branch and (not organization or branch.organization_id == organization.id):
+        return branch
 
     return getattr(user, "branch", None)
