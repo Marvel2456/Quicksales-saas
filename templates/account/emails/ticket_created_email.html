@@ -66,7 +66,13 @@
                 <strong>Title:</strong> {{ ticket.title }}<br>
                 <strong>Description:</strong> {{ ticket.description }}<br>
                 <strong>Branch:</strong> {{ ticket.branch }}<br>
-                <strong>Reported By:</strong> {{ ticket.staff.get_full_name|default:ticket.staff.email }}<br>
+                <strong>Reported By:</strong>
+                {% if ticket.staff %}
+                    {{ ticket.staff.get_full_name|default:ticket.staff.email }}
+                {% else %}
+                    Unknown
+                {% endif %}
+                <br>
                 <strong>Status:</strong> {{ ticket.status }}<br>
                 <strong>Date Created:</strong> {{ ticket.date_added|date:"M d, Y H:i" }}
             </div>

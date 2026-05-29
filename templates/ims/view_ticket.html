@@ -41,7 +41,12 @@
         <div class="alert alert-info">
             <strong>Status:</strong> <span class="badge bg-{% if ticket.status == 'Pending' %}warning{% else %}success{% endif %}">{{ ticket.status }}</span>
             {% if ticket.assigned_to %}
-            <br><strong>Assigned To:</strong> {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.email }}
+            <br><strong>Assigned To:</strong>
+            {% if ticket.assigned_to %}
+                {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.email }}
+            {% else %}
+                Unassigned
+            {% endif %}
             {% endif %}
         </div>
         {% endif %}

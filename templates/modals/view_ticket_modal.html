@@ -25,11 +25,17 @@
                                 </span>
                             </div>
                             <div class="col-auto">
-                                <strong>Created By:</strong> {{ ticket.staff.get_full_name|default:ticket.staff.email }}
+                                <strong>Created By:</strong>
+                                {% if ticket.staff %}
+                                    {{ ticket.staff.get_full_name|default:ticket.staff.email }}
+                                {% else %}
+                                    Unknown
+                                {% endif %}
                             </div>
                             {% if ticket.assigned_to %}
                             <div class="col-auto">
-                                <strong>Assigned To:</strong> {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.email }}
+                                <strong>Assigned To:</strong>
+                                {{ ticket.assigned_to.get_full_name|default:ticket.assigned_to.email }}
                             </div>
                             {% endif %}
                             <div class="col-auto">
