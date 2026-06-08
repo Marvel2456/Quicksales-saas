@@ -489,7 +489,7 @@ def create_payment(request):
     try:
         data = json.loads(request.body)
         reference = data.get("reference")
-        print(f"📝 Creating payment with reference: {reference}")
+        print(f"Creating payment with reference: {reference}")
         
         # Support both old plan_id format and new tier/size/frequency format
         if "plan_id" in data:
@@ -500,10 +500,10 @@ def create_payment(request):
             size = data.get("size")
             frequency = data.get("frequency")
             if not all([tier, size, frequency]):
-                print(f"❌ Missing plan parameters: tier={tier}, size={size}, frequency={frequency}")
+                print(f"Missing plan parameters: tier={tier}, size={size}, frequency={frequency}")
                 return JsonResponse({"error": "Missing plan parameters"}, status=400)
             plan = get_or_create_plan(tier, size, frequency)
-            print(f"✓ Plan retrieved: {plan.tier} {plan.size} {plan.billing_frequency} - ₦{plan.price}")
+            print(f"Plan retrieved: {plan.tier} {plan.size} {plan.billing_frequency} - ₦{plan.price}")
         
         coupon_code = data.get("coupon_code", "")
         org = get_request_organization(request)
@@ -515,12 +515,12 @@ def create_payment(request):
         if coupon_code:
             success, discounted_amount, message, coupon = apply_coupon(coupon_code, org, plan)
             if not success:
-                print(f"❌ Coupon invalid: {coupon_code} ({message})")
+                print(f"Coupon invalid: {coupon_code} ({message})")
                 return JsonResponse({"error": message}, status=400)
             final_amount = discounted_amount
-            print(f"✓ Coupon applied: {coupon_code}, final amount: ₦{final_amount}")
+            print(f"Coupon applied: {coupon_code}, final amount: ₦{final_amount}")
         else:
-            print(f"✓ No coupon. Plan amount: ₦{final_amount}")
+            print(f"No coupon. Plan amount: ₦{final_amount}")
 
         is_free = final_amount <= Decimal('0.00')
         
@@ -567,14 +567,14 @@ def create_payment(request):
 
                 if already_paid:
                     # Squad processed it but our DB missed it — finalize idempotently.
-                    print(f"⚠️ Stale pending payment detected (Squad already processed): {existing_payment.transaction_id}")
+                    print(f"Stale pending payment detected (Squad already processed): {existing_payment.transaction_id}")
                     _finalize_successful_payment(existing_payment.transaction_id)
                     return JsonResponse({"success": True, "message": "Subscription activated!"})
 
                 if not squad_knows_ref:
                     # Squad doesn't recognise this reference — was created with different keys
                     # (e.g. live vs sandbox switch) or expired. Void it and create a fresh one.
-                    print(f"⚠️ Squad does not recognise reference {existing_payment.transaction_id} — voiding and recreating")
+                    print(f"Squad does not recognise reference {existing_payment.transaction_id} — voiding and recreating")
                     existing_payment.payment_status = 'failed'
                     existing_payment.save()
                     existing_payment.subscription.delete()
@@ -686,13 +686,13 @@ def create_payment(request):
                 except requests.exceptions.Timeout as timeout_err:
                     last_request_error = timeout_err
                     print(
-                        f"⚠️ Squad /transaction/initiate timeout on {api_base} "
+                        f"Squad /transaction/initiate timeout on {api_base} "
                         f"(attempt {attempt}/{max_attempts})"
                     )
                 except requests.exceptions.RequestException as req_err:
                     last_request_error = req_err
                     print(
-                        f"⚠️ Squad request error on {api_base} "
+                        f"Squad request error on {api_base} "
                         f"(attempt {attempt}/{max_attempts}): {req_err}"
                     )
 
@@ -731,17 +731,17 @@ def create_payment(request):
                         verify_payload.setdefault("checkout_url", inferred_url)
                         squad_data_payload = verify_payload
                         print(
-                            f"⚠️ Recovered transaction after timeout via verify endpoint: {verify_payload.get('transaction_ref')}"
+                            f"Recovered transaction after timeout via verify endpoint: {verify_payload.get('transaction_ref')}"
                         )
                     else:
                         return JsonResponse({"error": "Payment provider timed out. Please try again."}, status=503)
                 else:
                     return JsonResponse({"error": "Payment provider timed out. Please try again."}, status=503)
             except requests.exceptions.RequestException as verify_err:
-                print(f"❌ Timeout recovery verify failed: {verify_err}")
+                print(f"Timeout recovery verify failed: {verify_err}")
                 return JsonResponse({"error": "Payment provider timed out. Please try again."}, status=503)
         else:
-            print(f"📡 Squad initiate response: {squad_resp.status_code} {squad_resp.text[:300]}")
+            print(f"Squad initiate response: {squad_resp.status_code} {squad_resp.text[:300]}")
 
             if squad_resp.status_code not in (200, 201):
                 err_text = squad_resp.text[:300] if squad_resp.text else "(no body)"
@@ -759,10 +759,10 @@ def create_payment(request):
 
         if not checkout_url:
             response_snippet = squad_resp.text[:300] if squad_resp is not None else str(squad_data_payload)[:300]
-            print(f"❌ Squad initiate returned no checkout_url: {response_snippet}")
+            print(f"Squad initiate returned no checkout_url: {response_snippet}")
             return JsonResponse({"error": "Squad did not return checkout URL"}, status=400)
 
-        print(f"✓ Squad transaction registered, ref: {confirmed_ref}")
+        print(f"Squad transaction registered, ref: {confirmed_ref}")
 
         payment = Payment.objects.create(
             subscription=subscription,
@@ -783,7 +783,7 @@ def create_payment(request):
             coupon.uses += 1
             coupon.save()
 
-        print(f"✓ Payment record created: {payment.id} (amount: ₦{final_amount}, reference: {confirmed_ref})")
+        print(f"Payment record created: {payment.id} (amount: ₦{final_amount}, reference: {confirmed_ref})")
         return JsonResponse({
             "status": "ok",
             "reference": confirmed_ref,
@@ -793,7 +793,7 @@ def create_payment(request):
         })
     
     except Exception as e:
-        print(f"❌ Error in create_payment: {str(e)}")
+        print(f"Error in create_payment: {str(e)}")
         import traceback
         traceback.print_exc()
         return JsonResponse({"error": str(e)}, status=500)
@@ -832,7 +832,7 @@ def verify_payment(request):
                 timeout=(8, 25),
             )
         except requests.exceptions.Timeout:
-            print(f"⚠️ Timeout verifying payment {reference} — existing subscription preserved")
+            print(f"Timeout verifying payment {reference} — existing subscription preserved")
             messages.warning(
                 request,
                 "Payment verification timed out. Your current subscription is unchanged. "
@@ -840,7 +840,7 @@ def verify_payment(request):
             )
             return _safe_redirect()
         except requests.exceptions.RequestException as net_err:
-            print(f"⚠️ Network error verifying payment {reference}: {net_err}")
+            print(f"Network error verifying payment {reference}: {net_err}")
             messages.warning(
                 request,
                 "Could not reach payment provider. Your current subscription is unchanged. "
@@ -848,39 +848,39 @@ def verify_payment(request):
             )
             return _safe_redirect()
 
-        print(f"📡 SquadCo response status: {response.status_code}")
+        print(f"SquadCo response status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
             status = _extract_status(data)
-            print(f"✅ SquadCo data: {status}")
+            print(f"SquadCo data: {status}")
             
             if status in {'success', 'successful', 'completed', 'paid'}:
                 finalize_status, payment = _finalize_successful_payment(reference)
                 if finalize_status == 'not_found':
-                    print(f"❌ Payment not found for reference: {reference}")
+                    print(f"Payment not found for reference: {reference}")
                     messages.error(request, 'Payment record not found')
                     return _safe_redirect()
 
                 if finalize_status == 'completed_now':
-                    print(f"✓ Payment finalized: {payment.id}")
+                    print(f"Payment finalized: {payment.id}")
                     messages.success(request, 'Payment successful! Your subscription is now active.')
                 else:
-                    print(f"ℹ️ Payment already processed")
+                    print(f"Payment already processed")
                     messages.info(request, 'This payment has already been processed.')
                 return _safe_redirect()
             else:
-                print(f"❌ Payment status not successful: {status}")
+                print(f"Payment status not successful: {status}")
                 messages.error(request, 'Payment verification failed')
                 return _safe_redirect()
         else:
-            print(f"❌ SquadCo API error: {response.status_code}")
+            print(f"SquadCo API error: {response.status_code}")
             print(f"Response: {response.text}")
             messages.error(request, 'Could not verify payment')
             return _safe_redirect()
             
     except Exception as e:
-        print(f"❌ Unexpected error during payment verification: {str(e)}")
+        print(f"Unexpected error during payment verification: {str(e)}")
         import traceback
         traceback.print_exc()
         messages.error(request, f'An error occurred: {str(e)}')
