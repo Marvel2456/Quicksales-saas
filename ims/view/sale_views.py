@@ -578,6 +578,7 @@ def sales(request, pk):
     end_date_contains = request.GET.get('end_date')
     rep_contains_query = request.GET.get('rep')
     status_filter = request.GET.get('status')
+    method_filter = request.GET.get('method')
 
     # Apply filters to queryset before pagination
     if start_date_contains and start_date_contains != '':
@@ -588,6 +589,9 @@ def sales(request, pk):
 
     if rep_contains_query and rep_contains_query != '':
         sale_qs = sale_qs.filter(staff__first_name__icontains=rep_contains_query)
+
+    if method_filter and method_filter != '':
+        sale_qs = sale_qs.filter(method=method_filter)
 
     # Apply status filter
     if status_filter and status_filter != '':
@@ -613,6 +617,7 @@ def sales(request, pk):
         'end_date': end_date_contains,
         'rep': rep_contains_query,
         'status': status_filter,
+        'method': method_filter,
     }
     return render(request, 'ims/sales.html', context)
 
@@ -630,6 +635,7 @@ def sale_pdf(request, pk):
     end_date = request.GET.get('end_date')
     rep = request.GET.get('rep')
     status = request.GET.get('status')
+    method = request.GET.get('method')
 
     if start_date and start_date != '':
         sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
@@ -637,6 +643,9 @@ def sale_pdf(request, pk):
         sale_qs = sale_qs.filter(date_updated__date__lte=end_date)
     if rep and rep != '':
         sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+
+    if method and method != '':
+        sale_qs = sale_qs.filter(method=method)
     
     # Apply status filter
     if status and status != '':
@@ -665,6 +674,7 @@ def sale_pdf(request, pk):
             'end_date': end_date,
             'rep': rep,
             'status': status,
+            'method': method,
         },
         'summary': {
             'total_sales': total_sales,
@@ -707,6 +717,7 @@ def export_sales_csv(request, pk):
     end_date = request.GET.get('end_date')
     rep = request.GET.get('rep')
     status = request.GET.get('status')
+    method = request.GET.get('method')
     
     if start_date and start_date != '':
         sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
@@ -716,6 +727,9 @@ def export_sales_csv(request, pk):
     
     if rep and rep != '':
         sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+
+    if method and method != '':
+        sale_qs = sale_qs.filter(method=method)
     
     # Apply status filter
     if status and status != '':
