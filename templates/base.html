@@ -738,5 +738,20 @@
         })();
     </script>
 
+    <!-- Offline POS Manager & Service Worker Registration -->
+    <script src="{% static 'assets/js/offline-manager.js' %}"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(function(reg) {
+                        console.log('✅ Service Worker registered successfully on scope:', reg.scope);
+                    })
+                    .catch(function(err) {
+                        console.error('❌ Service Worker registration failed:', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

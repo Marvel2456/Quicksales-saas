@@ -20,6 +20,16 @@ for (let i = 0; i < updateCart.length; i++) {
 function UpdateUserCart(inventoryId, action, url){
     console.log('UpdateUserCart called with:', {inventoryId, action, url, csrftoken})
 
+    if (!navigator.onLine) {
+        console.warn('📡 Offline: Intercepted cart update action');
+        if (window.offlineManager) {
+            window.offlineManager.addCartItemOffline(inventoryId);
+        } else {
+            showNotification('Offline manager not initialized.', true);
+        }
+        return;
+    }
+
     if (!csrftoken) {
         console.error('❌ CSRF token not found')
         showNotification('Security error: CSRF token missing. Please refresh the page.', true)

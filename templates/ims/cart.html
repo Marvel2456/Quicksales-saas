@@ -51,7 +51,7 @@
                                     {% endif %}
                                 </div>
                                 <!-- Offline Mode Buttons -->
-                                <div id="offlineButtons" style="display: none !important;">
+                                <div id="offlineButtons" style="display: none;">
                                     <button class="btn btn-success btn-sm" id="offlineNewSaleBtn" style="display: inline-block !important;">
                                         <i class="fas fa-plus"></i> Add New Sale
                                     </button>
@@ -247,12 +247,8 @@ class OfflineModeUI {
     console.log(`🔄 UpdateUI: isOffline=${isOffline}`);
     
     if (isOffline) {
-      // Show offline UI
-      this.onlineGroup.style.display = 'none';
-      this.offlineGroup.style.display = 'block';
-      this.onlineButtons.style.display = 'none';
-      this.offlineButtons.style.display = 'block';
-      console.log('📱 Switched to offline mode');
+      console.log('📱 Switched to offline mode - reloading for SW fallback cart display');
+      location.reload();
     } else {
       // Show online UI
       this.onlineGroup.style.display = 'block';

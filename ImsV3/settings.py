@@ -49,7 +49,7 @@ else:
     DOMAIN = "lvh.me:8000"
 
 # Admin URL path (customize for security in production)
-ADMIN_URL = config('ADMIN_URL', default='admin/')
+ADMIN_URL = config('ADMIN_URL', default='myadmin/')
 
 # Application definition
 
@@ -75,8 +75,10 @@ INSTALLED_APPS = [
     'anymail',
 ]
 
+import sys
+
 # Add django-debug-toolbar in development
-if ENV == 'development':
+if ENV == 'development' and 'test' not in sys.argv:
     INSTALLED_APPS.append('debug_toolbar')
 
 MIDDLEWARE = [
@@ -99,7 +101,7 @@ MIDDLEWARE = [
 ]
 
 # Add debug toolbar middleware in development
-if ENV == 'development':
+if ENV == 'development' and 'test' not in sys.argv:
     MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'ImsV3.urls'
