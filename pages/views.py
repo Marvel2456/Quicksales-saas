@@ -15,18 +15,16 @@ def download_windows(request):
         platform='windows',
         ip_address=get_client_ip(request)
     )
-    # Redirect to the latest GitHub Release installer (.msi or .exe)
-    github_url = "https://github.com/Marvel2456/Quicksales-saas/releases/latest/download/Quicksales_0.1.0_x64_en-US.msi"
-    return redirect(github_url)
+    # Redirect to the latest GitHub Release page so users can select their architecture (x64/ARM)
+    return redirect("https://github.com/Marvel2456/Quicksales-saas/releases/latest")
 
 def download_mac(request):
     DesktopDownload.objects.create(
         platform='mac',
         ip_address=get_client_ip(request)
     )
-    # Redirect to the latest GitHub Release app (.dmg)
-    github_url = "https://github.com/Marvel2456/Quicksales-saas/releases/latest/download/Quicksales_0.1.0_x64.dmg"
-    return redirect(github_url)
+    # Redirect to the latest GitHub Release page so users can select their architecture (x64/aarch64)
+    return redirect("https://github.com/Marvel2456/Quicksales-saas/releases/latest")
 
 # Create your views here.
 
