@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""
-Script to convert QUICKSALES_FEATURES.md to PDF
-"""
+"""Script to convert a Markdown file to PDF."""
+import os
+import sys
+
 import markdown
 from xhtml2pdf import pisa
-import os
 
-def convert_md_to_html(md_file):
+def convert_md_to_html(md_file, title, subtitle):
     """Convert markdown to HTML"""
     with open(md_file, 'r', encoding='utf-8') as f:
         md_content = f.read()
@@ -94,8 +94,8 @@ def convert_md_to_html(md_file):
     </head>
     <body>
         <div class="header">
-            <h1>QUICKSALES</h1>
-            <p><strong>Complete Feature Documentation</strong></p>
+            <h1>{title}</h1>
+            <p><strong>{subtitle}</strong></p>
         </div>
         {html_content}
     </body>
@@ -113,19 +113,19 @@ def convert_html_to_pdf(html_content, output_pdf):
     return pisa_status.err
 
 if __name__ == '__main__':
-    md_file = 'QUICKSALES_FEATURES.md'
-    pdf_file = 'QUICKSALES_FEATURES.pdf'
-    
+    md_file = sys.argv[1] if len(sys.argv) > 1 else 'QUICKSALES_FEATURES.md'
+    pdf_file = sys.argv[2] if len(sys.argv) > 2 else 'QUICKSALES_FEATURES.pdf'
+    title = sys.argv[3] if len(sys.argv) > 3 else 'QUICKSALES'
+    subtitle = sys.argv[4] if len(sys.argv) > 4 else 'Complete Feature Documentation'
+
     print(f"Converting {md_file} to PDF...")
-    
-    # Convert markdown to HTML
-    html_content = convert_md_to_html(md_file)
-    
-    # Convert HTML to PDF
+
+    html_content = convert_md_to_html(md_file, title, subtitle)
+
     error = convert_html_to_pdf(html_content, pdf_file)
-    
+
     if not error:
         print(f"✓ Successfully created {pdf_file}")
         print(f"✓ File size: {os.path.getsize(pdf_file) / 1024:.2f} KB")
     else:
-        print(f"✗ Error creating PDF")
+        print("✗ Error creating PDF")

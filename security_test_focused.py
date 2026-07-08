@@ -42,8 +42,10 @@ print("-" * 80)
 class CSRFProtectionTest(TestCase):
     def test_offline_sync_requires_auth(self):
         """Verify offline sync endpoint requires authentication"""
+        import uuid
+        dummy_uuid = uuid.uuid4()
         response = self.client.post(
-            '/ims/api/sync-sale/',
+            f'/ims/api/sync-sale/{dummy_uuid}/',
             data=json.dumps({'tempId': 'test', 'cartItems': []}),
             content_type='application/json'
         )

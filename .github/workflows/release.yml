@@ -33,9 +33,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__
-          releaseName: 'App v__VERSION__'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Quicksales ${{ github.ref_name }}'
           releaseBody: 'See assets below.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           tauriScript: npx @tauri-apps/cli
