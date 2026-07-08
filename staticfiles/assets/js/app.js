@@ -1,17 +1,26 @@
 'use strict';
 
-/* ===== Enable Bootstrap Popover (on element  ====== */
-
-var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-toggle="popover"]'))
-var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-  return new bootstrap.Popover(popoverTriggerEl)
-})
-
-/* ==== Enable Bootstrap Alert ====== */
-var alertList = document.querySelectorAll('.alert')
-alertList.forEach(function (alert) {
-  new bootstrap.Alert(alert)
-});
+/* ===== Enable Bootstrap Popover ====== */
+if (typeof bootstrap !== 'undefined') {
+	try {
+		var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-toggle="popover"]'))
+		var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+		  return new bootstrap.Popover(popoverTriggerEl)
+		})
+	} catch (e) {
+		console.warn('Bootstrap Popover initialization skipped:', e);
+	}
+	
+	try {
+		/* ==== Enable Bootstrap Alert ====== */
+		var alertList = document.querySelectorAll('.alert')
+		alertList.forEach(function (alert) {
+		  new bootstrap.Alert(alert)
+		});
+	} catch (e) {
+		console.warn('Bootstrap Alert initialization skipped:', e);
+	}
+}
 
 
 /* ===== Responsive Sidepanel ====== */
@@ -21,9 +30,8 @@ const sidePanelDrop = document.getElementById('sidepanel-drop');
 const sidePanelClose = document.getElementById('sidepanel-close'); 
 
 if (sidePanel && sidePanelToggler && sidePanelDrop && sidePanelClose) {
-	window.addEventListener('load', function(){
-		responsiveSidePanel(); 
-	});
+	// Initialize immediately instead of waiting for load event
+	responsiveSidePanel(); 
 
 	window.addEventListener('resize', function(){
 		responsiveSidePanel(); 

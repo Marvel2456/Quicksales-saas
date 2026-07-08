@@ -202,6 +202,20 @@ class SalesItem(models.Model):
         profit = self.get_total - self.get_cost_total
         return profit
 
+class OfflineSaleTemp(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    temp_id = models.CharField(max_length=100, unique=True, db_index=True)
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    date_synced = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['temp_id']),
+        ]
+
+    def __str__(self):
+        return f"Temp ID: {self.temp_id} -> Sale: {self.sale_id}"
+
 class Supplier(models.Model):
     supplier_name = models.CharField(max_length=250, blank=True, null=True)
     supplier_number = models.CharField(max_length=100, blank=True, null=True)

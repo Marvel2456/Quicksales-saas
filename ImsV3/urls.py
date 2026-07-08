@@ -19,6 +19,16 @@ from django.views.generic import TemplateView
 from django.conf import settings
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.contrib.staticfiles.urls import static
+from django.http import HttpResponse
+from django.views.decorators.cache import cache_control
+import os
+
+@cache_control(max_age=0, must_revalidate=True)
+def service_worker(request):
+    sw_path = os.path.join(settings.BASE_DIR, 'ImsV3/static/assets/js/service-worker.js')
+    with open(sw_path, 'r') as f:
+        content = f.read()
+    return HttpResponse(content, content_type='application/javascript')
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
@@ -26,6 +36,7 @@ urlpatterns = [
     path('ims/', include('ims.urls')),
     path('subscriptions/', include('subscriptions.urls')),
     path('account/', include('account.urls')),
+    path('service-worker.js', service_worker, name='service_worker'),
 ]
 urlpatterns += staticfiles_urlpatterns()
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

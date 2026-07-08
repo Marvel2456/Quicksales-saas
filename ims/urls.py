@@ -25,6 +25,8 @@ from ims.view.invoice_views import (
     branch_invoices, invoices, create_invoice, invoice_detail,
     invoice_pdf, confirm_payment, close_invoice, delete_invoice, edit_invoice
 )
+from ims.view.api_views import get_offline_data, sync_sale
+
 
 
 
@@ -152,6 +154,10 @@ urlpatterns = [
     path('invoice/<uuid:pk>/close/', close_invoice, name='close_invoice'),
     path('invoice/<uuid:pk>/delete/', delete_invoice, name='delete_invoice'),
     path('invoice/<uuid:pk>/edit/', edit_invoice, name='edit_invoice'),
+    
+    # API endpoints for offline mode operations
+    path('api/get-offline-data/<uuid:pk>/', get_offline_data, name='get_offline_data'),
+    path('api/sync-sale/<uuid:pk>/', sync_sale, name='sync_sale'),
 ]
 # watch out if the value of the variance changes or it is stamped to each date
 # what happens when users logs in to another POS and makes sale note: should not be possible
