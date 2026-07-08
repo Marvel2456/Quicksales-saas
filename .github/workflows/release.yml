@@ -32,4 +32,4 @@ jobs:
           releaseBody: 'See assets below.'
           releaseDraft: true
           prerelease: false
-          tauriScript: cargo tauri
+          tauriScript: npx @tauri-apps/cli
