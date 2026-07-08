@@ -1,0 +1,381 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponseRedirect
+from django.contrib import messages
+from datetime import datetime, date
+from ims.models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket
+from account.models import CustomUser, Branch, ActivityLog
+from django.contrib.auth.decorators import login_required
+from ims.forms import *
+from django.core.paginator import Paginator
+from django.http import JsonResponse, HttpResponse
+import csv
+import json
+import tempfile
+import os
+from account.decorators import role_required
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
+
+
+
+# Write your views here.
+
+@role_required(roles=['owner'])
+@login_required
+# @is_unsubscribed
+def inventoryAudit(request, pk):
+    branch = Branch.objects.get(id=pk)
+    audits = Inventory.history.filter(branch_id=pk, quantity_restocked__gt=0).order_by('-history_date')
+
+    # Filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    product_query = request.GET.get('product')
+
+    if product_query:
+        audits = audits.filter(product__product_name__icontains=product_query)
+    if start_date:
+        audits = audits.filter(history_date__date__gte=start_date)
+    if end_date:
+        audits = audits.filter(history_date__date__lte=end_date)
+
+    paginator = Paginator(audits, 15)
+    page = request.GET.get('page')
+    audit_page = paginator.get_page(page)
+    nums = "a" * audit_page.paginator.num_pages
+    context = {
+        'branch': branch,
+        'audit_page':audit_page,
+        'nums':nums,
+        'start_date': start_date,
+        'end_date': end_date,
+        'product': product_query,
+    }
+    return render(request, 'ims/price_audit.html', context)
+
+
+@role_required(roles=['owner'])
+def export_audit_csv(request, pk):
+    branch = Branch.objects.get(id=pk)
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    product_query = request.GET.get('product')
+    
+    response = HttpResponse(content_type = 'text/csv')
+    response['Content-Disposition']='attachment; filename = Audit History'+str(datetime.now())+'.csv'
+    writer = csv.writer(response)
+    writer.writerow(['Staff', 'Product', 'Date Restocked', 'Quantity Restocked', 'New Cost Price', 'New Sale Price'])
+    
+    audit = Inventory.history.filter(branch_id=pk, quantity_restocked__gt=0).order_by('-history_date')
+    
+    # Apply filters
+    if product_query:
+        audit = audit.filter(product__product_name__icontains=product_query)
+    if start_date:
+        audit = audit.filter(history_date__date__gte=start_date)
+    if end_date:
+        audit = audit.filter(history_date__date__lte=end_date)
+    
+    for audit in audit:
+        writer.writerow([audit.history_user, audit.product.product_name, audit.history_date, audit.quantity_restocked, audit.cost_price, audit.sale_price])
+    
+    return response
+
+
+@role_required(roles=['owner'])
+@login_required
+# @is_unsubscribed
+def branchCount(request):
+    # Use organization from middleware context (supports multi-org)
+    organization = request.organization or request.user.organization
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+
+    return render(request, 'ims/branch_count.html', context)
+    
+def adminCountView(request, pk):
+    branch = Branch.objects.get(id=pk)
+    inventory = Inventory.objects.filter(branch_id = pk).all()
+    audit = Inventory.history.filter(branch_id = pk).all()
+
+    context = {
+        'branch':branch,
+        'inventory':inventory,
+        'audit':audit
+    }
+    return render(request, 'ims/admin_count.html', context)
+
+
+@role_required(roles=['owner', 'manager'])
+@login_required
+def countView(request):
+    branch = request.user.branch
+    organization = request.user.organization
+    inventory = Inventory.objects.filter(branch_id=branch, organization=organization).all()
+    audit = Inventory.history.filter(branch_id=branch).all()
+    
+    # Calculate variance statistics
+    total_items = inventory.count()
+    items_with_variance = 0
+    total_variance_qty = 0
+    
+    for item in inventory:
+        if item.count and item.count != 0:
+            variance = item.count - item.store_quantity
+            if variance != 0:
+                items_with_variance += 1
+                total_variance_qty += abs(variance)
+    
+    # Add variance info to each inventory item for display
+    inventory_with_variance = []
+    for item in inventory:
+        if item.count:
+            variance = item.count - item.store_quantity
+            variance_pct = (variance / item.store_quantity * 100) if item.store_quantity > 0 else 0
+        else:
+            variance = None
+            variance_pct = None
+        
+        inventory_with_variance.append({
+            'item': item,
+            'variance': variance,
+            'variance_pct': variance_pct,
+            'variance_status': 'danger' if variance and variance > 0 else ('warning' if variance and variance < 0 else 'success')
+        })
+
+    context = {
+        'branch': branch,
+        'inventory': inventory_with_variance,
+        'audit': audit,
+        'total_items': total_items,
+        'items_with_variance': items_with_variance,
+        'total_variance_qty': total_variance_qty,
+    }
+    return render(request, 'ims/count.html', context)
+
+
+@role_required(roles=['owner', 'manager'])
+def addCount(request):
+    if request.method == 'POST':
+        branch = request.user.branch
+        inventory = Inventory.objects.filter(branch_id = branch).get(id = request.POST.get('id'))
+        if request.method != None:
+            form = AddCountForm(request.POST, instance=inventory)
+            if form.is_valid():
+                invent = form.save(commit=False)
+                invent.variance = invent.count - invent.store_quantity if invent.count else None
+                invent.branch = request.user.branch
+                invent.save()
+                messages.success(request, 'Count Added Successfully')
+                return redirect('count')
+    context = {
+        'branch':branch
+    }
+
+    return HttpResponse(context)
+
+
+@role_required(roles=['owner', 'manager'])
+@login_required
+def uploadCountBulk(request):
+    """Handle bulk count upload via CSV/Excel"""
+    branch = request.user.branch
+    organization = request.user.organization
+    
+    if request.method == 'POST':
+        form = UploadCountForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                uploaded_file = request.FILES['file']
+                results = {'success': 0, 'errors': 0, 'details': []}
+                
+                # Determine file type and parse accordingly
+                if uploaded_file.name.endswith('.csv'):
+                    import csv
+                    file_content = uploaded_file.read().decode('utf-8')
+                    reader = csv.DictReader(file_content.splitlines())
+                    rows = list(reader)
+                elif uploaded_file.name.endswith(('.xlsx', '.xls')):
+                    import openpyxl
+                    import tempfile
+                    import os
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                        for chunk in uploaded_file.chunks():
+                            tmp_file.write(chunk)
+                        tmp_file_path = tmp_file.name
+                    
+                    wb = openpyxl.load_workbook(tmp_file_path)
+                    ws = wb.active
+                    
+                    # Get headers from first row
+                    headers = [cell.value for cell in ws[1]]
+                    rows = []
+                    for row in ws.iter_rows(min_row=2, values_only=True):
+                        row_dict = dict(zip(headers, row))
+                        rows.append(row_dict)
+                    
+                    os.unlink(tmp_file_path)
+                else:
+                    messages.error(request, 'Invalid file format. Please use CSV or Excel file.')
+                    return redirect('count')
+                
+                # Process each row
+                for idx, row in enumerate(rows, 1):
+                    try:
+                        product_name = row.get('product_name') or row.get('Product') or row.get('product')
+                        count = row.get('count') or row.get('Count') or row.get('physical_count')
+                        
+                        if not product_name or count is None:
+                            results['errors'] += 1
+                            results['details'].append(f"Row {idx}: Missing product_name or count field")
+                            continue
+                        
+                        # Convert count to int
+                        try:
+                            count = int(float(count))
+                        except (ValueError, TypeError):
+                            results['errors'] += 1
+                            results['details'].append(f"Row {idx}: Invalid count value '{count}'")
+                            continue
+                        
+                        # Find product by name
+                        try:
+                            inventory = Inventory.objects.get(
+                                product__product_name__iexact=product_name,
+                                branch=branch,
+                                organization=organization
+                            )
+                            
+                            # Update count and calculate variance
+                            old_count = inventory.count
+                            inventory.count = count
+                            inventory.variance = inventory.count - inventory.store_quantity
+                            inventory.save()
+                            
+                            results['success'] += 1
+                            results['details'].append(f"Row {idx}: {product_name} - Count updated to {count} (variance: {inventory.variance})")
+                        except Inventory.DoesNotExist:
+                            results['errors'] += 1
+                            results['details'].append(f"Row {idx}: Product '{product_name}' not found")
+                        except Exception as e:
+                            results['errors'] += 1
+                            results['details'].append(f"Row {idx}: Error updating {product_name} - {str(e)}")
+                    
+                    except Exception as e:
+                        results['errors'] += 1
+                        results['details'].append(f"Row {idx}: Unexpected error - {str(e)}")
+                
+                # Show results
+                messages.success(request, f'Bulk count upload complete: {results["success"]} updated, {results["errors"]} errors')
+                for detail in results['details']:
+                    if 'Error' in detail or 'not found' in detail or 'Invalid' in detail:
+                        messages.warning(request, detail)
+                
+                return redirect('count')
+            
+            except Exception as e:
+                messages.error(request, f'Error processing file: {str(e)}')
+                return redirect('count')
+    else:
+        form = UploadCountForm()
+    
+    context = {
+        'form': form,
+        'branch': branch,
+    }
+    return render(request, 'ims/upload_count.html', context)
+
+
+@role_required(roles=['owner', 'manager'])
+@login_required
+def exportCountHistory(request):
+    """Export count history as CSV"""
+    branch = request.user.branch
+    organization = request.user.organization
+    
+    # Get count history from audit
+    inventory_counts = Inventory.objects.filter(
+        branch=branch, 
+        organization=organization
+    ).exclude(count__isnull=True)
+    
+    # Apply filters if provided
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    product_query = request.GET.get('product')
+    
+    if product_query:
+        inventory_counts = inventory_counts.filter(product__product_name__icontains=product_query)
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="count_history_{date.today()}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Product Name', 'Product Code', 'Physical Count', 'System Quantity', 'Variance', 'Variance %', 'Last Counted', 'Status'])
+    
+    for inventory in inventory_counts:
+        variance = inventory.count - inventory.store_quantity if inventory.count else None
+        variance_pct = (variance / inventory.store_quantity * 100) if inventory.store_quantity and variance else 0
+        
+        status = 'OK' if variance == 0 else ('Overage' if variance and variance > 0 else 'Shortage')
+        
+        writer.writerow([
+            inventory.product.product_name,
+            inventory.product.product_code or '',
+            inventory.count or '',
+            inventory.store_quantity,
+            variance or '',
+            round(variance_pct, 2) if variance_pct else '',
+            inventory.history.filter(count__isnull=False).latest('history_date').history_date if inventory.history.filter(count__isnull=False).exists() else '',
+            status
+        ])
+    
+    return response
+
+
+
+
+@role_required(roles=['owner'])
+@login_required
+# @is_unsubscribed
+def branchAudit(request):
+    # Use organization from middleware context (supports multi-org)
+    organization = request.organization or request.user.organization
+    branch_qs = Branch.objects.filter(organization=organization)
+
+    paginator = Paginator(branch_qs, 15)
+    page = request.GET.get('page')
+    branch_page = paginator.get_page(page)
+    nums = "a" * branch_page.paginator.num_pages
+
+    branch_contains_query = request.GET.get('branch')
+    if branch_contains_query:
+        branch_page = branch_qs.filter(name__icontains=branch_contains_query)
+
+    context = {
+        'branch': branch_qs,
+        'branch_page': branch_page,
+        'nums': nums
+    }
+
+    return render(request, 'ims/branch_audit.html', context)
