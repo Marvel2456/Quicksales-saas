@@ -421,3 +421,6 @@ if ENV == 'production':
     REFERRER_POLICY = 'strict-origin-when-cross-origin'
 else:
     SECURE_SSL_REDIRECT = False
+
+# Tauri Desktop Application Settings
+TAURI_APP_VERSION = '0.1.0'
