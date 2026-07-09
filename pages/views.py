@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect
+from django.conf import settings
 from subscriptions.models import Plan
 from .models import DesktopDownload
 
@@ -15,16 +16,20 @@ def download_windows(request):
         platform='windows',
         ip_address=get_client_ip(request)
     )
-    # Redirect to the latest GitHub Release page so users can select their architecture (x64/ARM)
-    return redirect("https://github.com/Marvel2456/Quicksales-saas/releases/latest")
+    # Direct download link for the compiled Windows installer (MSI)
+    version = getattr(settings, 'TAURI_APP_VERSION', '0.1.0')
+    github_url = f"https://github.com/Marvel2456/Quicksales-saas/releases/latest/download/Quicksales_{version}_x64_en-US.msi"
+    return redirect(github_url)
 
 def download_mac(request):
     DesktopDownload.objects.create(
         platform='mac',
         ip_address=get_client_ip(request)
     )
-    # Redirect to the latest GitHub Release page so users can select their architecture (x64/aarch64)
-    return redirect("https://github.com/Marvel2456/Quicksales-saas/releases/latest")
+    # Direct download link for the compiled macOS app disk image (DMG)
+    version = getattr(settings, 'TAURI_APP_VERSION', '0.1.0')
+    github_url = f"https://github.com/Marvel2456/Quicksales-saas/releases/latest/download/Quicksales_{version}_aarch64.dmg"
+    return redirect(github_url)
 
 # Create your views here.
 
