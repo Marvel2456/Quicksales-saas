@@ -211,6 +211,14 @@ def upload_product(request):
                     error_count = 0
                     errors = []
                     
+                    def get_clean_code(value):
+                        if pd.isna(value) or value is None:
+                            return ''
+                        val_str = str(value).strip()
+                        if val_str.lower() in ('none', 'nan', ''):
+                            return ''
+                        return val_str
+
                     for index, row in df.iterrows():
                         try:
                             # Get or create category
@@ -255,6 +263,9 @@ def upload_product(request):
                                 # branch and we don't want to steal it. Instead, if the product
                                 # belongs to a different branch, create a branch-specific copy.
                                 if product.branch != branch:
+                                    csv_product_code = get_clean_code(row.get('product_code'))
+                                    if not csv_product_code:
+                                        csv_product_code = str(uuid.uuid4())[:8].upper()
                                     product = Product.objects.create(
                                         organization=organization,
                                         branch=branch,
@@ -263,7 +274,7 @@ def upload_product(request):
                                         brand=str(row.get('brand', '')).strip(),
                                         unit=str(row.get('unit', '')).strip(),
                                         batch_no=str(row.get('batch_no', '')).strip(),
-                                        product_code=str(uuid.uuid4())[:8].upper(),
+                                        product_code=csv_product_code,
                                     )
                                     is_new_product = True
                                 else:
@@ -271,10 +282,18 @@ def upload_product(request):
                                     product.brand = str(row.get('brand', '')).strip()
                                     product.unit = str(row.get('unit', '')).strip()
                                     product.batch_no = str(row.get('batch_no', '')).strip()
+                                    
+                                    # Update product_code if provided in CSV
+                                    csv_product_code = get_clean_code(row.get('product_code'))
+                                    if csv_product_code:
+                                        product.product_code = csv_product_code
                                     product.save()
                                     is_new_product = False
                             else:
                                 # Create new product
+                                csv_product_code = get_clean_code(row.get('product_code'))
+                                if not csv_product_code:
+                                    csv_product_code = str(uuid.uuid4())[:8].upper()
                                 product = Product.objects.create(
                                     organization=organization,
                                     branch=branch,
@@ -283,7 +302,7 @@ def upload_product(request):
                                     brand=str(row.get('brand', '')).strip(),
                                     unit=str(row.get('unit', '')).strip(),
                                     batch_no=str(row.get('batch_no', '')).strip(),
-                                    product_code=str(uuid.uuid4())[:8].upper(),
+                                    product_code=csv_product_code,
                                 )
                                 is_new_product = True
                             
@@ -368,6 +387,9 @@ def upload_product(request):
                 # Handle manual single product entry
                 data = form.cleaned_data
                 product_name = data['product_name'].strip()
+                product_code = data.get('product_code', '').strip()
+                if not product_code:
+                    product_code = f"{uuid.uuid4().hex[:8]}"
                 category = data['category']
                 brand = data.get('brand')
                 unit = data.get('unit')
@@ -389,7 +411,7 @@ def upload_product(request):
                         brand=brand,
                         unit=unit,
                         batch_no=batch_no,
-                        product_code=f"{uuid.uuid4().hex[:8]}"
+                        product_code=product_code
                     )
                     product.save()
                     created = True
@@ -399,6 +421,8 @@ def upload_product(request):
                     product.brand = brand
                     product.unit = unit
                     product.batch_no = batch_no
+                    if data.get('product_code', '').strip():
+                        product.product_code = data.get('product_code').strip()
                     product.save()
 
                 # Inventory per branch + product

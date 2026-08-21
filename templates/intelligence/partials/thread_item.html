@@ -1,0 +1,49 @@
+<div class="thread-item-container" id="thread-{{ conv.id }}">
+    <a href="javascript:void(0)"
+       class="thread-item text-dark py-2 px-3 small d-flex justify-content-between align-items-center text-decoration-none"
+       hx-get="{% url 'chat_message' conv.id %}"
+       hx-target="#chatWorkspace"
+       hx-swap="innerHTML">
+        <span class="text-truncate pe-2 flex-grow-1">{{ conv.title }}</span>
+        <button class="btn btn-link btn-sm text-danger p-0 delete-thread-btn"
+                type="button"
+                hx-post="{% url 'delete_conversation' conv.id %}"
+                hx-target="#thread-{{ conv.id }}"
+                hx-swap="outerHTML">
+            &times;
+        </button>
+    </a>
+</div>
+
+<style>
+    .thread-item {
+        background: transparent;
+        transition: background 0.2s ease;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+        display: flex;
+        width: 100%;
+        color: #475569 !important;
+    }
+    .thread-item:hover {
+        background: rgba(0, 0, 0, 0.03);
+    }
+    .thread-item.active {
+        background: rgba(59, 130, 246, 0.08);
+        border-left: 3px solid #3b82f6;
+        color: #1d4ed8 !important;
+        font-weight: 600;
+    }
+    .delete-thread-btn {
+        opacity: 0;
+        font-size: 1.2rem;
+        line-height: 1;
+        transition: opacity 0.2s;
+    }
+    .thread-item:hover .delete-thread-btn {
+        opacity: 0.7;
+    }
+    .delete-thread-btn:hover {
+        opacity: 1 !important;
+    }
+</style>

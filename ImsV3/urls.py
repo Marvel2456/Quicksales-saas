@@ -34,8 +34,10 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path('', include('pages.urls')),
     path('ims/', include('ims.urls')),
+    path('api/v1/inventory/', include('ims.api_urls')),
     path('subscriptions/', include('subscriptions.urls')),
     path('account/', include('account.urls')),
+    path('intelligence/', include('intelligence.urls')),
     path('service-worker.js', service_worker, name='service_worker'),
 ]
 urlpatterns += staticfiles_urlpatterns()

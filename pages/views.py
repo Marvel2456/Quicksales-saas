@@ -56,3 +56,9 @@ def landingPage(request):
     }
     return render(request, 'pages/landing_page.html', context)
 
+def api_docs(request):
+    """
+    Renders the API integration documentation page for developers.
+    """
+    return render(request, 'pages/api_docs.html')
+

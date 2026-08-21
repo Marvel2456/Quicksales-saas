@@ -23,6 +23,12 @@
           </div>
 
           <div class="mb-3">
+            <label for="product_code" class="form-label">Product Code / Barcode</label>
+            <input name="product_code" type="text" class="form-control" placeholder="Product Code or Scan Barcode (Optional)" {% block Value-product_code %} {% endblock Value-product_code %}>
+            <div class="m-3" style="color:red;">{{form.product_code.errors}}</div>
+          </div>
+
+          <div class="mb-3">
             <label for="category" class="form-label">Category</label>
             {{form.category}}
             {% comment %} <select id="id_category" name="category" class="form-select form-select-sm rounded-0" required {% block Value-category %} {% endblock Value-category %}>

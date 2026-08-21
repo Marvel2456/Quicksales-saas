@@ -1,0 +1,62 @@
+<div class="message-feed flex-grow-1 p-3 overflow-y-auto" id="messageFeed">
+    {% for msg in messages %}
+        {% if msg.role == 'user' %}
+            <div class="message-row user-row d-flex justify-content-end mb-3">
+                <div class="message-bubble user-bubble">
+                    {{ msg.content|linebreaksbr }}
+                </div>
+            </div>
+        {% elif msg.role == 'assistant' and msg.content %}
+            <div class="message-row assistant-row d-flex justify-content-start mb-3">
+                <div class="message-bubble assistant-bubble">
+                    {{ msg.content|linebreaksbr }}
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+    <div id="streamingBuffer" class="message-row assistant-row d-flex justify-content-start mb-3 d-none">
+        <div class="message-bubble assistant-bubble" id="streamingText"></div>
+    </div>
+</div>
+
+
+
+<script>
+    (function() {
+        setTimeout(function() {
+            var feed = document.getElementById('messageFeed');
+            if (feed) {
+                feed.scrollTop = feed.scrollHeight;
+            }
+        }, 80);
+    })();
+</script>
+
+<style>
+    .message-feed {
+        flex: 1 1 auto;
+        height: calc(100vh - 140px);
+        overflow-y: auto !important;
+        background: #f8fafc;
+    }
+    .message-bubble {
+        max-width: 85%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    .user-bubble {
+        background: #3b82f6;
+        color: white;
+        border-bottom-right-radius: 2px;
+        box-shadow: 0 1px 2px rgba(59, 130, 246, 0.25);
+    }
+    .assistant-bubble {
+        background: #ffffff;
+        color: #1e293b;
+        border-bottom-left-radius: 2px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+</style>

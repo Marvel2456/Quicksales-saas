@@ -86,6 +86,8 @@ class ProductForm(ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields['product_name'].widget.attrs['class'] = 'input'
+        self.fields['product_code'].widget.attrs['class'] = 'input'
+        self.fields['product_code'].required = False
         self.fields['category'].widget.attrs['class'] = 'form-select'
         self.fields['brand'].widget.attrs['class'] = 'input'
         self.fields['unit'].widget.attrs['class'] = 'input'
@@ -101,11 +103,18 @@ class ProductForm(ModelForm):
 
     class Meta:
        model = Product
-       fields = ('product_name', 'category', 'brand', 'unit', 'batch_no')
+       fields = ('product_name', 'product_code', 'category', 'brand', 'unit', 'batch_no')
        
        widgets = {
            'category': forms.Select(attrs={'class':'form-select'})
         }
+
+    def clean_product_code(self):
+        import uuid
+        code = self.cleaned_data.get('product_code', '').strip()
+        if not code:
+            code = str(uuid.uuid4())[:8].upper()
+        return code
 
     def clean(self):
         super(ProductForm, self).clean()
@@ -134,6 +143,9 @@ class EditProductForm(forms.ModelForm):
         branch = kwargs.pop('branch', None)
         super().__init__(*args, **kwargs)
 
+        self.fields['product_code'].widget.attrs['class'] = 'input'
+        self.fields['product_code'].required = False
+
         if organization:
             # Ensure the product’s current category is always available in queryset
             qs = Category.objects.filter(organization=organization)
@@ -150,7 +162,14 @@ class EditProductForm(forms.ModelForm):
 
     class Meta:
         model = Product
-        fields = ['product_name', 'brand', 'category', 'unit', 'batch_no']
+        fields = ['product_name', 'product_code', 'brand', 'category', 'unit', 'batch_no']
+
+    def clean_product_code(self):
+        import uuid
+        code = self.cleaned_data.get('product_code', '').strip()
+        if not code:
+            code = str(uuid.uuid4())[:8].upper()
+        return code
 
 
 
@@ -341,10 +360,11 @@ class UploadCountForm(forms.Form):
 class UploadProductForm(forms.Form):
     upload_file = forms.FileField(
         required=False,
-        help_text='Upload CSV or Excel file with columns: product_name, category, brand, unit, batch_no, cost_price, sale_price, quantity, reorder_level',
+        help_text='Upload CSV or Excel file with columns: product_name, category, brand, unit, batch_no, product_code, cost_price, sale_price, quantity, reorder_level',
         widget=forms.FileInput(attrs={'accept': '.csv,.xlsx,.xls'})
     )
     product_name = forms.CharField(max_length=150, required=False)
+    product_code = forms.CharField(max_length=100, required=False)
     category = forms.ModelChoiceField(queryset=Category.objects.none(), required=False)
     brand = forms.CharField(max_length=150, required=False)
     unit = forms.CharField(max_length=50, required=False)
