@@ -13,6 +13,7 @@ from subscriptions.views import _finalize_successful_payment
 
 class PaymentIdempotencyTests(TestCase):
 	def setUp(self):
+		Plan.objects.all().delete()
 		self.owner = CustomUser.objects.create_user(
 			email="owner@example.com",
 			password="testpass123",

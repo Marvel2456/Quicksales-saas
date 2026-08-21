@@ -37,7 +37,7 @@
       <div class="app-card app-card-settings shadow-sm p-4 mb-4">
         <div class="app-card-body">
           <h5 class="mb-3">Bulk Upload from File</h5>
-          <p class="text-muted">Upload a CSV or Excel file with multiple products. The file should have these columns: product_name, category, brand, unit, batch_no, cost_price, sale_price, quantity, reorder_level</p>
+          <p class="text-muted">Upload a CSV or Excel file with multiple products. The file should have these columns: product_name, category, brand, unit, batch_no, product_code, cost_price, sale_price, quantity, reorder_level</p>
           <div class="row g-3">
             <div class="col-md-8">
               <label class="form-label">Upload File (CSV or Excel)</label>
@@ -72,6 +72,13 @@
               {{ form.product_name }}
               {% if form.product_name.errors %}
                 <div class="text-danger small">{{ form.product_name.errors }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Product Code / Barcode</label>
+              {{ form.product_code }}
+              {% if form.product_code.errors %}
+                <div class="text-danger small">{{ form.product_code.errors }}</div>
               {% endif %}
             </div>
             <div class="col-md-6">
@@ -145,9 +152,9 @@
 <script>
 function downloadSample() {
   // Create sample CSV content
-  const csvContent = `product_name,category,brand,unit,batch_no,cost_price,sale_price,quantity,reorder_level
-Sample Product 1,Electronics,Brand A,Piece,BATCH001,100.00,150.00,50,10
-Sample Product 2,Groceries,Brand B,Kg,BATCH002,50.00,75.00,100,20`;
+  const csvContent = `product_name,category,brand,unit,batch_no,product_code,cost_price,sale_price,quantity,reorder_level
+Sample Product 1,Electronics,Brand A,Piece,BATCH001,ELEC-001,100.00,150.00,50,10
+Sample Product 2,Groceries,Brand B,Kg,BATCH002,GROC-002,50.00,75.00,100,20`;
   
   // Create blob and download
   const blob = new Blob([csvContent], { type: 'text/csv' });

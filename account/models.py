@@ -44,6 +44,7 @@ class Organization(models.Model):
         ('accessories', 'Accessories Store'),
         ('hardware', 'Hardware Store'),
         ('department', 'Department Store'),
+        ('developer', 'Developer Sandbox'),
         ('others', 'Others'),
     ]
     business_type = models.CharField(max_length=50, choices=BUSINESS_CHOICES, blank=True, null=True)

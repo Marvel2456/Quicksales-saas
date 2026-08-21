@@ -18,6 +18,8 @@ from django.db.models import Sum, Count, Q
 from collections import defaultdict
 import calendar
 from ims.view_caching import cached_view
+from ims.services.sales import SalesService
+from ims.services.inventory import InventoryService
 
 # Write your views here.
 
@@ -40,21 +42,17 @@ def branchDasboard(request):
     # Calculate today's sales for each branch
     branch_sales_data = []
     for branch in branch_qs:
-        # Use aggregate to avoid loading individual objects
-        sales_agg = Sale.objects.filter(
+        sales_qs = SalesService.get_sales_summary(
+            organization=organization,
             branch=branch,
-            date_added__year=current_year,
-            date_added__month=current_month,
-            date_added__day=current_day
-        ).aggregate(
-            total_sales=Sum('final_total_price'),
-            transaction_count=Count('id')
+            start_date=now.date(),
+            end_date=now.date()
         )
-        
+        metrics = SalesService.get_aggregated_metrics(sales_qs)
         branch_sales_data.append({
             'branch': branch,
-            'today_sales': sales_agg['total_sales'] or 0,
-            'transaction_count': sales_agg['transaction_count'] or 0
+            'today_sales': metrics['total_sales'],
+            'transaction_count': metrics['transaction_count']
         })
 
     paginator = Paginator(branch_sales_data, 15)
@@ -113,103 +111,61 @@ def dashboard(request, pk):
     current_month = now.strftime("%m")
     current_day = now.strftime("%d")
     
-    # Optimized queries: use count() instead of .all() for simple counts
+    # Use Service Layer for inventory summaries
+    summary = InventoryService.get_inventory_summary(organization=organization, branch=branch)
+    total_product = summary['total_product']
+    total_category = summary['total_category']
+    pending = summary['pending_errors']
+    
+    # Re-use products and category querysets for context variables if template requires it
     products = Product.objects.filter(branch=branch, organization=organization)
     category = Category.objects.filter(branch=branch, organization=organization)
     
-    total_product = products.count()
-    total_category = category.count()
-    
-    # Use aggregate for sum/count to avoid loading all objects
-    today_sales_agg = Sale.objects.filter(
-        date_added__year=current_year,
-        date_added__month=current_month,
-        date_added__day=current_day,
-        branch_id=pk
-    ).aggregate(
-        count=Count('id'),
-        total_sales=Sum('final_total_price'),
-        total_profit=Sum('total_profit')
+    # Use Service Layer for daily sales and profit aggregates
+    today_sales_qs = SalesService.get_sales_summary(
+        organization=organization,
+        branch=branch,
+        start_date=now.date(),
+        end_date=now.date()
     )
+    today_metrics = SalesService.get_aggregated_metrics(today_sales_qs)
+    transaction = today_metrics['transaction_count']
+    total_sales = today_metrics['total_sales']
+    total_profits = today_metrics['total_profit']
     
-    transaction = today_sales_agg['count'] or 0
-    total_sales = today_sales_agg['total_sales'] or 0
-    total_profits = today_sales_agg['total_profit'] or 0
-    
-    pending = ErrorTicket.objects.filter(status='Pending').count()
-    inventory = Inventory.objects.filter(branch_id=branch)
+    # Get raw branch inventory list
+    inventory = InventoryService.get_inventory(organization=organization, branch=branch)
 
-    # Top 7 recent high-quantity sales for bar chart (optimized with select_related)
-    item = SalesItem.objects.filter(branch_id=branch).select_related(
-        'inventory__product'
-    ).order_by('-quantity')[:7]
+    # Top 7 recent high-quantity sales for bar chart
+    item = SalesService.get_recent_high_quantity_sales(branch, limit=7)
 
     # Get top 5 selling products by total quantity sold for pie chart
-    top_products = (
-        SalesItem.objects.filter(branch_id=branch)
-        .values('inventory__product__product_name')
-        .annotate(total_quantity=Sum('quantity'))
-        .order_by('-total_quantity')[:5]
-    )
+    top_products = SalesService.get_top_selling_products(branch, limit=5)
 
-    # Get monthly sales data for the current year (line chart)
+    # Get monthly sales and profit data for the current year (line & comparison charts)
     monthly_sales = defaultdict(float)
-    sales_by_month = (
-        Sale.objects.filter(
-            branch_id=branch,
-            date_added__year=current_year
-        )
-        .values('date_added__month')
-        .annotate(total_sales=Sum('final_total_price'))
-        .order_by('date_added__month')
-    )
+    monthly_profits = defaultdict(float)
     
+    sales_by_month = SalesService.get_monthly_sales_and_profits(branch, int(current_year))
     for sale in sales_by_month:
         month_num = sale['date_added__month']
-        monthly_sales[month_num] = sale['total_sales']
+        monthly_sales[month_num] = sale['total_sales'] or 0.0
+        monthly_profits[month_num] = sale['total_profit'] or 0.0
     
-    # Create lists for all 12 months with data or 0
     month_labels = [calendar.month_abbr[i] for i in range(1, 13)]
     month_values = [monthly_sales.get(i, 0) for i in range(1, 13)]
-    
-    # Get monthly profit data for the current year (for comparison chart)
-    monthly_profits = defaultdict(float)
-    profits_by_month = (
-        Sale.objects.filter(
-            branch_id=branch,
-            date_added__year=current_year
-        )
-        .values('date_added__month')
-        .annotate(total_profit=Sum('total_profit'))
-        .order_by('date_added__month')
-    )
-    
-    for profit in profits_by_month:
-        month_num = profit['date_added__month']
-        monthly_profits[month_num] = profit['total_profit']
-    
-    # Create profit values for all 12 months
     month_profit_values = [monthly_profits.get(i, 0) for i in range(1, 13)]
     
     # Calculate daily sales data for the current month (for area chart)
     daily_sales = defaultdict(float)
     daily_profits = defaultdict(float)
     
-    daily_stats = (
-        Sale.objects.filter(
-            branch_id=branch,
-            date_added__year=current_year,
-            date_added__month=int(current_month)
-        )
-        .values('date_added__day')
-        .annotate(daily_revenue=Sum('final_total_price'), daily_profit=Sum('total_profit'))
-        .order_by('date_added__day')
-    )
+    daily_stats = SalesService.get_daily_sales_and_profits(branch, int(current_year), int(current_month))
     
     for stat in daily_stats:
         day = stat['date_added__day']
-        daily_sales[day] = stat['daily_revenue'] or 0
-        daily_profits[day] = stat['daily_profit'] or 0
+        daily_sales[day] = stat['daily_revenue'] or 0.0
+        daily_profits[day] = stat['daily_profit'] or 0.0
     
     # Get the number of days in current month
     num_days = calendar.monthrange(int(current_year), int(current_month))[1]

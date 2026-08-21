@@ -1,0 +1,47 @@
+{% for insight in insights %}
+    <div class="alert alert-dismissible fade show border-0 shadow-sm mb-3 d-flex align-items-start gap-2 p-3 glass-insight-{{ insight.insight_type }}" role="alert" id="insight-{{ insight.id }}">
+        <div class="insight-icon mt-1">
+            {% if insight.insight_type == 'warning' %}⚠️
+            {% elif insight.insight_type == 'error' %}🚨
+            {% elif insight.insight_type == 'success' %}✅
+            {% else %}💡
+            {% endif %}
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="alert-heading fw-bold m-0 text-dark">{{ insight.title }}</h6>
+            <p class="mb-0 text-secondary small mt-1" style="line-height: 1.4;">{{ insight.content }}</p>
+        </div>
+        <button type="button" class="btn-close shadow-none p-2"
+                hx-post="{% url 'mark_insight_read' insight.id %}"
+                hx-target="#insight-{{ insight.id }}"
+                hx-swap="outerHTML"
+                aria-label="Close"></button>
+    </div>
+{% empty %}
+    <div class="text-center text-muted p-4 small bg-light rounded-3">
+        No active business alerts or recommendations at this time.
+    </div>
+{% endfor %}
+
+<style>
+    .glass-insight-info {
+        background: rgba(59, 130, 246, 0.05) !important;
+        border-left: 4px solid #3b82f6 !important;
+        border-radius: 12px !important;
+    }
+    .glass-insight-warning {
+        background: rgba(245, 158, 11, 0.05) !important;
+        border-left: 4px solid #f59e0b !important;
+        border-radius: 12px !important;
+    }
+    .glass-insight-success {
+        background: rgba(16, 185, 129, 0.05) !important;
+        border-left: 4px solid #10b981 !important;
+        border-radius: 12px !important;
+    }
+    .glass-insight-error {
+        background: rgba(239, 68, 68, 0.05) !important;
+        border-left: 4px solid #ef4444 !important;
+        border-radius: 12px !important;
+    }
+</style>

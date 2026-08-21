@@ -16,6 +16,7 @@ from django.template.loader import get_template
 from xhtml2pdf import pisa
 from ims.view_caching import cached_view
 from django.core.cache import cache
+from ims.services.inventory import InventoryService
 
 
 
@@ -54,18 +55,17 @@ def inventory_list(request, pk):
     # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
     
-    # Use select_related for efficient product and branch loading
-    inventory_qs = Inventory.objects.filter(branch=branch).select_related(
-        'product', 'branch', 'organization'
-    ).order_by('-last_updated')
+    product_contains_query = request.GET.get('product')
+    
+    # Delegate query to Service Layer
+    inventory_qs = InventoryService.get_inventory(
+        organization=organization,
+        branch=branch,
+        product_name=product_contains_query
+    )
     
     # Get products for this branch with select_related
     product = Product.objects.filter(branch=branch).select_related('category', 'branch')
-    
-    # Apply product filter if provided
-    product_contains_query = request.GET.get('product')
-    if product_contains_query:
-        inventory_qs = inventory_qs.filter(product__product_name__icontains=product_contains_query)
     
     # Paginate FILTERED queryset
     paginator = Paginator(inventory_qs, 15)
@@ -108,24 +108,21 @@ def inventory_list(request, pk):
 # @is_unsubscribed
 def branchInventory(request):
     """Admin branch inventory view - optimized with select_related"""
-    organization = get_request_organization(request)
-    # Use select_related for efficient loading
-    inventory_qs = Inventory.objects.select_related(
-        'product', 'branch', 'organization'
-    ).filter(organization=organization).order_by('branch')
-    
-    product = Product.objects.select_related('category', 'branch').filter(organization=organization)
-    branch = Branch.objects.select_related('organization').filter(organization=organization)
-    
-    # Apply filters if provided
     product_contains_query = request.GET.get('product')
     branch_contains_query = request.GET.get('branch')
     
-    if product_contains_query:
-        inventory_qs = inventory_qs.filter(product__product_name__icontains=product_contains_query)
-
+    # Delegate query to Service Layer
+    inventory_qs = InventoryService.get_inventory(
+        organization=organization,
+        product_name=product_contains_query
+    )
     if branch_contains_query:
         inventory_qs = inventory_qs.filter(branch__name__icontains=branch_contains_query)
+        
+    inventory_qs = inventory_qs.order_by('branch')
+    
+    product = Product.objects.select_related('category', 'branch').filter(organization=organization)
+    branch = Branch.objects.select_related('organization').filter(organization=organization)
     
     # Paginate FILTERED queryset
     paginator = Paginator(inventory_qs, 15)
@@ -219,16 +216,20 @@ def restock(request, pk):
 def inventoryView(request, pk):
     organization = get_request_organization(request)
     branch = get_object_or_404(Branch, id=pk, organization=organization)
-    inventory = Inventory.objects.filter(branch=branch, organization=organization)
+    product_contains_query = request.GET.get('product')
+    
+    # Delegate query to Service Layer
+    inventory = InventoryService.get_inventory(
+        organization=organization,
+        branch=branch,
+        product_name=product_contains_query
+    )
     product = Product.objects.filter(branch=branch, organization=organization)
+    
     paginator = Paginator(inventory, 15)
     page = request.GET.get('page')
     inventory_page = paginator.get_page(page)
     nums = "a" *inventory_page.paginator.num_pages
-    product_contains_query = request.GET.get('product')
-
-    if product_contains_query:
-        inventory_page = inventory.filter(product__product_name__icontains=product_contains_query)
 
     context = {
         'branch':branch,

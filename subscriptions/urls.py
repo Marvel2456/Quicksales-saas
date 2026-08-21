@@ -18,4 +18,8 @@ urlpatterns = [
     # Coupon endpoints
     path("api/validate-coupon/", coupon_views.validate_coupon_api, name="validate_coupon_api"),
     path("api/apply-coupon/<uuid:subscription_id>/", coupon_views.apply_coupon_to_subscription, name="apply_coupon_to_subscription"),
+    
+    # API key generation endpoints
+    path('settings/api-key/generate/', views.generate_api_key_view, name='generate_api_key'),
+    path('settings/api-key/revoke/<uuid:key_id>/', views.revoke_api_key_view, name='revoke_api_key'),
 ]

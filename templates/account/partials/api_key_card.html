@@ -1,0 +1,87 @@
+{% if new_key_plain %}
+<div class="alert alert-warning border-warning shadow-sm mb-4" role="alert" style="border-radius: 12px; background-color: #fffbeb;">
+    <div class="d-flex align-items-center gap-2 mb-2 text-warning-emphasis">
+        <span style="font-size: 1.25rem;">⚠️</span>
+        <strong class="small fw-bold">Copy Your API Key</strong>
+    </div>
+    <p class="small text-secondary mb-3">Make sure to copy your API key now. For security reasons, you won't be able to see it again.</p>
+    <div class="input-group">
+        <input type="text" 
+               class="form-control bg-white font-monospace text-dark" 
+               id="newKeyField" 
+               value="{{ new_key_plain }}" 
+               readonly 
+               style="font-size: 0.9rem;">
+        <button class="btn btn-outline-warning" 
+                type="button" 
+                onclick="navigator.clipboard.writeText('{{ new_key_plain }}'); this.innerHTML = 'Copied!'; setTimeout(() => this.innerHTML = 'Copy', 2000);">
+            Copy
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="fw-bold text-dark mb-0">API Credentials</h5>
+    <form hx-post="{% url 'generate_api_key' %}" hx-target="#apiKeySection" hx-swap="innerHTML" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="text" 
+               name="key_name" 
+               class="form-control form-control-sm border shadow-none" 
+               placeholder="Key Name (e.g. WhatsApp Bot)" 
+               required 
+               style="max-width: 220px; font-size: 0.85rem;">
+        <button class="btn btn-sm btn-primary text-white d-flex align-items-center gap-1" type="submit">
+            <span>+</span> Generate Key
+        </button>
+    </form>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-borderless align-middle mb-0" style="font-size: 0.9rem;">
+        <thead class="border-bottom border-light">
+            <tr class="text-secondary" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <th>Name</th>
+                <th>API Key Token</th>
+                <th>Created</th>
+                <th>Last Used</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for k in api_keys %}
+            <tr class="border-bottom border-light">
+                <td class="fw-semibold text-dark">{{ k.name }}</td>
+                <td class="font-monospace text-secondary">
+                    qs_live_...{{ k.key|slice:"-8:" }}
+                </td>
+                <td class="text-secondary">{{ k.created_at|date:"Y-m-d H:i" }}</td>
+                <td class="text-secondary">
+                    {% if k.last_used_at %}
+                        {{ k.last_used_at|date:"Y-m-d H:i" }}
+                    {% else %}
+                        <span class="text-muted small">Never</span>
+                    {% endif %}
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                            type="button"
+                            hx-post="{% url 'revoke_api_key' k.id %}"
+                            hx-target="#apiKeySection"
+                            hx-swap="innerHTML"
+                            hx-confirm="Are you sure you want to revoke this API Key? Any integrations using it will fail immediately.">
+                        Revoke
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                    <span class="d-block mb-1" style="font-size: 1.5rem;">🔑</span>
+                    <span class="small text-secondary">No API keys generated yet. Use the form above to generate one.</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

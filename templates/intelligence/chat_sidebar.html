@@ -1,0 +1,160 @@
+<div class="marvex-intelligence-drawer" id="intelligenceDrawer">
+    <div class="drawer-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <div class="sparkle-icon">✨</div>
+            <h5 class="m-0 fw-bold text-dark">MarvexQS Intelligence</h5>
+        </div>
+        <button class="btn-close" type="button" onclick="toggleIntelligenceDrawer()"></button>
+    </div>
+    
+    <div class="drawer-body d-flex">
+        <!-- Sidebar: Thread List -->
+        <div class="thread-sidebar border-end">
+            <div class="p-3">
+                <button class="btn btn-outline-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-1"
+                        hx-post="{% url 'create_conversation' %}"
+                        hx-target="#chatWorkspace"
+                        hx-swap="innerHTML"
+                        hx-vals='{"title": "New Session"}'>
+                    <span>+</span> New Chat
+                </button>
+            </div>
+            <div class="thread-list" 
+                 id="threadList"
+                 hx-get="{% url 'chat_session' %}" 
+                 hx-trigger="load, conversationCreated from:body"
+                 hx-select="#threadList > *">
+                {% for conv in conversations %}
+                    {% include 'intelligence/partials/thread_item.html' with conv=conv %}
+                {% empty %}
+                    <div class="text-center text-muted p-3 small" id="noThreadsNotice">No active chats.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Chat Workspace Area -->
+        <div class="chat-workspace d-flex flex-column flex-grow-1" id="chatWorkspace">
+            <!-- Welcome Screen with Input Box -->
+            <div class="d-flex flex-column h-100">
+                <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-muted p-4">
+                    <div class="sparkle-icon-large mb-3">🔮</div>
+                    <h6 class="text-dark fw-bold">Welcome to MarvexQS AI</h6>
+                    <p class="small max-w-250 text-secondary">Query sales reports, monitor stock variances, and analyze business health.</p>
+                </div>
+                <div class="chat-footer p-3 border-top bg-white">
+                    <form id="newChatForm" 
+                          hx-post="{% url 'create_conversation' %}" 
+                          hx-target="#chatWorkspace" 
+                          hx-swap="innerHTML"
+                          onsubmit="handleNewChatSubmit(event, '{% url 'create_conversation' %}')">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="text"
+                                   name="message"
+                                   id="newConversationInput"
+                                   class="form-control bg-light border text-dark placeholder-muted shadow-none"
+                                   placeholder="Ask MarvexQS Intelligence..."
+                                   required
+                                   autocomplete="off">
+                            <button class="btn btn-primary d-flex align-items-center" type="submit">
+                                Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .marvex-intelligence-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 500px;
+        height: 100vh;
+        z-index: 1060;
+        background: #ffffff;
+        box-shadow: -5px 0 30px rgba(0,0,0,0.1);
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        color: #1e293b;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        border-left: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .marvex-intelligence-drawer.open {
+        transform: translateX(0);
+    }
+
+    .drawer-header {
+        padding: 15px 20px;
+        background: #ffffff;
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .sparkle-icon {
+        font-size: 1.2rem;
+        animation: spin 3s linear infinite;
+        color: #3b82f6;
+    }
+
+    .sparkle-icon-large {
+        font-size: 3rem;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .drawer-body {
+        flex-grow: 1;
+        overflow: hidden;
+        height: calc(100vh - 56px);
+    }
+
+    .thread-sidebar {
+        width: 180px;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    .thread-list {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+    .chat-workspace {
+        background: #ffffff;
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .max-w-250 {
+        max-width: 250px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    @media (max-width: 576px) {
+        .marvex-intelligence-drawer {
+            width: 100%;
+        }
+        .thread-sidebar {
+            width: 120px;
+        }
+    }
+</style>
+

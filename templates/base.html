@@ -168,7 +168,7 @@
     </style>
 </head> 
 
-<body class="app{% if org_role != 'owner' or active_branch_id %}{% else %} no-sidepanel{% endif %}">
+<body class="app{% if org_role != 'owner' or active_branch_id %}{% else %} no-sidepanel{% endif %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <header class="app-header fixed-top">
         {% include 'partials/_navbar.html' %}
         {% include 'partials/_sidebar.html' %}
@@ -737,6 +737,218 @@
             }, true);
         })();
     </script>
+
+    <!-- MarvexQS Intelligence Integration -->
+    {% if request.user.is_authenticated and org_role == 'owner' %}
+        {% comment %}
+        {% include 'intelligence/chat_sidebar.html' %}
+        <button class="floating-ai-btn shadow-lg" onclick="toggleIntelligenceDrawer()" type="button" aria-label="Toggle AI Assistant">
+            ✨
+        </button>
+        {% endcomment %}
+        <style>
+            .floating-ai-btn {
+                position: fixed;
+                bottom: 85px;
+                right: 25px;
+                width: 56px;
+                height: 56px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                border: none;
+                color: white;
+                font-size: 1.5rem;
+                z-index: 1050;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .floating-ai-btn:hover {
+                transform: scale(1.08);
+                box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+            }
+        </style>
+        <script>
+            function toggleIntelligenceDrawer() {
+                const drawer = document.getElementById('intelligenceDrawer');
+                if (drawer) {
+                    drawer.classList.toggle('open');
+                }
+            }
+
+            async function handleChatSubmit(event, url) {
+                event.preventDefault();
+                const form = event.target;
+                const input = document.getElementById('messageInput');
+                const prompt = input.value.trim();
+                if (!prompt) return;
+                
+                input.value = '';
+                
+                const feed = document.getElementById('messageFeed');
+                const userRow = document.createElement('div');
+                userRow.className = 'message-row user-row d-flex justify-content-end mb-3';
+                userRow.innerHTML = `<div class="message-bubble user-bubble">${prompt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>')}</div>`;
+                feed.appendChild(userRow);
+                feed.scrollTop = feed.scrollHeight;
+                
+                const buffer = document.getElementById('streamingBuffer');
+                const textSpan = document.getElementById('streamingText');
+                buffer.classList.remove('d-none');
+                textSpan.innerHTML = '<span class="text-muted">Thinking...</span>';
+                feed.scrollTop = feed.scrollHeight;
+                
+                const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+                const formData = new FormData();
+                formData.append('message', prompt);
+                
+                try {
+                    const response = await fetch(url + '?stream=true', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: formData
+                    });
+                    
+                    if (!response.ok) throw new Error("Server error");
+                    
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let assistantText = "";
+                    textSpan.innerHTML = "";
+                    
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.substring(6));
+                                    if (data.text) {
+                                        assistantText += data.text;
+                                        textSpan.innerHTML = assistantText.replace(/\n/g, '<br>');
+                                        feed.scrollTop = feed.scrollHeight;
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                    
+                    if (typeof htmx !== 'undefined') {
+                        htmx.ajax('GET', url, {target: '#chatWorkspace', swap: 'innerHTML'});
+                    }
+                } catch (e) {
+                    textSpan.innerHTML = `<span class="text-danger">Connection lost: ${e.message}</span>`;
+                }
+            }
+
+            async function handleNewChatSubmit(event, url) {
+                event.preventDefault();
+                const form = event.target;
+                const input = document.getElementById('newConversationInput');
+                const prompt = input.value.trim();
+                if (!prompt) return;
+                
+                const workspace = document.getElementById('chatWorkspace');
+                workspace.innerHTML = `
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-muted p-4">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <h6 class="text-dark fw-bold">Creating Session...</h6>
+                        <p class="small max-w-250 text-secondary">Starting your AI assistant conversation thread...</p>
+                    </div>
+                `;
+                
+                const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+                const formData = new FormData();
+                formData.append('message', prompt);
+                
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'HX-Request': 'true'
+                        },
+                        body: formData
+                    });
+                    
+                    if (!response.ok) throw new Error("Server error");
+                    
+                    const html = await response.text();
+                    workspace.innerHTML = html;
+                    
+                    document.body.dispatchEvent(new Event('conversationCreated'));
+                } catch (e) {
+                    workspace.innerHTML = `
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center text-danger p-4">
+                            <i class="fa-solid fa-triangle-exclamation mb-3 fs-3"></i>
+                            <h6>Failed to start conversation</h6>
+                            <p class="small text-secondary mb-3">${e.message}</p>
+                            <a href="" class="btn btn-outline-danger btn-sm" onclick="location.reload(); return false;">Reload Page</a>
+                        </div>
+                    `;
+                }
+            }
+
+            document.addEventListener('click', function(e) {
+                const threadItem = e.target.closest('.thread-item');
+                if (threadItem && !e.target.closest('.delete-thread-btn')) {
+                    document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+                    threadItem.classList.add('active');
+                }
+
+                const deleteBtn = e.target.closest('.delete-thread-btn');
+                if (deleteBtn) {
+                    const threadItem = deleteBtn.closest('.thread-item');
+                    if (threadItem && threadItem.classList.contains('active')) {
+                        const workspace = document.getElementById('chatWorkspace');
+                        if (workspace) {
+                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+                            workspace.innerHTML = `
+                                <div class="d-flex flex-column h-100 bg-white">
+                                    <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-muted p-4">
+                                        <div class="sparkle-icon-large mb-3">🔮</div>
+                                        <h6 class="text-dark fw-bold">Welcome to MarvexQS AI</h6>
+                                        <p class="small max-w-250 text-secondary">Query sales reports, monitor stock variances, and analyze business health.</p>
+                                    </div>
+                                    <div class="chat-footer p-3 border-top bg-white">
+                                        <form id="newChatForm" 
+                                              hx-post="/intelligence/chat/create/" 
+                                              hx-target="#chatWorkspace" 
+                                              hx-swap="innerHTML"
+                                              onsubmit="handleNewChatSubmit(event, '/intelligence/chat/create/')">
+                                            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+                                            <div class="input-group">
+                                                <input type="text"
+                                                       name="message"
+                                                       id="newConversationInput"
+                                                       class="form-control bg-light border text-dark placeholder-muted shadow-none"
+                                                       placeholder="Ask MarvexQS Intelligence..."
+                                                       required
+                                                       autocomplete="off">
+                                                <button class="btn btn-primary d-flex align-items-center" type="submit">
+                                                    Send
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            `;
+                            if (typeof htmx !== 'undefined') {
+                                htmx.process(workspace);
+                            }
+                        }
+                    }
+                }
+            });
+        </script>
+    {% endif %}
 
     <!-- Offline POS Manager & Service Worker Registration -->
     <script src="{% static 'assets/js/offline-manager.js' %}"></script>

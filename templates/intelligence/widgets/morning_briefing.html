@@ -1,0 +1,36 @@
+{% if briefing %}
+<div class="card border-0 shadow-sm glass-morning-briefing mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 border-light">
+            <div class="d-flex align-items-center gap-2">
+                <span style="font-size: 1.5rem;">🌅</span>
+                <div>
+                    <h5 class="card-title fw-bold m-0 text-dark">{{ briefing.title }}</h5>
+                    <small class="text-muted">{{ briefing.date|date:"l, F d, Y" }}</small>
+                </div>
+            </div>
+            <span class="badge bg-info text-white text-uppercase" style="font-size: 0.65rem; padding: 5px 8px;">Daily Summary</span>
+        </div>
+        <div class="briefing-text text-secondary" style="font-size: 0.95rem; line-height: 1.6;">
+            {{ briefing.content|linebreaks }}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm glass-morning-briefing mb-4 p-4 text-center text-muted">
+    <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+    <p class="m-0 small fw-bold text-dark">Compiling Daily Executive Summary...</p>
+    <p class="m-0 text-secondary" style="font-size: 0.8rem;">Our AI engine is currently analyzing yesterday's sales data. Please refresh in a moment.</p>
+</div>
+{% endif %}
+
+<style>
+    .glass-morning-briefing {
+        border-radius: 16px !important;
+        border: 1px solid rgba(59, 130, 246, 0.15) !important;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(37, 99, 235, 0.01) 100%);
+    }
+    .briefing-text p {
+        margin-bottom: 12px;
+    }
+</style>

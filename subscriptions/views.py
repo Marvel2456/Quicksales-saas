@@ -314,6 +314,9 @@ def settingsView(request):
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
     plans = Plan.objects.exclude(tier='free').order_by('tier', 'size', 'billing_frequency')
 
+    from ims.models import APIKey
+    api_keys = APIKey.objects.filter(organization=organization).order_by('-created_at')
+
     context = {
         'organization': organization,
         'subscription': subscription,
@@ -321,6 +324,7 @@ def settingsView(request):
         'tier_choices': Plan.TIER_CHOICES,
         'size_choices': Plan.SIZE_CHOICES,
         'billing_frequency_choices': Plan.BILLING_FREQUENCY_CHOICES,
+        'api_keys': api_keys,
     }
     return render(request, 'account/settings.html', context)
 
@@ -966,3 +970,62 @@ def squadco_webhook(request):
             _finalize_successful_payment(reference)
 
     return HttpResponse(status=200)
+
+
+@role_required(roles=['owner'])
+@login_required
+@csrf_exempt  # HTMX POST requests are already CSRF-configured, but csrf_exempt is added for safety if header is omitted
+def generate_api_key_view(request):
+    """
+    Generates a secure API Key for the user's organization.
+    """
+    from django.views.decorators.http import require_POST
+    import secrets
+    from ims.models import APIKey
+    
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+        
+    org = get_request_organization(request)
+    name = request.POST.get('key_name', 'WhatsApp Bot').strip() or 'WhatsApp Bot'
+    
+    # Generate secure key token string: prefix with qs_live_
+    raw_key = f"qs_live_{secrets.token_hex(24)}"
+    
+    # Save key
+    APIKey.objects.create(
+        organization=org,
+        name=name,
+        key=raw_key
+    )
+    
+    # Return updated list card with the plaintext key showing once
+    api_keys = APIKey.objects.filter(organization=org).order_by('-created_at')
+    context = {
+        'api_keys': api_keys,
+        'new_key_plain': raw_key
+    }
+    return render(request, 'account/partials/api_key_card.html', context)
+
+
+@role_required(roles=['owner'])
+@login_required
+@csrf_exempt
+def revoke_api_key_view(request, key_id):
+    """
+    Deletes (revokes) an API Key.
+    """
+    from ims.models import APIKey
+    
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+        
+    org = get_request_organization(request)
+    try:
+        api_key = APIKey.objects.get(id=key_id, organization=org)
+        api_key.delete()
+    except APIKey.DoesNotExist:
+        pass
+        
+    api_keys = APIKey.objects.filter(organization=org).order_by('-created_at')
+    return render(request, 'account/partials/api_key_card.html', {'api_keys': api_keys})

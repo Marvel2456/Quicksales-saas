@@ -331,3 +331,23 @@ class InvoiceItem(models.Model):
         if self.unit_price and self.quantity:
             self.total = self.unit_price * self.quantity
         super().save(*args, **kwargs)
+
+
+class APIKey(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='api_keys')
+    name = models.CharField(max_length=255, default='WhatsApp Bot')
+    key = models.CharField(max_length=64, unique=True, db_index=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['organization', 'key']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} - {self.organization.name}"
+

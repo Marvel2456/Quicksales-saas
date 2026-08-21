@@ -1,0 +1,35 @@
+<div class="chat-header p-3 border-bottom d-flex justify-content-between align-items-center bg-white">
+    <span class="fw-bold text-dark">{{ conversation.title }}</span>
+    <span class="badge bg-primary text-uppercase" style="font-size: 0.65rem;">Active Thread</span>
+</div>
+
+<!-- Render messages -->
+{% include 'intelligence/partials/message_list.html' with messages=messages conversation=conversation %}
+
+<div class="chat-footer p-3 border-top bg-white">
+    <form id="chatForm"
+          hx-post="{% url 'chat_message' conversation.id %}"
+          hx-target="#chatWorkspace"
+          hx-swap="innerHTML"
+          onsubmit="handleChatSubmit(event, '{% url 'chat_message' conversation.id %}')">
+        {% csrf_token %}
+        <div class="input-group">
+            <input type="text"
+                   name="message"
+                   id="messageInput"
+                   class="form-control bg-light border text-dark placeholder-muted shadow-none"
+                   placeholder="Ask MarvexQS Intelligence..."
+                   required
+                   autocomplete="off">
+            <button class="btn btn-primary d-flex align-items-center" type="submit" id="sendBtn">
+                Send
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .placeholder-muted::placeholder {
+        color: rgba(0, 0, 0, 0.4) !important;
+    }
+</style>

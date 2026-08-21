@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quicksales Developer API Documentation</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-sidebar: #f8fafc;
+            --border-color: #e2e8f0;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar navigation layout */
+        .sidebar {
+            width: 280px;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 24px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            background-color: var(--bg-sidebar);
+        }
+
+        .sidebar-brand {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-top: 24px;
+            margin-bottom: 8px;
+        }
+
+        .sidebar .nav-link {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #475569;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: var(--primary);
+            background-color: #eff6ff;
+        }
+
+        /* Main content layout */
+        .main-content {
+            margin-left: 280px;
+            padding: 48px 64px;
+            max-width: 960px;
+        }
+
+        h1 {
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-top: 48px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-weight: 600;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            font-size: 1.25rem;
+        }
+
+        p, li {
+            line-height: 1.6;
+            color: #334155;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875em;
+            color: #ef4444;
+            background-color: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        pre {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 16px;
+            border-radius: 12px;
+            overflow-x: auto;
+            border: 1px solid #1e293b;
+            margin-bottom: 24px;
+        }
+
+        pre code {
+            color: #38bdf8;
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: 0.85rem;
+        }
+
+        .badge-get { background-color: #22c55e; }
+        .badge-post { background-color: #3b82f6; }
+
+        .method-tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: white;
+        }
+
+        .endpoint-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            background-color: #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .developer-alert {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 991.98px) {
+            .sidebar {
+                display: none;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Menu -->
+    <aside class="sidebar">
+        <a href="/" class="sidebar-brand">
+            <span>✨</span> Quicksales API
+        </a>
+        <nav class="nav flex-column">
+            <a class="nav-link active" href="#introduction">Introduction</a>
+            <a class="nav-link" href="#developer-setup">Developer Setup</a>
+            <a class="nav-link" href="#authentication">Authentication</a>
+            
+            <div class="nav-section-title">Endpoints Reference</div>
+            <a class="nav-link" href="#endpoint-status">📊 Inventory Status</a>
+            <a class="nav-link" href="#endpoint-products">📦 List Products</a>
+            <a class="nav-link" href="#endpoint-query">🔍 Query Product</a>
+
+            <div class="nav-section-title">Integration Guides</div>
+            <a class="nav-link" href="#whatsapp-integration">WhatsApp Bot Guide</a>
+            <a class="nav-link" href="/" class="mt-4 text-muted small">← Back to Home</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="main-content">
+        <section id="introduction">
+            <h1>Quicksales Inventory API Documentation</h1>
+            <p class="lead">Welcome to the Quicksales Developer REST API! Use this API to query branch stock levels, product details, pricing, and availability to integrate directly with your custom platforms, e-commerce stores, or WhatsApp conversational bots.</p>
+        </section>
+
+        <section id="developer-setup">
+            <h2>Developer Sandbox Setup</h2>
+            <div class="developer-alert">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="font-size: 1.25rem;">🚀</span>
+                    <h5 class="fw-bold text-success-emphasis mb-0">Free Developer Access</h5>
+                </div>
+                <p class="small text-secondary mb-0">Developers do not need to buy a business plan. You can register a free account to generate sandboxed API keys and test your integration indefinitely.</p>
+            </div>
+
+            <h3>Step 1: Create a Developer Account</h3>
+            <ol>
+                <li>Click <a href="{% url 'register' %}" class="fw-bold">Start Free Trial</a> on the landing page.</li>
+                <li>Fill out your account details.</li>
+                <li>In the <strong>Business Type</strong> dropdown form field, select <strong>Developer Sandbox</strong>.</li>
+                <li>Submit the form to create your sandbox dashboard.</li>
+            </ol>
+
+            <h3>Step 2: Generate Your API Key</h3>
+            <ol>
+                <li>Log in to your sandbox dashboard and click <strong>Settings</strong> in the sidebar.</li>
+                <li>Scroll down to the <strong>API Integration</strong> card.</li>
+                <li>Enter a label for your key (e.g. <code>WhatsApp Integration</code>) and click <strong>Generate Key</strong>.</li>
+                <li>Copy the generated token string immediately. It will start with <code>qs_live_</code>.</li>
+            </ol>
+        </section>
+
+        <section id="authentication">
+            <h2>Authentication</h2>
+            <p>Authenticate all requests by including your active token in the HTTP request headers. The API supports both custom header keys and standard Bearer Authorization headers.</p>
+            
+            <p class="fw-bold">Option A: Custom Header (Recommended)</p>
+            <pre><code>X-API-Key: qs_live_your_api_token_here</code></pre>
+
+            <p class="fw-bold">Option B: Bearer Token Header</p>
+            <pre><code>Authorization: Bearer qs_live_your_api_token_here</code></pre>
+        </section>
+
+        <section id="endpoints">
+            <h2>API Endpoints Reference</h2>
+
+            <!-- Endpoint: Status -->
+            <div class="endpoint-card" id="endpoint-status">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="method-tag badge-get">GET</span>
+                    <code class="text-dark fw-bold">/api/v1/inventory/status/</code>
+                </div>
+                <p>Retrieves high-level summary metrics of all inventories in the organization or scoped to a specific branch.</p>
+                
+                <p class="fw-bold small mb-1">Query Parameters:</p>
+                <ul>
+                    <li><code>branch_name</code> (optional): Filter metrics to a branch (e.g., <code>?branch_name=Ugbowo</code>).</li>
+                    <li><code>branch_id</code> (optional): Scopes directly by UUID branch ID.</li>
+                </ul>
+
+                <p class="fw-bold small mb-1">Example Request:</p>
+                <pre><code>curl -H "X-API-Key: qs_live_test_key_123456" \
+     "http://localhost:8000/api/v1/inventory/status/?branch_name=HQ"</code></pre>
+
+                <p class="fw-bold small mb-1">Response (200 OK):</p>
+                <pre><code class="language-json">{
+  "status": "success",
+  "organization": "Bobby's Place",
+  "branch": "HQ",
+  "metrics": {
+    "total_skus": 12,
+    "in_stock": 10,
+    "out_of_stock": 2,
+    "low_stock": 3
+  }
+}</code></pre>
+            </div>
+
+            <!-- Endpoint: Products -->
+            <div class="endpoint-card" id="endpoint-products">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="method-tag badge-get">GET</span>
+                    <code class="text-dark fw-bold">/api/v1/inventory/products/</code>
+                </div>
+                <p>Returns a list of all products in stock, showing category, quantity available, and pricing.</p>
+                
+                <p class="fw-bold small mb-1">Query Parameters:</p>
+                <ul>
+                    <li><code>search</code> (optional): Search filter matching name or code (e.g., <code>?search=Mouse</code>).</li>
+                    <li><code>branch_name</code> (optional): Scopes list to a branch (e.g., <code>?branch_name=HQ</code>).</li>
+                </ul>
+
+                <p class="fw-bold small mb-1">Example Request:</p>
+                <pre><code>curl -H "X-API-Key: qs_live_test_key_123456" \
+     "http://localhost:8000/api/v1/inventory/products/?search=Mouse"</code></pre>
+
+                <p class="fw-bold small mb-1">Response (200 OK):</p>
+                <pre><code class="language-json">{
+  "status": "success",
+  "organization": "Bobby's Place",
+  "branch": "All Branches",
+  "count": 1,
+  "products": [
+    {
+      "product_name": "Wireless Mouse",
+      "product_code": "WM-001",
+      "category": "Electronics",
+      "brand": "Logitech",
+      "branch": "HQ",
+      "quantity": 15,
+      "sale_price": 4500.0,
+      "status": "Available"
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <!-- Endpoint: Query -->
+            <div class="endpoint-card" id="endpoint-query">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="method-tag badge-get">GET</span>
+                    <code class="text-dark fw-bold">/api/v1/inventory/query/</code>
+                </div>
+                <p>Queries a specific product directly by its code or name.</p>
+                
+                <p class="fw-bold small mb-1">Query Parameters (One of these is required):</p>
+                <ul>
+                    <li><code>code</code>: Exact product code lookup (e.g. <code>?code=WM-001</code>).</li>
+                    <li><code>query</code>: Loose name query search (e.g. <code>?query=Mouse</code>).</li>
+                </ul>
+
+                <p class="fw-bold small mb-1">Example Request:</p>
+                <pre><code>curl -H "X-API-Key: qs_live_test_key_123456" \
+     "http://localhost:8000/api/v1/inventory/query/?code=WM-001"</code></pre>
+
+                <p class="fw-bold small mb-1">Response (200 OK):</p>
+                <pre><code class="language-json">{
+  "status": "success",
+  "organization": "Bobby's Place",
+  "count": 1,
+  "matches": [
+    {
+      "product_name": "Wireless Mouse",
+      "product_code": "WM-001",
+      "category": "Electronics",
+      "brand": "Logitech",
+      "branch": "HQ",
+      "quantity": 15,
+      "sale_price": 4500.0,
+      "status": "Available",
+      "reorder_level": 5
+    }
+  ]
+}</code></pre>
+            </div>
+        </section>
+
+        <section id="whatsapp-integration" class="mb-5">
+            <h2>WhatsApp Bot Integration Guide</h2>
+            <p>Integrating with a WhatsApp API wrapper (like Twilio or Venom) is simple. When your server receives a webhook callback from WhatsApp with the text "is Wireless Mouse in stock?", follow this logic flow:</p>
+            <ol>
+                <li>Parse the message text to extract the product name query (e.g. <code>Wireless Mouse</code>).</li>
+                <li>Send an HTTP request to the Quicksales Query API:
+                    <pre><code>GET /api/v1/inventory/query/?query=Wireless+Mouse</code></pre>
+                </li>
+                <li>If the response contains matches with `quantity > 0`:
+                    <ul>
+                        <li>Reply to the user: <code>Yes! "Wireless Mouse" is in stock. Quantity: 15. Price: ₦4,500.</code></li>
+                    </ul>
+                </li>
+                <li>If `quantity <= 0`:
+                    <ul>
+                        <li>Reply: <code>Sorry, "Wireless Mouse" is currently out of stock. We are restocking soon!</code></li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+    </main>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

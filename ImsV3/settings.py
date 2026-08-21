@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'account.apps.AccountConfig',
     'subscriptions.apps.SubscriptionsConfig',
     'pages.apps.PagesConfig',
+    'intelligence.apps.IntelligenceConfig',
     'simple_history',
     'anymail',
 ]

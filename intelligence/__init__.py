@@ -1,0 +1,1 @@
+# intelligence Django application

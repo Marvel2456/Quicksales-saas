@@ -20,6 +20,11 @@
           </div>
 
           <div class="mb-3">
+            <label for="productCode{{ product.pk }}" class="form-label">Product Code / Barcode</label>
+            <input type="text" class="form-control" id="productCode{{ product.pk }}" name="product_code" value="{{ product.product_code }}">
+          </div>
+
+          <div class="mb-3">
             <label for="brand{{ product.pk }}" class="form-label">Brand</label>
             <input type="text" class="form-control" id="brand{{ product.pk }}" name="brand" value="{{ product.brand }}">
           </div>

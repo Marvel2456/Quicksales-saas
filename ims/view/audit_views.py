@@ -20,6 +20,7 @@ try:
     import openpyxl
 except ImportError:
     openpyxl = None
+from ims.services.inventory import InventoryService
 
 
 
@@ -31,19 +32,20 @@ except ImportError:
 def inventoryAudit(request, pk):
     organization = get_request_organization(request)
     branch = Branch.objects.get(id=pk, organization=organization)
-    audits = Inventory.history.filter(branch_id=pk, quantity_restocked__gt=0).order_by('-history_date')
-
+    
     # Filters
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     product_query = request.GET.get('product')
 
-    if product_query:
-        audits = audits.filter(product__product_name__icontains=product_query)
-    if start_date:
-        audits = audits.filter(history_date__date__gte=start_date)
-    if end_date:
-        audits = audits.filter(history_date__date__lte=end_date)
+    # Delegate to service layer
+    audits = InventoryService.get_stock_audit_trail(
+        organization=organization,
+        branch=branch,
+        start_date=start_date,
+        end_date=end_date,
+        product_name=product_query
+    )
 
     paginator = Paginator(audits, 15)
     page = request.GET.get('page')
@@ -76,18 +78,17 @@ def export_audit_csv(request, pk):
     writer = csv.writer(response)
     writer.writerow(['Staff', 'Product', 'Date Restocked', 'Quantity Restocked', 'New Cost Price', 'New Sale Price'])
     
-    audit = Inventory.history.filter(branch_id=pk, quantity_restocked__gt=0).order_by('-history_date')
+    # Delegate to service layer
+    audit = InventoryService.get_stock_audit_trail(
+        organization=organization,
+        branch=branch,
+        start_date=start_date,
+        end_date=end_date,
+        product_name=product_query
+    )
     
-    # Apply filters
-    if product_query:
-        audit = audit.filter(product__product_name__icontains=product_query)
-    if start_date:
-        audit = audit.filter(history_date__date__gte=start_date)
-    if end_date:
-        audit = audit.filter(history_date__date__lte=end_date)
-    
-    for audit in audit:
-        writer.writerow([audit.history_user, audit.product.product_name, audit.history_date, audit.quantity_restocked, audit.cost_price, audit.sale_price])
+    for a in audit:
+        writer.writerow([a.history_user, a.product.product_name, a.history_date, a.quantity_restocked, a.cost_price, a.sale_price])
     
     return response
 
@@ -142,45 +143,17 @@ def countView(request):
         messages.error(request, 'Please select a branch to view counts.')
         return redirect('branchcount')
 
-    inventory = Inventory.objects.filter(branch=branch, organization=organization).all()
+    # Delegate variance logic to service layer
+    stats = InventoryService.get_variance_statistics(organization=organization, branch=branch)
     audit = Inventory.history.filter(branch_id=branch.id).all()
-    
-    # Calculate variance statistics
-    total_items = inventory.count()
-    items_with_variance = 0
-    total_variance_qty = 0
-    
-    for item in inventory:
-        if item.count and item.count != 0:
-            variance = item.count - item.store_quantity
-            if variance != 0:
-                items_with_variance += 1
-                total_variance_qty += abs(variance)
-    
-    # Add variance info to each inventory item for display
-    inventory_with_variance = []
-    for item in inventory:
-        if item.count:
-            variance = item.count - item.store_quantity
-            variance_pct = (variance / item.store_quantity * 100) if item.store_quantity > 0 else 0
-        else:
-            variance = None
-            variance_pct = None
-        
-        inventory_with_variance.append({
-            'item': item,
-            'variance': variance,
-            'variance_pct': variance_pct,
-            'variance_status': 'danger' if variance and variance > 0 else ('warning' if variance and variance < 0 else 'success')
-        })
 
     context = {
         'branch': branch,
-        'inventory': inventory_with_variance,
+        'inventory': stats['inventory'],
         'audit': audit,
-        'total_items': total_items,
-        'items_with_variance': items_with_variance,
-        'total_variance_qty': total_variance_qty,
+        'total_items': stats['total_items'],
+        'items_with_variance': stats['items_with_variance'],
+        'total_variance_qty': stats['total_variance_qty'],
     }
     return render(request, 'ims/count.html', context)
 

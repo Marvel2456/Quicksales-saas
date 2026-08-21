@@ -18,6 +18,31 @@
 					    
 				    </div><!--//inner-->
 			    </div><!--//app-card-->    
+
+			    <!-- MarvexQS Intelligence Dynamic Alert & Summary Widgets -->
+			    {% comment %}
+			    {% if org_role == 'owner' %}
+			    <div class="row mb-4">
+				    <div class="col-12 col-xl-8">
+					    <div hx-get="{% url 'morning_briefing_widget' %}" hx-trigger="load" hx-swap="outerHTML">
+						    <div class="card border-0 shadow-sm p-4 text-center text-muted" style="border-radius: 16px;">
+							    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+							    <span class="ms-2">Loading Daily Business Summary...</span>
+						    </div>
+					    </div>
+				    </div>
+				    <div class="col-12 col-xl-4">
+					    <div hx-get="{% url 'insights_list_widget' %}" hx-trigger="load" hx-swap="outerHTML">
+						    <div class="card border-0 shadow-sm p-4 text-center text-muted" style="border-radius: 16px;">
+							    <div class="spinner-border spinner-border-sm text-warning" role="status"></div>
+							    <span class="ms-2">Scanning for stock anomalies...</span>
+						    </div>
+					    </div>
+				    </div>
+			    </div>
+			    {% endif %}
+			    {% endcomment %}
+
 			    <div class="row g-4 mb-4">
 				    <div class="col-6 col-lg-3">
 					    <div class="app-card app-card-stat shadow-sm h-100">

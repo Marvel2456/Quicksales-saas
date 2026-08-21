@@ -17,6 +17,7 @@ from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.db.models import Sum
 from ims.view_caching import cached_view
+from ims.services.sales import SalesService
 
 
 
@@ -81,7 +82,11 @@ def store(request, pk):
     # Apply product filter if provided
     product_contains_query = request.GET.get('product')
     if product_contains_query:
-        inventory_qs = inventory_qs.filter(product__product_name__icontains=product_contains_query)
+        from django.db.models import Q
+        inventory_qs = inventory_qs.filter(
+            Q(product__product_name__icontains=product_contains_query) |
+            Q(product__product_code__icontains=product_contains_query)
+        )
     
     # Paginate FILTERED queryset, not all inventory
     paginator = Paginator(inventory_qs, 15)
@@ -564,43 +569,24 @@ def branchSales(request):
 def sales(request, pk):
     """Sales list view - optimized with select_related and aggregate"""
     organization = get_request_organization(request)
-    # Use select_related to fetch branch in single query
     branch = Branch.objects.select_related('organization').get(organization=organization, id=pk)
     
-    # Use select_related for staff to optimize foreign key access
-    sale_qs = Sale.objects.filter(
-        branch=branch,
-        organization=organization
-    ).select_related('staff', 'branch', 'organization').order_by('-date_updated')
-    
-    # Get filter parameters
     start_date_contains = request.GET.get('start_date')
     end_date_contains = request.GET.get('end_date')
     rep_contains_query = request.GET.get('rep')
     status_filter = request.GET.get('status')
     method_filter = request.GET.get('method')
 
-    # Apply filters to queryset before pagination
-    if start_date_contains and start_date_contains != '':
-        sale_qs = sale_qs.filter(date_updated__date__gte=start_date_contains)
-
-    if end_date_contains and end_date_contains != '':
-        sale_qs = sale_qs.filter(date_updated__date__lte=end_date_contains)
-
-    if rep_contains_query and rep_contains_query != '':
-        sale_qs = sale_qs.filter(staff__first_name__icontains=rep_contains_query)
-
-    if method_filter and method_filter != '':
-        sale_qs = sale_qs.filter(method=method_filter)
-
-    # Apply status filter
-    if status_filter and status_filter != '':
-        if status_filter == 'completed':
-            sale_qs = sale_qs.filter(completed=True, cancelled=False)
-        elif status_filter == 'cancelled':
-            sale_qs = sale_qs.filter(cancelled=True)
-        elif status_filter == 'open':
-            sale_qs = sale_qs.filter(completed=False, cancelled=False)
+    # Delegate filtering to service layer
+    sale_qs = SalesService.get_sales_summary(
+        organization=organization,
+        branch=branch,
+        start_date=start_date_contains,
+        end_date=end_date_contains,
+        status=status_filter,
+        method=method_filter,
+        rep=rep_contains_query
+    ).select_related('staff', 'branch', 'organization').order_by('-date_updated')
 
     # Now paginate the filtered queryset
     paginator = Paginator(sale_qs, 15)
@@ -625,45 +611,28 @@ def sales(request, pk):
 def sale_pdf(request, pk):
     organization = get_request_organization(request)
     branch = Branch.objects.get(organization=organization, id=pk)
-    sale_qs = Sale.objects.filter(
-        branch=branch,
-        organization=organization
-    ).order_by('-date_updated')
-
-    # Apply same filters as sales list view
+    
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     rep = request.GET.get('rep')
     status = request.GET.get('status')
     method = request.GET.get('method')
 
-    if start_date and start_date != '':
-        sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
-    if end_date and end_date != '':
-        sale_qs = sale_qs.filter(date_updated__date__lte=end_date)
-    if rep and rep != '':
-        sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
+    # Delegate filtering & metrics to service layer
+    sale_qs = SalesService.get_sales_summary(
+        organization=organization,
+        branch=branch,
+        start_date=start_date,
+        end_date=end_date,
+        status=status,
+        method=method,
+        rep=rep
+    ).order_by('-date_updated')
 
-    if method and method != '':
-        sale_qs = sale_qs.filter(method=method)
-    
-    # Apply status filter
-    if status and status != '':
-        if status == 'completed':
-            sale_qs = sale_qs.filter(completed=True, cancelled=False)
-        elif status == 'cancelled':
-            sale_qs = sale_qs.filter(cancelled=True)
-        elif status == 'open':
-            sale_qs = sale_qs.filter(completed=False, cancelled=False)
-
-    # Aggregate totals
-    agg = sale_qs.aggregate(
-        total_sales=Sum('final_total_price'),
-        total_profit=Sum('total_profit'),
-    )
-    total_sales = agg.get('total_sales') or 0
-    total_profit = agg.get('total_profit') or 0
-    total_quantity = sum(s.get_cart_items for s in sale_qs)
+    metrics = SalesService.get_aggregated_metrics(sale_qs)
+    total_sales = metrics['total_sales']
+    total_profit = metrics['total_profit']
+    total_quantity = metrics['total_quantity']
 
     template_path = 'ims/salepdf.html'
     context = {
@@ -710,35 +679,16 @@ def export_sales_csv(request, pk):
     writer = csv.writer(response)
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
-    sale_qs = Sale.objects.filter(branch=branch, organization=organization)
-    
-    # Apply filters from request
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-    rep = request.GET.get('rep')
-    status = request.GET.get('status')
-    method = request.GET.get('method')
-    
-    if start_date and start_date != '':
-        sale_qs = sale_qs.filter(date_updated__date__gte=start_date)
-    
-    if end_date and end_date != '':
-        sale_qs = sale_qs.filter(date_updated__date__lte=end_date)
-    
-    if rep and rep != '':
-        sale_qs = sale_qs.filter(staff__first_name__icontains=rep)
-
-    if method and method != '':
-        sale_qs = sale_qs.filter(method=method)
-    
-    # Apply status filter
-    if status and status != '':
-        if status == 'completed':
-            sale_qs = sale_qs.filter(completed=True, cancelled=False)
-        elif status == 'cancelled':
-            sale_qs = sale_qs.filter(cancelled=True)
-        elif status == 'open':
-            sale_qs = sale_qs.filter(completed=False, cancelled=False)
+    # Delegate filtering to service layer
+    sale_qs = SalesService.get_sales_summary(
+        organization=organization,
+        branch=branch,
+        start_date=request.GET.get('start_date'),
+        end_date=request.GET.get('end_date'),
+        status=request.GET.get('status'),
+        method=request.GET.get('method'),
+        rep=request.GET.get('rep')
+    )
     
     for sale in sale_qs:
         writer.writerow([sale.staff, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
@@ -757,23 +707,23 @@ def export_profit_csv(request, pk):
     writer = csv.writer(response)
     writer.writerow(['Sales Rep', 'Trans Id', 'Date', 'Quantity', 'Total', 'Profit'])
     
+    # Delegate filtering & metrics to service layer
+    sale = SalesService.get_sales_summary(
+        organization=organization,
+        branch=branch,
+        start_date=start_date_contains,
+        end_date=end_date_contains
+    )
+
+    metrics = SalesService.get_aggregated_metrics(sale)
+    total_profits = metrics['total_profit']
     
-    sale = Sale.objects.filter(branch=branch, organization=organization)
-
-    if start_date_contains:
-        sale = sale.filter(date_updated__date__gte=start_date_contains)
-
-    if end_date_contains:
-        sale = sale.filter(date_updated__date__lte=end_date_contains)
-
-    total_profits = sum(sale.values_list('total_profit', flat=True))
-    for sale in sale:
-        writer.writerow([sale.staff, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
+    for s in sale:
+        writer.writerow([s.staff, s.transaction_id, s.date_updated, s.get_cart_items, s.final_total_price, s.total_profit])
         
     writer.writerow(['Total Profit'])
     if total_profits:
         writer.writerow([total_profits])
-    
     
     return response
 

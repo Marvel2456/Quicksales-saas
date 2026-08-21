@@ -60,6 +60,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Never intercept intelligence app requests
+    if (url.pathname.includes('/intelligence/')) {
+        return;
+    }
+
     // Never intercept HEAD requests — they are used as network health pings
     // and MUST hit the real network to accurately detect connectivity.
     if (request.method === 'HEAD') {
