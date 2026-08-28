@@ -71,38 +71,36 @@
                                         <td class="cell"><span class="truncate">{{ item.product.product_name }}</span></td>
                                         <td class="cell">{{ item.store_quantity }}</td>
                                         <td class="cell">
-                                            {% if item.count is not None and item.count != 0 %}
+                                            {% if item.count is not None %}
                                                 {{ item.count }}
                                             {% else %}
-                                                <span class="badge badge-secondary">Not Counted</span>
+                                                <span class="badge bg-secondary">Not Counted</span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">
-                                            {% if item.count is not None and item.count != 0 %}
-                                                {% with variance=item.count|add:item.store_quantity|add:"-"|add:item.store_quantity %}
-                                                    {% if variance > 0 %}
-                                                        <span class="badge badge-danger">+{{ item.variance }}</span>
-                                                    {% elif variance < 0 %}
-                                                        <span class="badge badge-warning">{{ item.variance }}</span>
-                                                    {% else %}
-                                                        <span class="badge badge-success">{{ item.variance }}</span>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% else %}
-                                                <span class="badge badge-secondary">-</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="cell">
-                                            {% if item.count is not None and item.count != 0 %}
-                                                {% if item.variance == 0 %}
-                                                    <span class="badge badge-success">✓ OK</span>
-                                                {% elif item.variance > 0 %}
-                                                    <span class="badge badge-danger">⚠ Overage</span>
+                                            {% if item.count is not None %}
+                                                {% if item.variance > 0 %}
+                                                    <span class="badge bg-danger">+{{ item.variance }}</span>
+                                                {% elif item.variance < 0 %}
+                                                    <span class="badge bg-warning text-dark">{{ item.variance }}</span>
                                                 {% else %}
-                                                    <span class="badge badge-warning">⚠ Shortage</span>
+                                                    <span class="badge bg-success">0</span>
                                                 {% endif %}
                                             {% else %}
-                                                <span class="badge badge-secondary">Not Counted</span>
+                                                <span class="badge bg-secondary">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="cell">
+                                            {% if item.count is not None %}
+                                                {% if item.variance == 0 %}
+                                                    <span class="badge bg-success">✓ OK</span>
+                                                {% elif item.variance > 0 %}
+                                                    <span class="badge bg-danger">⚠ Overage</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">⚠ Shortage</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-secondary">Not Counted</span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">

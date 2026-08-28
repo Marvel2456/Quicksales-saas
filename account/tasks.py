@@ -397,3 +397,94 @@ def task_send_subscription_expired_email(self, user_id, organization_id, subscri
     except Exception as exc:
         logger.error(f"task_send_subscription_expired_email failed user {user_id}: {exc}")
         raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60, name="task_send_promotional_campaign")
+def task_send_promotional_campaign(self, campaign_id):
+    """
+    Sends promotional emails / newsletters to targeted organization owners in the background.
+    Strictly isolated from transactional email workflows.
+    """
+    from .models import CustomUser, PromotionalCampaign, PromotionalEmailLog
+    from subscriptions.models import Subscription
+
+    try:
+        campaign = PromotionalCampaign.objects.get(id=campaign_id)
+    except PromotionalCampaign.DoesNotExist:
+        logger.error(f"PromotionalCampaign {campaign_id} not found.")
+        return
+
+    campaign.status = 'Sending'
+    campaign.save(update_fields=['status'])
+
+    target = campaign.target_audience
+    owners_qs = CustomUser.objects.filter(role='owner', is_active=True)
+
+    if target == 'all_owners':
+        recipients = list(owners_qs)
+    elif target == 'selected_owners':
+        recipients = list(campaign.recipient_owners.filter(is_active=True))
+    elif target == 'active_subscribers':
+        active_sub_user_ids = Subscription.objects.filter(status='active').values_list('user_id', flat=True)
+        recipients = list(owners_qs.filter(id__in=active_sub_user_ids))
+    elif target == 'trial_owners':
+        trial_sub_user_ids = Subscription.objects.filter(status='trialing').values_list('user_id', flat=True)
+        recipients = list(owners_qs.filter(id__in=trial_sub_user_ids))
+    elif target == 'expired_subscribers':
+        expired_sub_user_ids = Subscription.objects.filter(status='expired').values_list('user_id', flat=True)
+        recipients = list(owners_qs.filter(id__in=expired_sub_user_ids))
+    else:
+        recipients = list(owners_qs)
+
+    campaign.total_recipients = len(recipients)
+    campaign.save(update_fields=['total_recipients'])
+
+    sent_count = 0
+    failed_count = 0
+
+    for user in recipients:
+        log_entry, _ = PromotionalEmailLog.objects.get_or_create(
+            campaign=campaign,
+            recipient=user,
+            recipient_email=user.email
+        )
+        try:
+            html_message = render_to_string(
+                'account/emails/promotional_newsletter.html',
+                {
+                    'user': user,
+                    'subject': campaign.subject,
+                    'email_body': campaign.email_body,
+                    'recipient_email': user.email,
+                }
+            )
+            plain_message = strip_tags(html_message)
+
+            send_mail(
+                subject=campaign.subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False
+            )
+
+            log_entry.status = 'Sent'
+            log_entry.error_message = None
+            log_entry.sent_at = timezone.now()
+            log_entry.save()
+            sent_count += 1
+        except Exception as e:
+            logger.error(f"Failed sending promotional email {campaign.id} to {user.email}: {e}")
+            log_entry.status = 'Failed'
+            log_entry.error_message = str(e)
+            log_entry.save()
+            failed_count += 1
+
+    campaign.sent_count = sent_count
+    campaign.failed_count = failed_count
+    campaign.sent_at = timezone.now()
+    campaign.status = 'Sent' if failed_count == 0 else ('Failed' if sent_count == 0 else 'Sent')
+    campaign.save()
+
+    logger.info(f"PromotionalCampaign {campaign.id} complete: {sent_count} sent, {failed_count} failed.")

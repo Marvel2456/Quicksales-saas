@@ -68,7 +68,7 @@ class Inventory(models.Model):
     cost_price = models.FloatField(blank=True, null=True)
     sale_price = models.FloatField(blank=True, null=True)
     quantity_restocked = models.IntegerField(default=0, blank=True, null=True)
-    count = models.IntegerField(default=0, blank=True, null=True)
+    count = models.IntegerField(default=None, blank=True, null=True)
     store = models.IntegerField(default=0)
     sold = models.IntegerField(default=0, blank=True, null=True)
     variance = models.IntegerField(default=0)
