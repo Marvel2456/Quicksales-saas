@@ -143,8 +143,9 @@ def countView(request):
         messages.error(request, 'Please select a branch to view counts.')
         return redirect('branchcount')
 
+    product_name = request.GET.get('product')
     # Delegate variance logic to service layer
-    stats = InventoryService.get_variance_statistics(organization=organization, branch=branch)
+    stats = InventoryService.get_variance_statistics(organization=organization, branch=branch, product_name=product_name)
     audit = Inventory.history.filter(branch_id=branch.id).all()
 
     context = {
@@ -168,18 +169,18 @@ def addCount(request):
             return redirect('branchcount')
 
         inventory = Inventory.objects.filter(branch=branch, organization=organization).get(id=request.POST.get('id'))
-        if request.method != None:
-            form = AddCountForm(request.POST, instance=inventory)
-            if form.is_valid():
-                invent = form.save(commit=False)
-                invent.variance = invent.count - invent.store_quantity if invent.count else None
-                invent.branch = branch
-                invent.organization = organization
-                invent.save()
-                messages.success(request, 'Count Added Successfully')
-                return redirect('count')
+        form = AddCountForm(request.POST, instance=inventory)
+        if form.is_valid():
+            invent = form.save(commit=False)
+            if invent.count is not None:
+                invent.variance = invent.count - invent.store_quantity
+            invent.branch = branch
+            invent.organization = organization
+            invent.save()
+            messages.success(request, 'Count Added Successfully')
+            return redirect('count')
     context = {
-        'branch':branch
+        'branch': branch
     }
 
     return HttpResponse(context)

@@ -248,8 +248,75 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - {self.notification_type}: {self.message}"
-        
 
 
+class PromotionalCampaign(models.Model):
+    TARGET_AUDIENCE_CHOICES = [
+        ('all_owners', 'All Organization Owners'),
+        ('active_subscribers', 'Active Subscribers (Paid)'),
+        ('trial_owners', 'Trial Owners'),
+        ('expired_subscribers', 'Expired Subscribers'),
+        ('selected_owners', 'Selected Owners (Specified Below)'),
+    ]
+
+    STATUS_CHOICES = [
+        ('Draft', 'Draft'),
+        ('Sending', 'Sending...'),
+        ('Sent', 'Sent'),
+        ('Failed', 'Failed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    subject = models.CharField(max_length=255, help_text="Email subject line")
+    email_body = models.TextField(help_text="HTML or Plain Text content of the newsletter / promotional message")
+    target_audience = models.CharField(
+        max_length=50, 
+        choices=TARGET_AUDIENCE_CHOICES, 
+        default='all_owners',
+        help_text="Target segment of organization owners"
+    )
+    recipient_owners = models.ManyToManyField(
+        CustomUser, 
+        blank=True, 
+        limit_choices_to={'role': 'owner'},
+        related_name='targeted_campaigns',
+        help_text="Specific owners if 'Selected Owners' target audience is chosen"
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft', db_index=True)
+    total_recipients = models.IntegerField(default=0)
+    sent_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Promotional Campaign"
+        verbose_name_plural = "Promotional Campaigns"
+
+    def __str__(self):
+        return f"{self.subject} [{self.get_status_display()}]"
 
 
+class PromotionalEmailLog(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Sent', 'Sent'),
+        ('Failed', 'Failed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    campaign = models.ForeignKey(PromotionalCampaign, on_delete=models.CASCADE, related_name='logs')
+    recipient = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='received_promotions')
+    recipient_email = models.EmailField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    error_message = models.TextField(blank=True, null=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-sent_at']
+        verbose_name = "Promotional Email Log"
+        verbose_name_plural = "Promotional Email Logs"
+
+    def __str__(self):
+        return f"{self.recipient_email} - {self.campaign.subject} ({self.status})"

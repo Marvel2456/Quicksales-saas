@@ -266,12 +266,14 @@ USE_TZ = True
 # EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool, default=True)
 
 
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='anymail.backends.brevo.EmailBackend')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='info@vextechafrica.com')
+EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='info@marvexqs.com')
+if 'vextechafrica' in DEFAULT_FROM_EMAIL:
+    DEFAULT_FROM_EMAIL = 'info@marvexqs.com'
 
-# Anymail Brevo (Sendinblue) settings
+# Anymail Resend settings
 ANYMAIL = {
-    "BREVO_API_KEY": config("ANYMAIL_BREVO_API_KEY"),
+    "RESEND_API_KEY": config("RESEND_API_KEY", default=config("ANYMAIL_RESEND_API_KEY", default=None)),
 }
 
 # Static files (CSS, JavaScript, Images)

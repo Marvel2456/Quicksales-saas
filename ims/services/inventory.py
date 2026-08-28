@@ -62,13 +62,20 @@ class InventoryService:
         return qs.order_by('quantity')
 
     @staticmethod
-    def get_variance_statistics(organization, branch):
+    def get_variance_statistics(organization, branch, product_name=None):
         """
         Calculates inventory count variance (expected system vs physical counts).
         """
         inventory_items = Inventory.objects.filter(branch=branch, organization=organization).select_related('product', 'branch')
         
+        if product_name:
+            inventory_items = inventory_items.filter(
+                Q(product__product_name__icontains=product_name) |
+                Q(product__product_code__icontains=product_name)
+            )
+        
         total_items = inventory_items.count()
+        total_items_counted = 0
         items_with_variance = 0
         total_variance_qty = 0
         inventory_with_variance = []
@@ -79,6 +86,7 @@ class InventoryService:
             store_qty = item.store_quantity
             
             if item.count is not None:
+                total_items_counted += 1
                 variance = item.count - store_qty
                 variance_pct = (variance / store_qty * 100) if store_qty > 0 else 0
                 
@@ -90,7 +98,7 @@ class InventoryService:
             else:
                 variance = None
                 variance_pct = None
-                variance_status = 'success'
+                variance_status = 'secondary'
                 
             inventory_with_variance.append({
                 'item': item,
@@ -100,7 +108,8 @@ class InventoryService:
             })
             
         return {
-            'total_items': total_items,
+            'total_items': total_items_counted,  # Number of items actually counted
+            'total_inventory_items': total_items,
             'items_with_variance': items_with_variance,
             'total_variance_qty': total_variance_qty,
             'inventory': inventory_with_variance

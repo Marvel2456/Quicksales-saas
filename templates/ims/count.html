@@ -30,7 +30,7 @@
                             <form class="table-search-form row gx-1 align-items-center" method="GET" action=".">
                                 
                                 <div class="col-auto">
-                                    <input type="text" id="search-orders" name="product" class="form-control search-orders" placeholder="Product Name">
+                                    <input type="text" id="search-orders" name="product" class="form-control search-orders" placeholder="Product Name" value="{{ request.GET.product|default:'' }}">
                                 </div>
                                 <div class="col-auto">
                                     <button type="submit" class="btn app-btn-secondary">Search</button>
@@ -112,15 +112,15 @@
                                         <td class="cell"><span class="truncate">{{ item_data.item.product.product_name }}</span></td>
                                         <td class="cell">{{ item_data.item.store_quantity }}</td>
                                         <td class="cell">
-                                            {% if item_data.item.count is not None and item_data.item.count != 0 %}
+                                            {% if item_data.item.count is not None %}
                                                 {{ item_data.item.count }}
                                             {% else %}
-                                                <span class="badge badge-secondary">Not Counted</span>
+                                                <span class="badge bg-secondary">Not Counted</span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">
-                                            {% if item_data.variance %}
-                                                <span class="badge badge-{{ item_data.variance_status }}">
+                                            {% if item_data.variance is not None %}
+                                                <span class="badge bg-{{ item_data.variance_status }}{% if item_data.variance_status == 'warning' %} text-dark{% endif %}">
                                                     {% if item_data.variance > 0 %}
                                                         +{{ item_data.variance }}
                                                     {% else %}
@@ -128,27 +128,29 @@
                                                     {% endif %}
                                                 </span>
                                             {% else %}
-                                                <span class="badge badge-secondary">-</span>
+                                                <span class="badge bg-secondary">-</span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">
-                                            {% if item_data.variance_pct %}
-                                                <span class="badge badge-{{ item_data.variance_status }}">{{ item_data.variance_pct|floatformat:1 }}%</span>
+                                            {% if item_data.variance_pct is not None %}
+                                                <span class="badge bg-{{ item_data.variance_status }}{% if item_data.variance_status == 'warning' %} text-dark{% endif %}">
+                                                    {% if item_data.variance_pct > 0 %}+{% endif %}{{ item_data.variance_pct|floatformat:1 }}%
+                                                </span>
                                             {% else %}
-                                                <span class="badge badge-secondary">-</span>
+                                                <span class="badge bg-secondary">-</span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">
-                                            {% if item_data.item.count is not None and item_data.item.count != 0 %}
+                                            {% if item_data.item.count is not None %}
                                                 {% if item_data.variance == 0 %}
-                                                    <span class="badge badge-success">✓ OK</span>
+                                                    <span class="badge bg-success">✓ OK</span>
                                                 {% elif item_data.variance > 0 %}
-                                                    <span class="badge badge-danger">⚠ Overage</span>
+                                                    <span class="badge bg-danger">⚠ Overage</span>
                                                 {% elif item_data.variance < 0 %}
-                                                    <span class="badge badge-warning">⚠ Shortage</span>
+                                                    <span class="badge bg-warning text-dark">⚠ Shortage</span>
                                                 {% endif %}
                                             {% else %}
-                                                <span class="badge badge-secondary">Not Counted</span>
+                                                <span class="badge bg-secondary">Not Counted</span>
                                             {% endif %}
                                         </td>
                                         <td class="cell">
@@ -162,7 +164,7 @@
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="6" class="text-center py-4">
+                                        <td colspan="7" class="text-center py-4">
                                             <p class="text-muted mb-0">No inventory items found. Start by adding a count.</p>
                                         </td>
                                     </tr>
