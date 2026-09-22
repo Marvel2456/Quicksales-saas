@@ -8,8 +8,14 @@ from django.conf import settings
 
 from .models import (
     CustomUser, Branch, Organization, ActivityLog, OrganizationMembership,
-    PromotionalCampaign, PromotionalEmailLog
+    PromotionalCampaign, PromotionalEmailLog, SystemAnalytics
 )
+from subscriptions.models import Subscription, Payment
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncMonth, TruncDate
+import json
 from .tasks import task_send_promotional_campaign
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
@@ -262,5 +268,123 @@ class PromotionalCampaignAdmin(ModelAdmin):
                 self.message_user(request, f"Failed sending test email for '{campaign.subject}': {e}", level=messages.ERROR)
         if test_count > 0:
             self.message_user(request, f"Successfully sent {test_count} test email(s) to {admin_email}.", level=messages.SUCCESS)
+
+
+@admin.register(SystemAnalytics)
+class SystemAnalyticsAdmin(ModelAdmin):
+    change_list_template = "admin/analytics_dashboard.html"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        
+        now = timezone.now()
+        year_param = request.GET.get('year')
+        month_param = request.GET.get('month')
+
+        try:
+            from datetime import datetime
+            selected_year = int(year_param) if year_param else now.year
+            selected_month = int(month_param) if month_param else now.month
+            selected_date = timezone.make_aware(datetime(selected_year, selected_month, 1))
+        except ValueError:
+            selected_year = now.year
+            selected_month = now.month
+            selected_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        if selected_year == now.year and selected_month == now.month:
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=today_start.weekday())
+        else:
+            today_start = selected_date
+            week_start = selected_date
+
+        month_start = selected_date
+        year_start = selected_date.replace(month=1, day=1)
+        
+        extra_context['selected_year'] = selected_year
+        extra_context['selected_month'] = selected_month
+        extra_context['available_years'] = range(now.year - 5, now.year + 1)
+        # Months dictionary for template
+        extra_context['available_months'] = [
+            (1, 'January'), (2, 'February'), (3, 'March'), (4, 'April'),
+            (5, 'May'), (6, 'June'), (7, 'July'), (8, 'August'),
+            (9, 'September'), (10, 'October'), (11, 'November'), (12, 'December')
+        ]
+
+        # User metrics
+        extra_context['users_daily'] = CustomUser.objects.filter(created_at__gte=today_start, created_at__lt=today_start + timedelta(days=1) if today_start.month == now.month else today_start.replace(month=today_start.month%12+1, day=1)).count()
+        extra_context['users_weekly'] = CustomUser.objects.filter(created_at__gte=week_start).count()
+        extra_context['users_monthly'] = CustomUser.objects.filter(created_at__gte=month_start, created_at__lt=(month_start.replace(month=month_start.month%12+1, day=1) if month_start.month < 12 else month_start.replace(year=month_start.year+1, month=1, day=1))).count()
+        extra_context['users_yearly'] = CustomUser.objects.filter(created_at__gte=year_start, created_at__lt=year_start.replace(year=year_start.year+1)).count()
+        extra_context['users_total'] = CustomUser.objects.count()
+
+        # Business metrics
+        total_businesses = Organization.objects.count()
+        active_businesses = Organization.objects.filter(subscriptions__is_active=True).distinct().count()
+        extra_context['total_businesses'] = total_businesses
+        extra_context['active_subscriptions'] = active_businesses
+        extra_context['inactive_subscriptions'] = total_businesses - active_businesses
+
+        # Business Type Chart
+        business_types = Organization.objects.values('business_type').annotate(count=Count('id')).order_by('-count')
+        biz_labels = [entry['business_type'] or 'Others' for entry in business_types]
+        biz_data = [entry['count'] for entry in business_types]
+        extra_context['biz_labels'] = json.dumps(biz_labels)
+        extra_context['biz_data'] = json.dumps(biz_data)
+
+        # Revenue metrics
+        completed_payments = Payment.objects.filter(payment_status='completed')
+        
+        revenue_monthly = completed_payments.filter(created_at__gte=month_start, created_at__lt=(month_start.replace(month=month_start.month%12+1, day=1) if month_start.month < 12 else month_start.replace(year=month_start.year+1, month=1, day=1))).aggregate(total=Sum('amount'))['total'] or 0
+        revenue_annually = completed_payments.filter(created_at__gte=year_start, created_at__lt=year_start.replace(year=year_start.year+1)).aggregate(total=Sum('amount'))['total'] or 0
+        extra_context['revenue_monthly'] = float(revenue_monthly)
+        extra_context['revenue_annually'] = float(revenue_annually)
+
+        # Revenue Chart Data (last 12 months)
+        last_12_months = month_start - timedelta(days=365)
+        revenue_by_month = completed_payments.filter(created_at__gte=last_12_months, created_at__lt=month_start.replace(month=month_start.month%12+1, day=1) if month_start.month < 12 else month_start.replace(year=month_start.year+1, month=1, day=1)) \
+            .annotate(month=TruncMonth('created_at')) \
+            .values('month') \
+            .annotate(total_revenue=Sum('amount')) \
+            .order_by('month')
+
+        revenue_labels = [entry['month'].strftime("%b %Y") for entry in revenue_by_month if entry['month']]
+        revenue_data = [float(entry['total_revenue']) for entry in revenue_by_month if entry['month']]
+        
+        extra_context['revenue_labels'] = json.dumps(revenue_labels)
+        extra_context['revenue_data'] = json.dumps(revenue_data)
+
+        # User Growth Chart Data (last 30 days up to selected month)
+        last_30_days = month_start - timedelta(days=30) if month_start.month != now.month else today_start - timedelta(days=30)
+        users_by_day = CustomUser.objects.filter(created_at__gte=last_30_days, created_at__lt=month_start.replace(month=month_start.month%12+1, day=1) if month_start.month < 12 else month_start.replace(year=month_start.year+1, month=1, day=1)) \
+            .annotate(date=TruncDate('created_at')) \
+            .values('date') \
+            .annotate(count=Count('id')) \
+            .order_by('date')
+            
+        user_labels = [entry['date'].strftime("%Y-%m-%d") for entry in users_by_day if entry['date']]
+        user_data = [entry['count'] for entry in users_by_day if entry['date']]
+        
+        extra_context['user_labels'] = json.dumps(user_labels)
+        extra_context['user_data'] = json.dumps(user_data)
+
+        from django.template.response import TemplateResponse
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'System Analytics',
+            'opts': self.model._meta,
+            'has_add_permission': self.has_add_permission(request),
+            **extra_context
+        }
+        return TemplateResponse(request, self.change_list_template, context)
 
 

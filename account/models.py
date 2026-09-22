@@ -320,3 +320,10 @@ class PromotionalEmailLog(models.Model):
 
     def __str__(self):
         return f"{self.recipient_email} - {self.campaign.subject} ({self.status})"
+
+
+class SystemAnalytics(CustomUser):
+    class Meta:
+        proxy = True
+        verbose_name = "System Analytics"
+        verbose_name_plural = "System Analytics"
