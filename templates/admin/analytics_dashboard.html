@@ -1,0 +1,222 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+<div style="padding: 1.5rem;">
+    <!-- Header & Filter -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="font-size: 1.875rem; font-weight: 600; color: #111827; margin: 0;">System Analytics</h1>
+            <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #4B5563;">Overview of users, businesses, subscriptions, and revenue.</p>
+        </div>
+        
+        <!-- Filter Form -->
+        <div style="background-color: #fff; padding: 0.75rem 1.25rem; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 1rem; border: 1px solid #E5E7EB;">
+            <span style="font-size: 0.875rem; font-weight: 500; color: #374151;">Filter by Date:</span>
+            <form method="GET" style="display: flex; gap: 0.75rem; margin: 0;">
+                <select name="month" onchange="this.form.submit()" style="border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.875rem; color: #111827; background-color: #F9FAFB; cursor: pointer; outline: none;">
+                    {% for month_num, month_name in available_months %}
+                    <option value="{{ month_num }}" {% if month_num == selected_month %}selected{% endif %}>{{ month_name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="year" onchange="this.form.submit()" style="border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.875rem; color: #111827; background-color: #F9FAFB; cursor: pointer; outline: none;">
+                    {% for year in available_years %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+        <!-- Revenue Monthly -->
+        <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); border-radius: 1rem; padding: 1.5rem; color: #fff; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4);">
+            <div style="font-size: 0.875rem; font-weight: 500; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em;">Selected Month Revenue</div>
+            <div style="margin-top: 0.5rem; font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em;">${{ revenue_monthly|default:0 }}</div>
+        </div>
+        
+        <!-- Revenue Annually -->
+        <div style="background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); border-radius: 1rem; padding: 1.5rem; color: #fff; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);">
+            <div style="font-size: 0.875rem; font-weight: 500; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em;">Selected Year Revenue</div>
+            <div style="margin-top: 0.5rem; font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em;">${{ revenue_annually|default:0 }}</div>
+        </div>
+        
+        <!-- Active Subscriptions -->
+        <div style="background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%); border-radius: 1rem; padding: 1.5rem; color: #fff; box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.4);">
+            <div style="font-size: 0.875rem; font-weight: 500; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em;">Active Subscriptions</div>
+            <div style="margin-top: 0.5rem; font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em;">{{ active_subscriptions|default:0 }}</div>
+        </div>
+        
+        <!-- Total Businesses -->
+        <div style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); border-radius: 1rem; padding: 1.5rem; color: #fff; box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.4);">
+            <div style="font-size: 0.875rem; font-weight: 500; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em;">Total Businesses</div>
+            <div style="margin-top: 0.5rem; font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em;">{{ total_businesses|default:0 }}</div>
+        </div>
+    </div>
+
+    <!-- User Metrics -->
+    <div style="margin-bottom: 2.5rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; color: #111827; margin-bottom: 1rem;">User Growth Stats</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
+            <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.875rem; font-weight: 500; color: #6B7280;">Today</div>
+                <div style="margin-top: 0.25rem; font-size: 1.875rem; font-weight: 600; color: #111827;">{{ users_daily|default:0 }}</div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.875rem; font-weight: 500; color: #6B7280;">This Week</div>
+                <div style="margin-top: 0.25rem; font-size: 1.875rem; font-weight: 600; color: #111827;">{{ users_weekly|default:0 }}</div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.875rem; font-weight: 500; color: #6B7280;">Selected Month</div>
+                <div style="margin-top: 0.25rem; font-size: 1.875rem; font-weight: 600; color: #111827;">{{ users_monthly|default:0 }}</div>
+            </div>
+            <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 0.75rem; padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.875rem; font-weight: 500; color: #6B7280;">Selected Year</div>
+                <div style="margin-top: 0.25rem; font-size: 1.875rem; font-weight: 600; color: #111827;">{{ users_yearly|default:0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <!-- Revenue Chart -->
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 1rem; margin-top: 0;">Revenue (Last 12 Months)</h3>
+            <div id="revenueChart" style="width:100%; height:320px;"></div>
+        </div>
+        
+        <!-- User Growth Chart -->
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 1rem; margin-top: 0;">User Growth (Last 30 Days)</h3>
+            <div id="userGrowthChart" style="width:100%; height:320px;"></div>
+        </div>
+
+        <!-- Subscriptions Breakdown -->
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 1rem; margin-top: 0;">Subscriptions Overview</h3>
+            <div id="subscriptionChart" style="width:100%; height:320px;"></div>
+        </div>
+
+        <!-- Business Type Breakdown -->
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #111827; margin-bottom: 1rem; margin-top: 0;">Businesses By Type</h3>
+            <div id="businessTypeChart" style="width:100%; height:320px;"></div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'assets/js/zingchart/zingchart.min.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Revenue Chart
+        let revenueConfig = {
+            type: "bar",
+            plotarea: { margin: "dynamic" },
+            scaleX: {
+                labels: {{ revenue_labels|safe }},
+                item: { fontColor: "#6B7280", fontSize: "11px" },
+                lineColor: "#E5E7EB",
+                tick: { visible: false }
+            },
+            scaleY: {
+                format: "$%v",
+                item: { fontColor: "#6B7280", fontSize: "11px" },
+                lineColor: "none",
+                tick: { visible: false },
+                guide: { lineStyle: "solid", lineColor: "#F3F4F6" }
+            },
+            series: [
+                {
+                    values: {{ revenue_data|safe }},
+                    backgroundColor: "#3B82F6",
+                    borderRadiusTopLeft: 4,
+                    borderRadiusTopRight: 4
+                }
+            ]
+        };
+        zingchart.render({ id: "revenueChart", data: revenueConfig, height: "100%", width: "100%" });
+
+        // User Growth Chart
+        let userConfig = {
+            type: "line",
+            plotarea: { margin: "dynamic" },
+            scaleX: {
+                labels: {{ user_labels|safe }},
+                item: { fontColor: "#6B7280", fontSize: "11px" },
+                lineColor: "#E5E7EB",
+                tick: { visible: false }
+            },
+            scaleY: {
+                item: { fontColor: "#6B7280", fontSize: "11px" },
+                lineColor: "none",
+                tick: { visible: false },
+                guide: { lineStyle: "solid", lineColor: "#F3F4F6" }
+            },
+            series: [
+                {
+                    values: {{ user_data|safe }},
+                    lineColor: "#10B981",
+                    lineWidth: 3,
+                    marker: { backgroundColor: "#10B981", size: 4, borderColor: "#fff", borderWidth: 2 }
+                }
+            ]
+        };
+        zingchart.render({ id: "userGrowthChart", data: userConfig, height: "100%", width: "100%" });
+
+        // Subscription Chart (Doughnut)
+        let subConfig = {
+            type: "ring",
+            plotarea: { margin: "dynamic" },
+            legend: {
+                layout: "horizontal",
+                align: "center",
+                verticalAlign: "bottom",
+                borderWidth: 0,
+                item: { fontColor: "#374151" }
+            },
+            plot: {
+                slice: "65%",
+                borderWidth: 0,
+                hoverState: { visible: false }
+            },
+            series: [
+                { values: [{{ active_subscriptions|default:0 }}], text: "Active", backgroundColor: "#10B981" },
+                { values: [{{ inactive_subscriptions|default:0 }}], text: "Inactive", backgroundColor: "#EF4444" }
+            ]
+        };
+        zingchart.render({ id: "subscriptionChart", data: subConfig, height: "100%", width: "100%" });
+
+        // Business Type Chart (Doughnut)
+        let bizLabels = {{ biz_labels|safe }};
+        let bizData = {{ biz_data|safe }};
+        let colors = ["#8B5CF6", "#F59E0B", "#3B82F6", "#EC4899", "#14B8A6", "#F43F5E", "#6366F1"];
+        let bizSeries = bizData.map((val, idx) => {
+            return {
+                values: [val],
+                text: bizLabels[idx],
+                backgroundColor: colors[idx % colors.length]
+            };
+        });
+
+        let bizConfig = {
+            type: "ring",
+            plotarea: { margin: "dynamic" },
+            legend: {
+                layout: "horizontal",
+                align: "center",
+                verticalAlign: "bottom",
+                borderWidth: 0,
+                item: { fontColor: "#374151" }
+            },
+            plot: {
+                slice: "65%",
+                borderWidth: 0,
+                hoverState: { visible: false }
+            },
+            series: bizSeries
+        };
+        zingchart.render({ id: "businessTypeChart", data: bizConfig, height: "100%", width: "100%" });
+    });
+</script>
+{% endblock %}
