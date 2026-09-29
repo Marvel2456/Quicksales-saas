@@ -184,6 +184,20 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 
 # Celery Beat Configuration (for scheduled tasks)
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULE = {
+    'sweep-expired-subscriptions': {
+        'task': 'sweep_expired_subscriptions',
+        'schedule': 3600,  # Every 1 hour (in seconds)
+    },
+    'send-trial-expiry-reminders': {
+        'task': 'send_trial_expiry_reminders',
+        'schedule': 86400,  # Every 24 hours
+    },
+    'send-subscription-expiry-reminders': {
+        'task': 'send_subscription_expiry_reminders',
+        'schedule': 86400,  # Every 24 hours
+    },
+}
 
 # ============================================================================
 # CACHING CONFIGURATION - Redis Cache for Performance
