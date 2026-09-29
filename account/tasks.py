@@ -137,6 +137,52 @@ def deactivate_subscription(self, subscription_id: str):
         raise self.retry(exc=exc, countdown=60)
 
 
+@shared_task(name="sweep_expired_subscriptions", bind=True, max_retries=3)
+def sweep_expired_subscriptions(self):
+    """
+    SAFETY NET: Periodic sweep that catches any expired subscriptions whose
+    one-shot Celery ETA deactivation task was lost (e.g. after a worker/Redis restart).
+    
+    This should run every hour via Celery Beat. It finds all subscriptions where
+    is_active=True but end_date has already passed, deactivates them, and sends
+    expiry emails to their owners.
+    """
+    try:
+        now = timezone.now()
+        expired = Subscription.objects.filter(
+            is_active=True,
+            end_date__lt=now
+        ).select_related('organization', 'organization__owned_by')
+
+        count = expired.count()
+        if count == 0:
+            logger.info("sweep_expired_subscriptions: No overdue subscriptions found.")
+            return
+
+        logger.warning(f"sweep_expired_subscriptions: Found {count} overdue subscription(s). Deactivating...")
+
+        for sub in expired:
+            sub.is_active = False
+            sub.save(update_fields=['is_active', 'updated_at'])
+            logger.info(f"Sweep deactivated subscription {sub.id} for org {sub.organization_id}")
+
+            # Send expiry email
+            owner = sub.organization.owned_by if sub.organization else None
+            if owner and owner.email:
+                try:
+                    task_send_subscription_expired_email.delay(
+                        owner.id, sub.organization.id, str(sub.id)
+                    )
+                except Exception as email_exc:
+                    logger.error(f"Failed to queue expiry email for sub {sub.id}: {email_exc}")
+
+        logger.info(f"sweep_expired_subscriptions: Deactivated {count} subscription(s).")
+
+    except Exception as exc:
+        logger.error(f"sweep_expired_subscriptions failed: {exc}")
+        raise self.retry(exc=exc, countdown=120)
+
+
 @shared_task(name="send_trial_expiry_reminders", bind=True, max_retries=3)
 def send_trial_expiry_reminders(self):
     """
