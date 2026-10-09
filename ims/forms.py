@@ -92,6 +92,15 @@ class ProductForm(ModelForm):
         self.fields['brand'].widget.attrs['class'] = 'input'
         self.fields['unit'].widget.attrs['class'] = 'input'
         self.fields['batch_no'].widget.attrs['class'] = 'input'
+        self.fields['image'].required = False
+        self.fields['image'].widget.attrs['class'] = 'form-control'
+        self.fields['image'].widget.attrs['accept'] = 'image/*'
+        self.fields['image_detail'].required = False
+        self.fields['image_detail'].widget.attrs['class'] = 'form-control'
+        self.fields['image_detail'].widget.attrs['accept'] = 'image/*'
+        self.fields['image_extra'].required = False
+        self.fields['image_extra'].widget.attrs['class'] = 'form-control'
+        self.fields['image_extra'].widget.attrs['accept'] = 'image/*'
 
         if self.branch:
             self.fields['category'].queryset = Category.objects.filter(
@@ -103,7 +112,7 @@ class ProductForm(ModelForm):
 
     class Meta:
        model = Product
-       fields = ('product_name', 'product_code', 'category', 'brand', 'unit', 'batch_no')
+       fields = ('product_name', 'product_code', 'category', 'brand', 'unit', 'batch_no', 'image', 'image_detail', 'image_extra')
        
        widgets = {
            'category': forms.Select(attrs={'class':'form-select'})
@@ -115,6 +124,27 @@ class ProductForm(ModelForm):
         if not code:
             code = str(uuid.uuid4())[:8].upper()
         return code
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and hasattr(image, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image)
+        return image
+
+    def clean_image_detail(self):
+        image_detail = self.cleaned_data.get('image_detail')
+        if image_detail and hasattr(image_detail, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image_detail)
+        return image_detail
+
+    def clean_image_extra(self):
+        image_extra = self.cleaned_data.get('image_extra')
+        if image_extra and hasattr(image_extra, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image_extra)
+        return image_extra
 
     def clean(self):
         super(ProductForm, self).clean()
@@ -145,6 +175,15 @@ class EditProductForm(forms.ModelForm):
 
         self.fields['product_code'].widget.attrs['class'] = 'input'
         self.fields['product_code'].required = False
+        self.fields['image'].required = False
+        self.fields['image'].widget.attrs['class'] = 'form-control'
+        self.fields['image'].widget.attrs['accept'] = 'image/*'
+        self.fields['image_detail'].required = False
+        self.fields['image_detail'].widget.attrs['class'] = 'form-control'
+        self.fields['image_detail'].widget.attrs['accept'] = 'image/*'
+        self.fields['image_extra'].required = False
+        self.fields['image_extra'].widget.attrs['class'] = 'form-control'
+        self.fields['image_extra'].widget.attrs['accept'] = 'image/*'
 
         if organization:
             # Ensure the product’s current category is always available in queryset
@@ -162,7 +201,28 @@ class EditProductForm(forms.ModelForm):
 
     class Meta:
         model = Product
-        fields = ['product_name', 'product_code', 'brand', 'category', 'unit', 'batch_no']
+        fields = ['product_name', 'product_code', 'brand', 'category', 'unit', 'batch_no', 'image', 'image_detail', 'image_extra']
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and hasattr(image, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image)
+        return image
+
+    def clean_image_detail(self):
+        image_detail = self.cleaned_data.get('image_detail')
+        if image_detail and hasattr(image_detail, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image_detail)
+        return image_detail
+
+    def clean_image_extra(self):
+        image_extra = self.cleaned_data.get('image_extra')
+        if image_extra and hasattr(image_extra, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image_extra)
+        return image_extra
 
     def clean_product_code(self):
         import uuid
@@ -373,6 +433,30 @@ class UploadProductForm(forms.Form):
     sale_price = forms.FloatField(required=False)
     quantity = forms.IntegerField(min_value=0, required=False)
     reorder_level = forms.IntegerField(min_value=0, required=False)
+    image = forms.ImageField(required=False, widget=forms.FileInput(attrs={'accept': 'image/*'}))
+    image_detail = forms.ImageField(required=False, widget=forms.FileInput(attrs={'accept': 'image/*'}))
+    image_extra = forms.ImageField(required=False, widget=forms.FileInput(attrs={'accept': 'image/*'}))
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image and hasattr(image, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image)
+        return image
+
+    def clean_image_detail(self):
+        image_detail = self.cleaned_data.get('image_detail')
+        if image_detail and hasattr(image_detail, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image_detail)
+        return image_detail
+
+    def clean_image_extra(self):
+        image_extra = self.cleaned_data.get('image_extra')
+        if image_extra and hasattr(image_extra, 'file'):
+            from ims.utils.image_optimizer import optimize_product_image
+            return optimize_product_image(image_extra)
+        return image_extra
 
     def __init__(self, *args, **kwargs):
         organization = kwargs.pop('organization', None)

@@ -1,0 +1,725 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Checkout — {{ organization.name }}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+    <script src="https://checkout.squadco.com/widget/squad.min.js"></script>
+
+    <style>
+        :root {
+            --brand-primary: {{ store.get_brand_color|default:organization.brand_color|default:'#2563eb' }};
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .checkout-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 2rem;
+        }
+        .form-control, .form-select {
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #cbd5e1;
+        }
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            border-color: var(--brand-primary);
+        }
+        .cart-qty-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: #475569;
+            transition: all 0.15s ease;
+        }
+        .cart-qty-btn:hover:not(:disabled) {
+            background: var(--brand-primary);
+            color: #ffffff;
+            border-color: var(--brand-primary);
+        }
+        .cart-qty-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .btn-remove-item {
+            color: #94a3b8;
+            transition: color 0.15s ease;
+            background: none;
+            border: none;
+            padding: 4px;
+        }
+        .btn-remove-item:hover {
+            color: #ef4444;
+        }
+        .cart-item-row {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .cart-item-row.removing {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .payment-method-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background: #ffffff;
+        }
+        .payment-method-card:hover {
+            border-color: var(--brand-primary) !important;
+            background: #f8fafc;
+        }
+        .payment-method-card.active {
+            border-color: var(--brand-primary) !important;
+            background: rgba(37, 99, 235, 0.04);
+            box-shadow: 0 0 0 1px var(--brand-primary);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bg-white border-bottom py-3 mb-4">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="{% url 'storefront' organization.slug %}" class="d-flex align-items-center gap-2 text-decoration-none text-dark">
+                <i class="bi bi-arrow-left fs-5"></i>
+                <span class="fw-bold">Back to Store</span>
+            </a>
+            <span class="fw-bold fs-5 text-dark">{{ organization.name }}</span>
+            <div style="width: 80px;"></div>
+        </div>
+    </header>
+
+    <main class="container mb-5">
+        
+        {% if messages %}
+        <div class="mb-4">
+            {% for msg in messages %}
+            <div class="alert alert-{{ msg.tags|default:'info' }} rounded-4 py-3 px-4 fw-medium">
+                {{ msg }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="row g-4">
+            <!-- Left: Order Form -->
+            <div class="col-lg-7">
+                <div class="checkout-card mb-4">
+                    <h5 class="fw-bold mb-4"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Customer & Shipping Details</h5>
+                    
+                    {% if not buyer %}
+                    <div class="bg-light rounded-4 p-3 mb-4 d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="fw-bold d-block">Already have a Buyer account?</span>
+                            <small class="text-muted">Sign in for fast checkout & order tracking</small>
+                        </div>
+                        <a href="{% url 'buyer_login' %}?next={{ request.path }}" class="btn btn-dark btn-sm rounded-pill px-3 fw-bold">Sign In</a>
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'store_checkout' organization.slug %}" id="checkoutForm" onsubmit="return handleCheckoutSubmit(event)">
+                        {% csrf_token %}
+                        <input type="hidden" name="payment_method" value="squadco">
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12">
+                                <label class="form-label small fw-bold">Full Name *</label>
+                                <input type="text" name="buyer_name" value="{{ buyer.get_full_name|default:'' }}" required class="form-control" placeholder="e.g. Zainab Ibrahim">
+                            </div>
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small fw-bold">Email Address *</label>
+                                <input type="email" name="buyer_email" value="{{ buyer.email|default:'' }}" required class="form-control" placeholder="name@example.com">
+                            </div>
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small fw-bold">Phone Number / WhatsApp *</label>
+                                <input type="tel" name="buyer_phone" value="{{ buyer.phone_number|default:'' }}" required class="form-control" placeholder="080 1234 5678">
+                            </div>
+                        </div>
+
+                        <hr class="my-4 text-muted opacity-25">
+                        <h6 class="fw-bold mb-3 text-uppercase small text-muted"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Delivery Address Details</h6>
+
+                        <div class="row g-3 mb-3">
+                            <!-- Country Selection -->
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small fw-bold">Country *</label>
+                                <select name="shipping_country" id="shippingCountry" class="form-select" onchange="onCountryChange(this.value)" required>
+                                    <option value="Nigeria" {% if not organization.country or organization.country == 'Nigeria' %}selected{% endif %}>Nigeria</option>
+                                    <option value="Ghana" {% if organization.country == 'Ghana' %}selected{% endif %}>Ghana</option>
+                                    <option value="Kenya" {% if organization.country == 'Kenya' %}selected{% endif %}>Kenya</option>
+                                    <option value="South Africa" {% if organization.country == 'South Africa' %}selected{% endif %}>South Africa</option>
+                                    <option value="Rwanda" {% if organization.country == 'Rwanda' %}selected{% endif %}>Rwanda</option>
+                                    <option value="Benin" {% if organization.country == 'Benin' %}selected{% endif %}>Benin</option>
+                                    <option value="Cameroon" {% if organization.country == 'Cameroon' %}selected{% endif %}>Cameroon</option>
+                                    <option value="Côte d'Ivoire" {% if organization.country == "Côte d'Ivoire" %}selected{% endif %}>Côte d'Ivoire</option>
+                                    <option value="Egypt" {% if organization.country == 'Egypt' %}selected{% endif %}>Egypt</option>
+                                    <option value="United Kingdom" {% if organization.country == 'United Kingdom' %}selected{% endif %}>United Kingdom</option>
+                                    <option value="United States" {% if organization.country == 'United States' %}selected{% endif %}>United States</option>
+                                    <option value="Canada" {% if organization.country == 'Canada' %}selected{% endif %}>Canada</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+
+                            <!-- State Selection (Connected Dropdown) -->
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small fw-bold">State / Region *</label>
+                                <select name="shipping_state" id="shippingState" class="form-select" onchange="onStateChange(this.value)" required>
+                                    <!-- Populated by JS based on country -->
+                                </select>
+                            </div>
+
+                            <!-- City / Area (with auto-datalist per state) -->
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small fw-bold">City / Area *</label>
+                                <input type="text" name="shipping_city" id="shippingCity" list="citySuggestions" class="form-control" placeholder="e.g. Ikeja, Lekki, Victoria Island" required>
+                                <datalist id="citySuggestions"></datalist>
+                            </div>
+
+                            <!-- Street Address / Landmark -->
+                            <div class="col-md-6 col-12">
+                                <label class="form-label small fw-bold">Street Address & House No. *</label>
+                                <input type="text" name="street_address" id="streetAddress" class="form-control" placeholder="House 12, Victoria Street, Near Landmark" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold">Order Notes / Delivery Instructions</label>
+                            <textarea name="customer_notes" rows="2" class="form-control" placeholder="e.g. Call when outside, preferred delivery time"></textarea>
+                        </div>
+
+                        <hr class="my-4 text-muted opacity-25">
+                        <h6 class="fw-bold mb-3 text-uppercase small text-muted"><i class="bi bi-shield-check text-success me-1"></i> Payment</h6>
+
+                        <div class="p-3 rounded-4 border bg-light d-flex align-items-center justify-content-between mb-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-white rounded-circle p-2 shadow-sm d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; flex-shrink: 0;">
+                                    <i class="bi bi-credit-card-2-front-fill text-primary fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                        <span>SquadCo Online Payment</span>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill" style="font-size: 0.72rem;">Instant & Secure</span>
+                                    </div>
+                                    <small class="text-muted">Debit/Credit Card, Bank Transfer, USSD</small>
+                                </div>
+                            </div>
+                            <span class="badge bg-light text-dark border px-3 py-2 d-none d-sm-inline-flex align-items-center gap-1">
+                                <i class="bi bi-shield-lock-fill text-success"></i> Squad
+                            </span>
+                        </div>
+
+                        <button type="submit" name="place_order" id="placeOrderBtn" class="btn btn-primary btn-lg w-100 rounded-pill fw-bold py-3 position-relative" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
+                            <span class="btn-text" id="placeOrderBtnText"><i class="bi bi-lock-fill me-2"></i> Pay with Squad & Place Order</span>
+                            <span class="spinner-border spinner-border-sm d-none ms-2" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right: Order Summary & Interactive Bag -->
+            <div class="col-lg-5">
+                <div class="checkout-card" id="bagSummaryCard">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="fw-bold mb-0">Bag Summary (<span id="cartCountHeader">{{ cart_items|length }}</span> items)</h5>
+                    </div>
+
+                    <!-- Items List with Quantity & Cancel Controls -->
+                    <div class="divide-y" id="cartItemsList">
+                        {% for item in cart_items %}
+                        <div class="py-3 border-bottom cart-item-row" id="cartRow-{{ item.listing.id }}" data-listing-id="{{ item.listing.id }}" data-qty="{{ item.quantity }}" data-available="{{ item.available }}" data-unit-price="{{ item.unit_price }}">
+                            <div class="d-flex align-items-start justify-content-between gap-2">
+                                <div class="flex-grow-1">
+                                    <h6 class="fw-bold mb-1 text-truncate" style="max-width: 220px;" title="{{ item.listing.display_title }}">
+                                        {{ item.listing.display_title }}
+                                    </h6>
+                                    <div class="text-muted small mb-2">
+                                        {% if currency == 'USD' %}${% else %}₦{% endif %}{{ item.unit_price|floatformat:2|intcomma }} each
+                                    </div>
+                                    
+                                    <!-- Interactive Quantity Controls -->
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="cart-qty-btn" id="btnMinus-{{ item.listing.id }}" onclick="changeCartQuantity('{{ item.listing.id }}', -1)" title="Decrease quantity">-</button>
+                                        <span class="fw-bold px-2" id="itemQty-{{ item.listing.id }}" style="font-size: 0.95rem; min-width: 24px; text-align: center; display: inline-block;">{{ item.quantity }}</span>
+                                        <button type="button" class="cart-qty-btn" id="btnPlus-{{ item.listing.id }}" onclick="changeCartQuantity('{{ item.listing.id }}', 1)" title="Increase quantity" {% if item.quantity >= item.available %}disabled{% endif %}>+</button>
+                                        
+                                        <button type="button" class="btn-remove-item ms-2 text-danger" onclick="removeItemFromCart('{{ item.listing.id }}', '{{ item.listing.display_title|escapejs }}')" title="Remove item">
+                                            <i class="bi bi-trash3"></i> <span class="small">Remove</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="fw-bold fs-6" id="itemTotal-{{ item.listing.id }}">
+                                        {% if currency == 'USD' %}${% else %}₦{% endif %}{{ item.total_price|floatformat:2|intcomma }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="py-5 text-center text-muted" id="emptyCartState">
+                            <i class="bi bi-bag-x display-4 opacity-50 mb-3 d-block"></i>
+                            <h6 class="fw-bold">Your Bag is Empty</h6>
+                            <p class="small mb-3">Add items from the store to proceed with checkout.</p>
+                            <a href="{% url 'storefront' organization.slug %}" class="btn btn-dark btn-sm rounded-pill px-4">Browse Catalog</a>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Coupon Code Input Form -->
+                    <form method="get" action="{% url 'store_checkout' organization.slug %}" class="my-4">
+                        <label class="form-label small fw-bold">Discount Coupon</label>
+                        <div class="input-group">
+                            <input type="text" name="coupon" id="couponInput" value="{{ discount.code|default:'' }}" class="form-control text-uppercase" placeholder="Enter Promo Code">
+                            <button type="submit" class="btn btn-dark rounded-end-3 fw-bold px-3">Apply</button>
+                        </div>
+                        {% if discount %}
+                        <div class="text-success small fw-semibold mt-2">
+                            <i class="bi bi-check-circle-fill me-1"></i> Coupon <strong>{{ discount.code }}</strong> applied!
+                        </div>
+                        {% endif %}
+                    </form>
+
+                    <!-- Price Calculations -->
+                    <div class="bg-light rounded-4 p-3 mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Subtotal</span>
+                            <span class="fw-semibold" id="cartSubtotal">{% if currency == 'USD' %}${% else %}₦{% endif %}{{ subtotal|floatformat:2|intcomma }}</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2 text-success {% if not discount_amount or discount_amount <= 0 %}d-none{% endif %}" id="discountRow">
+                            <span>Discount</span>
+                            <span class="fw-semibold" id="cartDiscount">-{% if currency == 'USD' %}${% else %}₦{% endif %}{{ discount_amount|floatformat:2|intcomma }}</span>
+                        </div>
+
+                        <hr class="my-2">
+
+                        <div class="d-flex justify-content-between fs-5 fw-bold text-dark">
+                            <span>Total Due</span>
+                            <span class="text-primary" id="cartTotalDue" style="color: var(--brand-primary) !important;">
+                                {% if currency == 'USD' %}${% else %}₦{% endif %}{{ total_amount|floatformat:2|intcomma }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="text-muted small text-center">
+                        <i class="bi bi-lock me-1"></i> Orders are processed and confirmed directly with the seller.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white border-top py-4">
+        <div class="container text-center text-muted small">
+            &copy; {{ organization.name }} {% now "Y" %}. Powered by Quicksales.
+        </div>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div id="checkoutToastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 8px;"></div>
+
+    <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
+    <script>
+    const CURRENCY_SYMBOL = "{% if currency == 'USD' %}${% else %}₦{% endif %}";
+    const CSRF_TOKEN = "{{ csrf_token }}";
+    const UPDATE_CART_URL = "{% url 'store_update_cart' organization.slug %}";
+
+    // Country to State Mapping
+    const COUNTRY_STATES = {
+        "Nigeria": [
+            "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+            "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
+            "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
+            "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", 
+            "Taraba", "Yobe", "Zamfara"
+        ],
+        "Ghana": [
+            "Greater Accra", "Ashanti", "Central", "Eastern", "Western", "Western North", 
+            "Volta", "Oti", "Northern", "Savannah", "North East", "Upper East", "Upper West", 
+            "Bono", "Bono East", "Ahafo"
+        ],
+        "Kenya": [
+            "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Kiambu", "Uasin Gishu", "Machakos", 
+            "Kajiado", "Kilifi", "Meru", "Nyeri", "Kakamega", "Trans Nzoia", "Bungoma"
+        ],
+        "South Africa": [
+            "Gauteng", "Western Cape", "KwaZulu-Natal", "Eastern Cape", "Free State", 
+            "Limpopo", "Mpumalanga", "North West", "Northern Cape"
+        ],
+        "Rwanda": [
+            "Kigali", "Northern Province", "Southern Province", "Eastern Province", "Western Province"
+        ],
+        "Benin": [
+            "Littoral (Cotonou)", "Atlantique", "Ouémé (Porto-Novo)", "Borgou", "Zou", "Mono", "Atakora"
+        ],
+        "Cameroon": [
+            "Centre (Yaoundé)", "Littoral (Douala)", "West", "North-West", "South-West", "Far North", "North", "Adamaoua", "East", "South"
+        ],
+        "Côte d'Ivoire": [
+            "Abidjan", "Yamoussoukro", "Bas-Sassandra", "Comoé", "Gôh-Djiboua", "Lacs", "Lagunes", "Montagnes", "Sassandra-Marahoué", "Savanes", "Vallée du Bandama", "Woroba", "Zanzan"
+        ],
+        "Egypt": [
+            "Cairo", "Alexandria", "Giza", "Qalyubia", "Port Said", "Suez", "Sharqia", "Dakahlia", "Aswan", "Luxor", "Red Sea"
+        ],
+        "United Kingdom": [
+            "Greater London", "Greater Manchester", "West Midlands", "West Yorkshire", "South Yorkshire", "Hampshire", "Surrey", "Kent", "Essex", "Scotland", "Wales", "Northern Ireland"
+        ],
+        "United States": [
+            "California", "Texas", "Florida", "New York", "Illinois", "Pennsylvania", "Ohio", "Georgia", "North Carolina", "Michigan", "New Jersey", "Virginia", "Washington", "Massachusetts"
+        ],
+        "Canada": [
+            "Ontario", "Quebec", "British Columbia", "Alberta", "Manitoba", "Saskatchewan", "Nova Scotia", "New Brunswick"
+        ],
+        "Others": [
+            "National Capital", "Central Region", "Northern Region", "Southern Region", "Eastern Region", "Western Region", "Other State / Province"
+        ]
+    };
+
+    // State to Major Cities / Areas
+    const STATE_CITIES = {
+        "Lagos": ["Ikeja", "Lekki", "Victoria Island", "Ikoyi", "Yaba", "Surulere", "Ajah", "Festac", "Ikorodu", "Maryland", "Magodo", "Alaba", "Agege"],
+        "FCT - Abuja": ["Garki", "Wuse", "Maitama", "Asokoro", "Jabi", "Gwarinpa", "Kubwa", "Central Business District", "Utako", "Apo", "Lugbe"],
+        "Rivers": ["Port Harcourt (Old GRA)", "Trans-Amadi", "D-Line", "Rumuokoro", "Woji", "Ada George", "Peter Odili Road", "Diobu"],
+        "Oyo": ["Ibadan (Bodija)", "Dugbe", "Ring Road", "Jericho", "Samonda", "Oluyole", "Iwo Road", "Moniya"],
+        "Edo": ["Benin City (GRA)", "Ugbowo", "Airport Road", "Sapele Road", "Ring Road", "Ekenwan"],
+        "Delta": ["Warri", "Asaba", "Effurun", "Sapele", "Ughelli", "Agbor"],
+        "Ogun": ["Abeokuta", "Ota", "Sagamu", "Ijebu Ode", "Arepo", "Ibafo"],
+        "Kano": ["Kano Municipal", "Nassarawa", "Fagge", "Tarauni", "Dala", "Bompai"],
+        "Enugu": ["Enugu (Independence Layout)", "New Haven", "GRA", "Abakpa", "Ogui", "Trans-Ekulu"],
+        "Anambra": ["Awka", "Onitsha", "Nnewi", "Ekwulobia", "Ihiala"],
+        "Greater Accra": ["Accra Central", "East Legon", "Airport Residential", "Osu", "Tema", "Cantonments", "Spintex", "Madina"],
+        "Ashanti": ["Kumasi", "Asokwa", "Bantama", "Nhyiaeso", "Suame"],
+        "Nairobi": ["Westlands", "Kilimani", "Karen", "CBD", "Lavington", "Parklands", "Kileleshwa", "Runda", "Langata"],
+        "Gauteng": ["Johannesburg", "Pretoria", "Sandton", "Centurion", "Midrand", "Randburg", "Roodepoort"],
+        "Western Cape": ["Cape Town Central", "Stellenbosch", "Camps Bay", "Sea Point", "Bellville", "Century City"]
+    };
+
+    function populateStates(country) {
+        const stateSelect = document.getElementById('shippingState');
+        const states = COUNTRY_STATES[country] || COUNTRY_STATES["Others"];
+        
+        stateSelect.innerHTML = "";
+        states.forEach(st => {
+            const opt = document.createElement('option');
+            opt.value = st;
+            opt.textContent = st;
+            stateSelect.appendChild(opt);
+        });
+
+        // Trigger city update
+        if (states.length > 0) {
+            populateCitySuggestions(states[0]);
+        }
+    }
+
+    function populateCitySuggestions(state) {
+        const datalist = document.getElementById('citySuggestions');
+        datalist.innerHTML = "";
+        const cities = STATE_CITIES[state] || [];
+        cities.forEach(city => {
+            const opt = document.createElement('option');
+            opt.value = city;
+            datalist.appendChild(opt);
+        });
+    }
+
+    function onCountryChange(country) {
+        populateStates(country);
+    }
+
+    function onStateChange(state) {
+        populateCitySuggestions(state);
+    }
+
+    // Initialize on page load
+    document.addEventListener("DOMContentLoaded", function() {
+        const countrySelect = document.getElementById('shippingCountry');
+        if (countrySelect) {
+            populateStates(countrySelect.value);
+        }
+    });
+
+    // Format currency helper - guaranteed never to output NaN
+    function formatMoney(amount) {
+        let num = 0;
+        if (amount !== undefined && amount !== null && amount !== '') {
+            num = parseFloat(amount);
+            if (isNaN(num)) num = 0;
+        }
+        return CURRENCY_SYMBOL + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Interactive Cart Quantity Change (+1 or -1)
+    function changeCartQuantity(listingId, delta) {
+        const row = document.getElementById(`cartRow-${listingId}`);
+        const qtySpan = document.getElementById(`itemQty-${listingId}`);
+        let currentQty = 1;
+        
+        if (row && row.dataset.qty) {
+            currentQty = parseInt(row.dataset.qty, 10) || 1;
+        } else if (qtySpan) {
+            currentQty = parseInt(qtySpan.textContent, 10) || 1;
+        }
+
+        const newQty = currentQty + delta;
+        if (newQty <= 0) {
+            removeItemFromCart(listingId, "this item");
+            return;
+        }
+
+        updateCartApi(listingId, newQty, delta);
+    }
+
+    function updateCartApi(listingId, newQuantity, delta, customMsg = null) {
+        const coupon = document.getElementById('couponInput') ? document.getElementById('couponInput').value : '';
+        const row = document.getElementById(`cartRow-${listingId}`);
+        const btnMinus = document.getElementById(`btnMinus-${listingId}`);
+        const btnPlus = document.getElementById(`btnPlus-${listingId}`);
+
+        if (btnMinus) btnMinus.disabled = true;
+        if (btnPlus) btnPlus.disabled = true;
+
+        fetch(UPDATE_CART_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                listing_id: listingId,
+                quantity: newQuantity,
+                delta: delta,
+                coupon: coupon
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btnMinus) btnMinus.disabled = false;
+            if (btnPlus) btnPlus.disabled = false;
+
+            if (data.success) {
+                if (data.item_qty <= 0 || data.cart_empty) {
+                    // Item was removed
+                    if (row) {
+                        row.classList.add('removing');
+                        setTimeout(() => row.remove(), 250);
+                    }
+                    showCheckoutToast(customMsg || "Item removed from bag");
+                } else {
+                    // Update item row data & DOM
+                    if (row) row.dataset.qty = data.item_qty;
+                    const qtyElem = document.getElementById(`itemQty-${listingId}`);
+                    const totalElem = document.getElementById(`itemTotal-${listingId}`);
+                    if (qtyElem) qtyElem.textContent = data.item_qty;
+                    if (totalElem) totalElem.textContent = formatMoney(data.item_total);
+                }
+
+                // Update summary calculations
+                const subtotalElem = document.getElementById('cartSubtotal');
+                const totalDueElem = document.getElementById('cartTotalDue');
+                const headerCountElem = document.getElementById('cartCountHeader');
+
+                if (subtotalElem) subtotalElem.textContent = formatMoney(data.subtotal);
+                if (totalDueElem) totalDueElem.textContent = formatMoney(data.total_amount);
+                if (headerCountElem) headerCountElem.textContent = data.cart_count;
+
+                const discountRow = document.getElementById('discountRow');
+                const discountElem = document.getElementById('cartDiscount');
+                if (discountRow && discountElem) {
+                    if (data.discount_amount > 0) {
+                        discountRow.classList.remove('d-none');
+                        discountElem.textContent = '-' + formatMoney(data.discount_amount);
+                    } else {
+                        discountRow.classList.add('d-none');
+                    }
+                }
+
+                // Check empty state
+                if (data.cart_empty) {
+                    document.getElementById('cartItemsList').innerHTML = `
+                        <div class="py-5 text-center text-muted">
+                            <i class="bi bi-bag-x display-4 opacity-50 mb-3 d-block"></i>
+                            <h6 class="fw-bold">Your Bag is Empty</h6>
+                            <p class="small mb-3">Add items from the store to proceed with checkout.</p>
+                            <a href="{% url 'storefront' organization.slug %}" class="btn btn-dark btn-sm rounded-pill px-4">Browse Catalog</a>
+                        </div>
+                    `;
+                    const placeOrderBtn = document.getElementById('placeOrderBtn');
+                    if (placeOrderBtn) placeOrderBtn.disabled = true;
+                }
+            } else {
+                showCheckoutToast(data.message || "Unable to update quantity", true);
+            }
+        })
+        .catch(err => {
+            if (btnMinus) btnMinus.disabled = false;
+            if (btnPlus) btnPlus.disabled = false;
+            showCheckoutToast("Network error updating bag.", true);
+        });
+    }
+
+    function removeItemFromCart(listingId, title) {
+        const itemTitle = title || "Item";
+        updateCartApi(listingId, 0, null, `Removed "${itemTitle}" from your bag`);
+    }
+
+    function showCheckoutToast(message, isError = false) {
+        const container = document.getElementById('checkoutToastContainer');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `shadow-lg rounded-pill px-4 py-2.5 text-white fw-semibold d-flex align-items-center gap-2 ${isError ? 'bg-danger' : 'bg-dark'}`;
+        toast.style.fontSize = '14px';
+        toast.innerHTML = `<i class="bi bi-${isError ? 'exclamation-circle' : 'check-circle'}-fill"></i> <span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 2200);
+    }
+
+    function resetOrderBtn() {
+        const btn = document.getElementById('placeOrderBtn');
+        if (!btn) return;
+        const text = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.spinner-border');
+
+        btn.disabled = false;
+        if (text) text.classList.remove('opacity-50');
+        if (spinner) spinner.classList.add('d-none');
+    }
+
+    function showPaymentRedirectLoader(checkoutUrl, orderNumber, reference) {
+        let existing = document.getElementById('squadRedirectOverlay');
+        if (existing) existing.remove();
+
+        const overlayHtml = `
+            <div id="squadRedirectOverlay" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 1.5rem;">
+                <div class="card shadow-2xl border-0 rounded-4 p-4 text-center bg-white" style="max-width: 460px; width: 100%;">
+                    <div class="mb-3 d-flex justify-content-center">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; border-width: 0.25em;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <h4 class="fw-bold mb-1 text-dark">Redirecting to Squad Payment...</h4>
+                    <p class="text-muted small mb-3">Order <strong>#${orderNumber || ''}</strong></p>
+                    <div class="bg-light rounded-3 p-3 mb-3 text-start small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Payment Provider:</span>
+                            <span class="fw-bold text-dark">Squad by GTCO</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Transaction Ref:</span>
+                            <code class="text-dark">${reference}</code>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Security:</span>
+                            <span class="text-success fw-bold"><i class="bi bi-shield-check"></i> 256-Bit Encrypted</span>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mb-3">Opening secure checkout page. If you are not redirected in 3 seconds, click below:</p>
+                    <a href="${checkoutUrl}" id="directSquadLink" class="btn btn-primary btn-lg rounded-pill fw-bold py-3 w-100" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
+                        <i class="bi bi-lock-fill me-2"></i> Open Squad Payment Page
+                    </a>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', overlayHtml);
+    }
+
+    function handleCheckoutSubmit(e) {
+        if (e && e.preventDefault) {
+            e.preventDefault();
+        }
+        const form = document.getElementById('checkoutForm');
+        if (!form) return false;
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+
+        const btn = document.getElementById('placeOrderBtn');
+        const text = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.spinner-border');
+
+        btn.disabled = true;
+        if (text) text.classList.add('opacity-50');
+        if (spinner) spinner.classList.remove('d-none');
+
+        const formData = new FormData(form);
+        formData.append('ajax', 'true');
+
+        console.log("%c[SquadCo Checkout] Submitting checkout order...", "color: #2563eb; font-weight: bold;", {
+            buyer_name: formData.get('buyer_name'),
+            buyer_email: formData.get('buyer_email'),
+            buyer_phone: formData.get('buyer_phone'),
+            shipping_country: formData.get('shipping_country'),
+            shipping_state: formData.get('shipping_state')
+        });
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        })
+        .then(res => res.json().catch(() => ({ success: false, message: 'Server error processing order.' })))
+        .then(data => {
+            console.log("%c[SquadCo Checkout] Server response received:", "color: #16a34a; font-weight: bold;", data);
+
+            if (!data.success) {
+                console.error("[SquadCo Checkout] Server error:", data.message);
+                showCheckoutToast(data.message || 'Unable to process checkout. Please try again.', true);
+                resetOrderBtn();
+                return;
+            }
+
+            if (data.free_order && data.redirect_url) {
+                console.log("[SquadCo Checkout] Free 100% discounted order, redirecting:", data.redirect_url);
+                window.location.href = data.redirect_url;
+                return;
+            }
+
+            if (data.checkout_url) {
+                console.log("%c[SquadCo Checkout] Redirecting to Squad payment page:", "color: #16a34a; font-weight: bold;", data.checkout_url);
+                showPaymentRedirectLoader(data.checkout_url, data.order_number, data.reference);
+                setTimeout(() => {
+                    window.location.href = data.checkout_url;
+                }, 400);
+                return;
+            }
+
+            showCheckoutToast("Payment initialized. Please check your order.", false);
+            resetOrderBtn();
+        })
+        .catch(err => {
+            console.error("[SquadCo Checkout] Checkout request failed:", err);
+            showCheckoutToast("Network error. Please try again.", true);
+            resetOrderBtn();
+        });
+
+        return false;
+    }
+    </script>
+</body>
+</html>

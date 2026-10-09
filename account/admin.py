@@ -100,13 +100,21 @@ class BranchAdmin(ModelAdmin):
 
 @admin.register(Organization)
 class OrganizationAdmin(ModelAdmin):
-    list_display = ("name", "created_at")
-    search_fields = ("name",)
-    list_filter = ("created_at",)
+    list_display = ("name", "country", "default_branch", "owned_by", "is_active", "created_at")
+    search_fields = ("name", "slug", "country", "owned_by__email")
+    list_filter = ("country", "is_active", "created_at")
     ordering = ("-created_at",)
     date_hierarchy = "created_at"
-    list_per_page = 10
+    list_per_page = 20
     list_display_links = ("name",)
+    raw_id_fields = ("owned_by",)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "default_branch":
+            obj_id = request.resolver_match.kwargs.get('object_id') if request.resolver_match else None
+            if obj_id:
+                kwargs["queryset"] = Branch.objects.filter(organization_id=obj_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(ActivityLog)

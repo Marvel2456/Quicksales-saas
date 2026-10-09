@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, HttpResponse
 from account.models import Organization
-from .models import Subscription, Plan, Payment, Coupon, CouponRedemption
+from .models import Subscription, Plan, Payment, Coupon, CouponRedemption, PaymentGatewayConfig
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from account.decorators import role_required
@@ -66,6 +66,11 @@ def _infer_checkout_url(transaction_ref):
     """Build a hosted checkout URL for a known Squad transaction reference."""
     api_base = (settings.SQUAD_API_BASE_URL or "").lower()
     checkout_host = "sandbox-pay.squadco.com" if "sandbox" in api_base else "pay.squadco.com"
+    merchant_id = (settings.SQUAD_MERCHANT_ID or "").strip()
+    if merchant_id:
+        import base64
+        enc = base64.b64encode(f"{merchant_id}|{transaction_ref}".encode()).decode().rstrip('=')
+        return f"https://{checkout_host}/c_{enc}"
     return f"https://{checkout_host}/{transaction_ref}"
 
 
@@ -185,9 +190,16 @@ def get_or_create_plan(tier, size, billing_frequency):
         'premium': {'starter': 80000, 'large': 150000, 'xl': 250000},
         'invoice': {'starter': 30000, 'large': 50000, 'xl': 85000}
     }
+    base_prices_usd = {
+        'basic': {'starter': 15, 'large': 25, 'xl': 40},
+        'growth': {'starter': 35, 'large': 60, 'xl': 100},
+        'premium': {'starter': 80, 'large': 150, 'xl': 250},
+        'invoice': {'starter': 30, 'large': 50, 'xl': 85}
+    }
     
     # Get base price
     base_price = base_prices.get(tier_upper, {}).get(size_upper, 15000)
+    base_price_usd = base_prices_usd.get(tier_upper, {}).get(size_upper, 15)
     
     # Apply billing frequency multiplier
     freq_multipliers = {
@@ -198,6 +210,7 @@ def get_or_create_plan(tier, size, billing_frequency):
     
     multiplier = freq_multipliers.get(freq_upper, 1.0)
     final_price = int(base_price * multiplier)
+    final_price_usd = Decimal(str(round(base_price_usd * multiplier, 2)))
     
     # Duration in days based on frequency
     duration_map = {
@@ -219,6 +232,7 @@ def get_or_create_plan(tier, size, billing_frequency):
         defaults={
             'name': plan_name,
             'price': final_price,
+            'price_usd': final_price_usd,
             'duration_in_days': duration,
             'description': f"{tier_display} plan with {size_display} capacity",
             'max_users': features['users'],
@@ -227,6 +241,11 @@ def get_or_create_plan(tier, size, billing_frequency):
             'disable_store': tier_upper == 'invoice',
         }
     )
+
+    # If price_usd is 0 or not set, populate it
+    if plan.price_usd == 0 and final_price_usd > 0:
+        plan.price_usd = final_price_usd
+        plan.save(update_fields=['price_usd'])
 
     # Keep plan feature flag aligned even if plan already existed.
     if tier_upper == 'invoice' and not plan.disable_store:
@@ -313,18 +332,23 @@ def settingsView(request):
     
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
     plans = Plan.objects.exclude(tier='free').order_by('tier', 'size', 'billing_frequency')
+    branches = organization.branch_set.all().order_by('name')
 
     from ims.models import APIKey
     api_keys = APIKey.objects.filter(organization=organization).order_by('-created_at')
 
+    from account.forms import COUNTRY_CHOICES
+
     context = {
         'organization': organization,
+        'branches': branches,
         'subscription': subscription,
         'plans': plans,
         'tier_choices': Plan.TIER_CHOICES,
         'size_choices': Plan.SIZE_CHOICES,
         'billing_frequency_choices': Plan.BILLING_FREQUENCY_CHOICES,
         'api_keys': api_keys,
+        'country_choices': COUNTRY_CHOICES,
     }
     return render(request, 'account/settings.html', context)
 
@@ -339,6 +363,25 @@ def editOrganization(request, pk):
         organization.name = request.POST.get("name", organization.name)
         organization.business_type = request.POST.get("business_type", organization.business_type)
         organization.country = request.POST.get("country", organization.country)
+        
+        # Handle logo upload with WebP compression
+        if 'logo' in request.FILES and request.FILES['logo']:
+            from ims.utils.image_optimizer import compress_image_to_webp
+            raw_logo = request.FILES['logo']
+            optimized_logo = compress_image_to_webp(raw_logo, max_size=(600, 600), quality=85)
+            organization.logo = optimized_logo
+
+        default_branch_id = request.POST.get("default_branch")
+        if default_branch_id:
+            branch = organization.branch_set.filter(id=default_branch_id).first()
+            if branch:
+                organization.default_branch = branch
+                # Keep store listing active branch in sync
+                from store.models import StoreListing
+                StoreListing.objects.filter(organization=organization).update(branch=branch)
+        elif default_branch_id == "":
+            organization.default_branch = None
+
         organization.save()
         messages.success(request, "Organization updated successfully")
         return redirect("settings")
@@ -387,9 +430,14 @@ def init_payment(request, plan_id):
     organization = get_request_organization(request)
     plan = get_object_or_404(Plan, id=plan_id)
 
+    country = (organization.country or '').strip().lower()
+    is_nigeria = (country == 'nigeria')
+    currency = 'NGN' if is_nigeria else 'USD'
+    plan_base_price = plan.price if currency == 'NGN' else (plan.price_usd if plan.price_usd > 0 else plan.price)
+
     # Get coupon from request if provided
     coupon = None
-    final_amount = Decimal(str(plan.price))
+    final_amount = Decimal(str(plan_base_price))
     coupon_code = request.GET.get('coupon_code') or request.POST.get('coupon_code')
     
     if coupon_code:
@@ -425,7 +473,7 @@ def init_payment(request, plan_id):
         organization=organization,
         plan=plan,
         provider="squadco",
-        currency="NGN",
+        currency=currency,
         start_date=timezone.now(),
         end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
         is_active=False,
@@ -435,6 +483,7 @@ def init_payment(request, plan_id):
     payment = Payment.objects.create(
         subscription=subscription,
         amount=final_amount,
+        currency=currency,
         payment_method="squadco",
         transaction_id=reference,
         payment_status="pending",
@@ -454,7 +503,7 @@ def init_payment(request, plan_id):
     data = {
         "email": request.user.email,
         "amount": amount_minor,
-        "currency": "NGN",
+        "currency": currency,
         "transaction_ref": reference,
         "callback_url": request.build_absolute_uri(reverse("verify_payment")),
     }
@@ -512,8 +561,13 @@ def create_payment(request):
         coupon_code = data.get("coupon_code", "")
         org = get_request_organization(request)
 
+        country = (org.country or '').strip().lower()
+        is_nigeria = (country == 'nigeria')
+        currency = 'NGN' if is_nigeria else 'USD'
+        plan_base_amount = plan.price if currency == 'NGN' else (plan.price_usd if plan.price_usd > 0 else plan.price)
+
         coupon = None
-        final_amount = Decimal(str(plan.price))
+        final_amount = Decimal(str(plan_base_amount))
         
         # Handle coupon server-side so frontend cannot override payable amount.
         if coupon_code:
@@ -522,9 +576,9 @@ def create_payment(request):
                 print(f"Coupon invalid: {coupon_code} ({message})")
                 return JsonResponse({"error": message}, status=400)
             final_amount = discounted_amount
-            print(f"Coupon applied: {coupon_code}, final amount: ₦{final_amount}")
+            print(f"Coupon applied: {coupon_code}, final amount: {currency} {final_amount}")
         else:
-            print(f"No coupon. Plan amount: ₦{final_amount}")
+            print(f"No coupon. Plan amount: {currency} {final_amount}")
 
         is_free = final_amount <= Decimal('0.00')
         
@@ -542,6 +596,7 @@ def create_payment(request):
                     payment_status="pending",
                     payment_method="squadco",
                     amount=final_amount,
+                    currency=currency,
                     coupon=coupon,
                 )
                 .select_related("subscription")
@@ -592,7 +647,7 @@ def create_payment(request):
                         "status": "ok",
                         "reference": existing_payment.transaction_id,
                         "amount": str(existing_payment.amount),
-                        "currency": "NGN",
+                        "currency": currency,
                         "checkout_url": existing_checkout_url,
                     })
 
@@ -602,7 +657,7 @@ def create_payment(request):
             organization=org,
             plan=plan,
             provider="squadco",
-            currency="NGN",
+            currency=currency,
             start_date=timezone.now(),
             end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
             is_active=False,
@@ -662,8 +717,8 @@ def create_payment(request):
 
         squad_payload = {
             "email": request.user.email,
-            "amount": int(final_amount * 100),  # kobo
-            "currency": "NGN",
+            "amount": int(final_amount * 100),  # minor currency unit (kobo or cents)
+            "currency": currency,
             "initiate_type": "inline",
             "transaction_ref": transaction_reference,
             "callback_url": request.build_absolute_uri(reverse("verify_payment")),
@@ -771,6 +826,7 @@ def create_payment(request):
         payment = Payment.objects.create(
             subscription=subscription,
             amount=final_amount,
+            currency=currency,
             payment_method="squadco",
             transaction_id=confirmed_ref,
             payment_status="pending",
@@ -787,12 +843,12 @@ def create_payment(request):
             coupon.uses += 1
             coupon.save()
 
-        print(f"Payment record created: {payment.id} (amount: ₦{final_amount}, reference: {confirmed_ref})")
+        print(f"Payment record created: {payment.id} (amount: {currency} {final_amount}, reference: {confirmed_ref})")
         return JsonResponse({
             "status": "ok",
             "reference": confirmed_ref,
             "amount": str(final_amount),
-            "currency": "NGN",
+            "currency": currency,
             "checkout_url": checkout_url,
         })
     

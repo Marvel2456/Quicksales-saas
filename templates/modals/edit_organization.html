@@ -1,28 +1,50 @@
 <div class="modal fade" id="editOrganizationModal" tabindex="-1" aria-labelledby="editOrganizationLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
       <form {% if organization and organization.id %}
                 action="{% url 'edit_organization' organization.id %}"
             {% else %}
                 action="#"
-            {% endif %} method="POST" action="">
+            {% endif %} method="POST" enctype="multipart/form-data" onsubmit="handleOrgSubmit(this)">
         {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title" id="editOrganizationLabel">
-            <i class="fas fa-edit"></i> Edit Organization
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark" id="editOrganizationLabel">
+            <i class="fas fa-building text-primary me-2"></i> Edit Organization
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="orgName" class="form-label">Business Name</label>
-            <input type="text" class="form-control" id="orgName" name="name" value="{{ organization.name }}">
+        <div class="modal-body p-4">
+          <!-- Logo Upload Section -->
+          <div class="mb-4 text-center">
+            <label class="form-label fw-bold small text-muted text-uppercase d-block mb-2">Organization Logo</label>
+            <div class="d-inline-flex flex-column align-items-center">
+              <div class="position-relative mb-2">
+                <div class="rounded-4 border shadow-sm d-flex align-items-center justify-content-center overflow-hidden bg-light" style="width: 100px; height: 100px;">
+                  {% if organization.logo %}
+                    <img id="orgLogoPreview" src="{{ organization.logo.url }}" alt="{{ organization.name }}" class="w-100 h-100" style="object-fit: cover;">
+                  {% else %}
+                    <img id="orgLogoPreview" src="" alt="" class="w-100 h-100 d-none" style="object-fit: cover;">
+                    <i id="orgLogoPlaceholder" class="fas fa-building fa-2x text-secondary opacity-50"></i>
+                  {% endif %}
+                </div>
+              </div>
+              <label for="orgLogoInput" class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer">
+                <i class="fas fa-camera me-1"></i> Change Logo
+              </label>
+              <input type="file" class="d-none" id="orgLogoInput" name="logo" accept="image/*" onchange="previewOrgLogo(this)">
+              <div class="form-text small text-muted mt-1">PNG, JPG, or WebP up to 5MB (auto-compressed)</div>
+            </div>
           </div>
 
           <div class="mb-3">
-            <label for="orgType" class="form-label">Business Type</label>
-            <select class="form-control" id="orgType" name="business_type">
+            <label for="orgName" class="form-label fw-semibold">Business Name</label>
+            <input type="text" class="form-control rounded-3" id="orgName" name="name" value="{{ organization.name }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="orgType" class="form-label fw-semibold">Business Type</label>
+            <select class="form-select rounded-3" id="orgType" name="business_type">
               {% for code, label in organization.BUSINESS_CHOICES %}
                 <option value="{{ code }}" {% if organization.business_type == code %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
@@ -30,17 +52,86 @@
           </div>
 
           <div class="mb-3">
-            <label for="orgCountry" class="form-label">Country</label>
-            <input type="text" class="form-control" id="orgCountry" name="country" value="{{ organization.country }}">
+            <label for="orgCountry" class="form-label fw-semibold">Country</label>
+            <select class="form-select rounded-3" id="orgCountry" name="country">
+              {% for code, label in country_choices %}
+                <option value="{{ code }}" {% if organization.country == code or organization.country == label %}selected{% endif %}>{{ label }}</option>
+              {% empty %}
+                <option value="Nigeria" {% if organization.country == 'Nigeria' %}selected{% endif %}>Nigeria (NGN)</option>
+                <option value="Ghana" {% if organization.country == 'Ghana' %}selected{% endif %}>Ghana</option>
+                <option value="Kenya" {% if organization.country == 'Kenya' %}selected{% endif %}>Kenya</option>
+                <option value="South Africa" {% if organization.country == 'South Africa' %}selected{% endif %}>South Africa</option>
+                <option value="Rwanda" {% if organization.country == 'Rwanda' %}selected{% endif %}>Rwanda</option>
+                <option value="Benin" {% if organization.country == 'Benin' %}selected{% endif %}>Benin</option>
+                <option value="Cameroon" {% if organization.country == 'Cameroon' %}selected{% endif %}>Cameroon</option>
+                <option value="Côte d'Ivoire" {% if organization.country == "Côte d'Ivoire" %}selected{% endif %}>Côte d'Ivoire</option>
+                <option value="Gambia" {% if organization.country == 'Gambia' %}selected{% endif %}>Gambia</option>
+                <option value="Guinea" {% if organization.country == 'Guinea' %}selected{% endif %}>Guinea</option>
+                <option value="Liberia" {% if organization.country == 'Liberia' %}selected{% endif %}>Liberia</option>
+                <option value="Senegal" {% if organization.country == 'Senegal' %}selected{% endif %}>Senegal</option>
+                <option value="Sierra Leone" {% if organization.country == 'Sierra Leone' %}selected{% endif %}>Sierra Leone</option>
+                <option value="Togo" {% if organization.country == 'Togo' %}selected{% endif %}>Togo</option>
+                <option value="Egypt" {% if organization.country == 'Egypt' %}selected{% endif %}>Egypt</option>
+                <option value="United Kingdom" {% if organization.country == 'United Kingdom' %}selected{% endif %}>United Kingdom</option>
+                <option value="United States" {% if organization.country == 'United States' %}selected{% endif %}>United States</option>
+                <option value="Canada" {% if organization.country == 'Canada' %}selected{% endif %}>Canada</option>
+                <option value="Others" {% if organization.country == 'Others' %}selected{% endif %}>Others</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="orgDefaultBranch" class="form-label fw-semibold">Default Branch (Online Store Inventory)</label>
+            <select class="form-select rounded-3" id="orgDefaultBranch" name="default_branch">
+              <option value="">-- Auto (First Branch) --</option>
+              {% for br in branches %}
+                <option value="{{ br.id }}" {% if organization.default_branch_id == br.id %}selected{% endif %}>
+                  {{ br.name }}{% if br.address %} ({{ br.address }}){% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            <div class="form-text text-muted">
+              The online store will deduct inventory and fulfill orders from this branch.
+            </div>
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#editOrganizationBrandingModal" data-bs-dismiss="modal">Edit Branding</button>
-          <button type="submit" class="btn btn-primary text-white">Save Changes</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <div class="modal-footer bg-light px-4 py-3">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary text-white rounded-pill px-4 fw-semibold org-submit-btn">
+            <i class="fas fa-check me-1"></i> Save Changes
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+function previewOrgLogo(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const preview = document.getElementById('orgLogoPreview');
+      const placeholder = document.getElementById('orgLogoPlaceholder');
+      if (preview) {
+        preview.src = e.target.result;
+        preview.classList.remove('d-none');
+      }
+      if (placeholder) {
+        placeholder.classList.add('d-none');
+      }
+    }
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function handleOrgSubmit(form) {
+  var btn = form.querySelector('.org-submit-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving & Updating...';
+  }
+  return true;
+}
+</script>

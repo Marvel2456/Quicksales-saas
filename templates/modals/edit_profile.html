@@ -7,20 +7,20 @@
         <h5 class="modal-title" id="editProfileModalLabel">Edit Profile</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="post" action="{% url 'update_profile' %}" enctype="multipart/form-data">
+      <form method="post" action="{% url 'update_profile' %}" enctype="multipart/form-data" onsubmit="handleProfileSubmit(this)">
         {% csrf_token %}
         <div class="modal-body">
           <div class="mb-3">
             <label for="profile_picture" class="form-label">Profile Picture</label>
             <div class="mb-2">
               {% if request.user.profile_picture %}
-                <img src="{{ request.user.profile_picture.url }}" alt="Profile" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                <img id="profilePicturePreview" src="{{ request.user.profile_picture.url }}" alt="Profile" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
               {% else %}
-                <img src="{% static 'assets/images/user.png' %}" alt="Profile" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                <img id="profilePicturePreview" src="{% static 'assets/images/user.png' %}" alt="Profile" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
               {% endif %}
             </div>
-            <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*">
-            <div class="form-text">Upload a profile picture (JPG, PNG, GIF)</div>
+            <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*" onchange="previewProfilePic(this)">
+            <div class="form-text">Upload a profile picture (JPG, PNG, GIF) &mdash; auto-optimized to WebP</div>
           </div>
           <div class="mb-3">
             <label for="first_name" class="form-label">First Name</label>
@@ -42,9 +42,33 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn app-btn-primary">Save Changes</button>
+          <button type="submit" class="btn app-btn-primary profile-submit-btn">
+            <i class="fas fa-check me-1"></i> Save Changes
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+function previewProfilePic(input) {
+  if (input.files && input.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = document.getElementById('profilePicturePreview');
+      if (img) img.src = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function handleProfileSubmit(form) {
+  var btn = form.querySelector('.profile-submit-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving & Updating...';
+  }
+  return true;
+}
+</script>

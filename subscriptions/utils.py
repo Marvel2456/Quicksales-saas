@@ -19,6 +19,26 @@ def has_active_subscription(organization):
     return subscription is not None
 
 
+def has_online_store_access(organization):
+    """
+    Check if the organization has access to the online store feature
+    based on their active subscription plan or trial status.
+    """
+    if not organization:
+        return False
+
+    subscription = get_active_subscription(organization)
+    if subscription and subscription.plan:
+        return bool(subscription.plan.has_online_store)
+
+    if organization.trial_start and organization.trial_end:
+        now = timezone.now()
+        if organization.trial_start <= now <= organization.trial_end:
+            return True
+
+    return False
+
+
 def get_plan_limits(organization):
     """Get the plan limits for an organization's active subscription."""
     subscription = get_active_subscription(organization)

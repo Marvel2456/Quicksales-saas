@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmed — {{ store_name }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+        }
+        .wrapper {
+            width: 100%;
+            background-color: #f1f5f9;
+            padding: 40px 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+        .header {
+            background-color: {{ brand_color|default:'#2563eb' }};
+            color: #ffffff;
+            padding: 36px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 32px 30px;
+        }
+        .order-badge {
+            display: inline-block;
+            background-color: #ecfdf5;
+            color: #059669;
+            font-weight: 700;
+            font-size: 12px;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #0f172a;
+        }
+        .intro-text {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .order-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .order-box-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .items-table th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .items-table td {
+            padding: 12px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .item-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .item-qty {
+            color: #64748b;
+            font-size: 13px;
+        }
+        .total-row td {
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+            border-top: 2px solid #e2e8f0;
+            border-bottom: none;
+            padding-top: 14px;
+        }
+        .shipping-grid {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #475569;
+            line-height: 1.5;
+        }
+        .btn {
+            display: inline-block;
+            background-color: {{ brand_color|default:'#2563eb' }};
+            color: #ffffff !important;
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 9999px;
+            text-align: center;
+            margin: 10px 0 24px;
+        }
+        .footer {
+            background-color: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 24px 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .footer a {
+            color: {{ brand_color|default:'#2563eb' }};
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <!-- Brand Header -->
+            <div class="header">
+                <h1>{{ store_name }}</h1>
+                <p>Order Confirmation</p>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content">
+                <span class="order-badge">✓ Payment Confirmed</span>
+                <div class="greeting">Hello {{ buyer_name }},</div>
+                <p class="intro-text">
+                    Thank you for shopping with <strong>{{ store_name }}</strong>! Your order <strong>#{{ order_number }}</strong> has been received and confirmed.
+                </p>
+
+                <!-- Order Summary Box -->
+                <div class="order-box">
+                    <div class="order-box-title">Order Items & Summary</div>
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th style="text-align: center;">Qty</th>
+                                <th style="text-align: right;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="item-name">{{ item.product_name }}</div>
+                                    <div class="item-qty">{{ currency }} {{ item.unit_price }} each</div>
+                                </td>
+                                <td style="text-align: center; font-weight: 600;">{{ item.quantity }}</td>
+                                <td style="text-align: right; font-weight: 600;">{{ currency }} {{ item.total_price }}</td>
+                            </tr>
+                            {% endfor %}
+
+                            {% if discount_amount and discount_amount > 0 %}
+                            <tr>
+                                <td colspan="2" style="color: #059669; font-weight: 600;">Discount Saved</td>
+                                <td style="text-align: right; color: #059669; font-weight: 600;">- {{ currency }} {{ discount_amount }}</td>
+                            </tr>
+                            {% endif %}
+
+                            <tr class="total-row">
+                                <td colspan="2">Total Paid:</td>
+                                <td style="text-align: right;">{{ currency }} {{ total_amount }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Shipping & Delivery Box -->
+                <div class="order-box">
+                    <div class="order-box-title">Delivery Details</div>
+                    <div class="shipping-grid">
+                        <p style="margin: 0 0 6px;"><strong>Recipient:</strong> {{ buyer_name }} ({{ buyer_phone }})</p>
+                        <p style="margin: 0 0 6px;"><strong>Address:</strong> {{ shipping_address }}</p>
+                        {% if customer_notes %}
+                        <p style="margin: 0;"><strong>Delivery Notes:</strong> {{ customer_notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Receipt CTA Button -->
+                {% if receipt_url %}
+                <div style="text-align: center;">
+                    <a href="{{ receipt_url }}" class="btn">View Online Receipt</a>
+                </div>
+                {% endif %}
+
+                <p style="font-size: 13px; color: #64748b; margin-top: 10px;">
+                    If you have any questions regarding your order, you can reply directly to this email or contact {{ store_name }}.
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p style="margin: 0 0 6px;">Sent by <strong>{{ store_name }}</strong> via Marvex Quicksales.</p>
+                <p style="margin: 0;">© {% now "Y" %} {{ store_name }}. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

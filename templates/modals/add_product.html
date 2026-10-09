@@ -1,79 +1,134 @@
-
 <!-- Modal -->
 <div class="modal fade" {% block modal-id %} id="addProductModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title" id="addProductModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Add Product{% endblock modal-title %}</h6>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom-0 pb-0">
+        <h6 class="modal-title fw-bold" id="addProductModalLabel">{% block modal-title %}<i class="fas fa-plus text-primary me-2"></i>Add Product{% endblock modal-title %}</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <!--Forms begins-->
-      <form {% block Action %} action="{% url 'products' branch.id %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
+      <form {% block Action %} action="{% url 'products' branch.id %}" {% endblock Action %} method="POST" class="p-3 pt-2" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <div class="modal-body">
+        <div class="modal-body py-2">
 
         <!--==Block Id==-->
         {% block Value-id %}  {% endblock Value-id %}
 
           <div class="mb-3">
-            <label for="product_name" class="form-label">Product</label>
-            <input name="product_name" type="text" class="form-control" placeholder="Product Name" required {% block Value-product_name %} {% endblock Value-product_name %}>
-            <div class="m-3" style="color:red;">{{form.product_name.errors}}</div>
+            <label for="product_name" class="form-label small fw-bold">Product Name <span class="text-danger">*</span></label>
+            <input name="product_name" type="text" class="form-control" placeholder="e.g. Silk Summer Dress" required {% block Value-product_name %} {% endblock Value-product_name %}>
+            <div class="m-1" style="color:red;">{{form.product_name.errors}}</div>
           </div>
 
           <div class="mb-3">
-            <label for="product_code" class="form-label">Product Code / Barcode</label>
-            <input name="product_code" type="text" class="form-control" placeholder="Product Code or Scan Barcode (Optional)" {% block Value-product_code %} {% endblock Value-product_code %}>
-            <div class="m-3" style="color:red;">{{form.product_code.errors}}</div>
+            <label for="product_code" class="form-label small fw-bold">Product Code / Barcode</label>
+            <input name="product_code" type="text" class="form-control" placeholder="Leave blank to auto-generate" {% block Value-product_code %} {% endblock Value-product_code %}>
+            <div class="m-1" style="color:red;">{{form.product_code.errors}}</div>
           </div>
 
           <div class="mb-3">
-            <label for="category" class="form-label">Category</label>
+            <label for="category" class="form-label small fw-bold">Category <span class="text-danger">*</span></label>
             {{form.category}}
-            {% comment %} <select id="id_category" name="category" class="form-select form-select-sm rounded-0" required {% block Value-category %} {% endblock Value-category %}>
-            {% if not products.category %}
-            <option value="" disabled selected>Select Category</option>
-            {% else %}
-            <option value="" disabled></option>
-            {% endif %}
-            {% for category in category %}
-                {% if products.category == category.id %}
-                <option value="{{ category.id }}" selected>{{ category.category_name }}</option>
-                {% else %}
-                <option value="{{ category.id }}">{{ category.category_name }}</option>
-                {% endif %}
-            {% endfor %}
-            </select> {% endcomment %}
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label for="brand" class="form-label small fw-bold">Brand <span class="text-danger">*</span></label>
+              <input name="brand" type="text" class="form-control" placeholder="Brand" required {% block Value-brand %} {% endblock Value-brand %}>
+            </div>
+            <div class="col-6">
+              <label for="unit" class="form-label small fw-bold">Unit</label>
+              <input name="unit" type="text" class="form-control" placeholder="e.g. pcs, kg, box" {% block Value-unit %} {% endblock Value-unit %}>
+            </div>
           </div>
 
           <div class="mb-3">
-            <label for="brand" class="form-label">Brand</label>
-            <input name="brand" type="text" class="form-control" placeholder="Brand" required {% block Value-brand %} {% endblock Value-brand %}>
-          </div>
-
-          <div class="mb-3">
-            <label for="unit" class="form-label">Unit</label>
-            <input name="unit" type="text" class="form-control" placeholder="Unit" {% block Value-unit %} {% endblock Value-unit %}>
-          </div>
-
-          <div class="mb-3">
-            <label for="batch_no" class="form-label">Batch No</label>
+            <label for="batch_no" class="form-label small fw-bold">Batch No (Optional)</label>
             <input name="batch_no" type="text" class="form-control" placeholder="Batch No" {% block Value-batch_no %} {% endblock Value-batch_no %}>
           </div>
-          <div class="mt-4 text-center" style="width:100%;">
-            <button type="submit" class="btn btn-secondary">
-              {% block Btn-action %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Add Product{% endblock Btn-action %}
-            </button>
-            
-            <button type="reset" class="btn btn-secondary" title="Reset">
-              <i class="fas fa-sync-alt"></i>
+
+          <!-- Product Photos (Online Store Only) -->
+          <div class="p-3 bg-light rounded-3 border mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold small"><i class="bi bi-images text-primary me-1"></i> Storefront Photos</span>
+              <span class="badge bg-info text-white" style="font-size: 0.72rem;">Online Store Only</span>
+            </div>
+            <p class="text-muted small mb-3" style="font-size: 0.78rem;">
+              Upload up to 3 photos (main thumbnail + 2 detail/angle shots). Converted to optimized WebP.
+            </p>
+
+            <!-- Image 1: Main Photo -->
+            <div class="mb-2">
+              <label class="form-label small text-muted mb-1">1. Primary Product Image (Main Thumbnail)</label>
+              <input name="image" id="product_image" type="file" class="form-control form-control-sm" accept="image/*" onchange="previewAddProductImage(this, 'addPrimaryPreviewContainer', 'addPrimaryPreview')">
+              <div id="addPrimaryPreviewContainer" class="mt-2 d-none">
+                <img id="addPrimaryPreview" src="" alt="Primary Preview" class="img-thumbnail rounded-3" style="max-height: 90px; object-fit: contain;">
+              </div>
+            </div>
+
+            <!-- Image 2: Detail Photo -->
+            <div class="mb-2">
+              <label class="form-label small text-muted mb-1">2. Detail / Angle Photo 2 (Optional Secondary Image)</label>
+              <input name="image_detail" id="product_image_detail" type="file" class="form-control form-control-sm" accept="image/*" onchange="previewAddProductImage(this, 'addDetailPreviewContainer', 'addDetailPreview')">
+              <div id="addDetailPreviewContainer" class="mt-2 d-none">
+                <img id="addDetailPreview" src="" alt="Detail Preview" class="img-thumbnail rounded-3" style="max-height: 90px; object-fit: contain;">
+              </div>
+            </div>
+
+            <!-- Image 3: Extra Detail Photo -->
+            <div>
+              <label class="form-label small text-muted mb-1">3. Detail / Angle Photo 3 (Optional Extra Image)</label>
+              <input name="image_extra" id="product_image_extra" type="file" class="form-control form-control-sm" accept="image/*" onchange="previewAddProductImage(this, 'addExtraPreviewContainer', 'addExtraPreview')">
+              <div id="addExtraPreviewContainer" class="mt-2 d-none">
+                <img id="addExtraPreview" src="" alt="Extra Preview" class="img-thumbnail rounded-3" style="max-height: 90px; object-fit: contain;">
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" id="addProductSubmitBtn" class="btn app-btn-primary rounded-pill px-4 fw-bold d-inline-flex align-items-center">
+              <span class="btn-text">{% block Btn-action %}<i class="fas fa-plus me-1"></i> Add Product{% endblock Btn-action %}</span>
+              <span class="spinner-border spinner-border-sm d-none ms-2" role="status" aria-hidden="true"></span>
             </button>
           </div>
         </div>
-      </div>
       </form>
       <!--Form ends-->
     </div>
   </div>
 </div>
+
+<script>
+function previewAddProductImage(input, containerId, previewId) {
+  var container = document.getElementById(containerId);
+  var preview = document.getElementById(previewId);
+  if (input.files && input.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+      container.classList.remove('d-none');
+    };
+    reader.readAsDataURL(input.files[0]);
+  } else {
+    container.classList.add('d-none');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.querySelector('#addProductModal form');
+  if (form) {
+    form.addEventListener('submit', function() {
+      var btn = document.getElementById('addProductSubmitBtn');
+      if (btn) {
+        btn.disabled = true;
+        var text = btn.querySelector('.btn-text');
+        var spinner = btn.querySelector('.spinner-border');
+        if (text) text.textContent = 'Saving & Uploading...';
+        if (spinner) spinner.classList.remove('d-none');
+      }
+    });
+  }
+});
+</script>

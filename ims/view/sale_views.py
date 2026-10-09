@@ -691,7 +691,7 @@ def export_sales_csv(request, pk):
     )
     
     for sale in sale_qs:
-        writer.writerow([sale.staff, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
+        writer.writerow([sale.sales_rep_name, sale.transaction_id, sale.date_updated, sale.get_cart_items, sale.final_total_price, sale.total_profit])
     
     return response
 
@@ -719,7 +719,7 @@ def export_profit_csv(request, pk):
     total_profits = metrics['total_profit']
     
     for s in sale:
-        writer.writerow([s.staff, s.transaction_id, s.date_updated, s.get_cart_items, s.final_total_price, s.total_profit])
+        writer.writerow([s.sales_rep_name, s.transaction_id, s.date_updated, s.get_cart_items, s.final_total_price, s.total_profit])
         
     writer.writerow(['Total Profit'])
     if total_profits:

@@ -86,7 +86,7 @@ def product_category(request, pk):
     
     form = ProductForm(organization=organization, branch=branch)
     if request.method == "POST":
-        form = ProductForm(request.POST, organization=organization, branch=branch)
+        form = ProductForm(request.POST, request.FILES, organization=organization, branch=branch)
         if form.is_valid():
             product_instance = form.save(commit=False)
             product_instance.branch = branch
@@ -133,7 +133,7 @@ def edit_product(request, pk):
     )
 
     if request.method == 'POST':
-        form = EditProductForm(request.POST, instance=product, organization=organization, branch=product.branch)
+        form = EditProductForm(request.POST, request.FILES, instance=product, organization=organization, branch=product.branch)
         if form.is_valid():
             updated_product = form.save()
             messages.success(request, 'Successfully updated')
@@ -411,7 +411,10 @@ def upload_product(request):
                         brand=brand,
                         unit=unit,
                         batch_no=batch_no,
-                        product_code=product_code
+                        product_code=product_code,
+                        image=data.get('image'),
+                        image_detail=data.get('image_detail'),
+                        image_extra=data.get('image_extra')
                     )
                     product.save()
                     created = True
@@ -421,6 +424,12 @@ def upload_product(request):
                     product.brand = brand
                     product.unit = unit
                     product.batch_no = batch_no
+                    if data.get('image'):
+                        product.image = data.get('image')
+                    if data.get('image_detail'):
+                        product.image_detail = data.get('image_detail')
+                    if data.get('image_extra'):
+                        product.image_extra = data.get('image_extra')
                     if data.get('product_code', '').strip():
                         product.product_code = data.get('product_code').strip()
                     product.save()

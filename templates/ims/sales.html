@@ -58,11 +58,16 @@
             </div><!--//col-auto-->
         </div><!--//row-->
         
-        <div class="col-auto pb-2 d-flex gap-2">
+        <div class="col-auto pb-2 d-flex flex-wrap gap-2 align-items-center">
             <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' branch.id %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">Export Filtered CSV</a>
             <a type="submit" class="btn app-btn-secondary" href="{% url 'export_sales' branch.id %}">Export All CSV</a>
             <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' branch.id %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">Export Filtered PDF</a>
             <a type="submit" class="btn app-btn-secondary" href="{% url 'sale-pdf' branch.id %}">Export All PDF</a>
+            {% if request.organization.slug %}
+            <button type="button" class="btn btn-outline-primary" onclick="copyStoreUrl('{{ request.scheme }}://{{ request.get_host }}{% url 'storefront' request.organization.slug %}')">
+                <i class="bi bi-share me-1"></i> Share Store Link
+            </button>
+            {% endif %}
         </div>  
         {% comment %} <div class="col-auto pb-2">
            
@@ -90,7 +95,15 @@
                                 <tbody>
                                     {% for sale in sale_page %}
                                     <tr>
-                                        <td class="cell">{{sale.staff.first_name}}</td>
+                                        <td class="cell">
+                                            {% if sale.staff %}
+                                                {{ sale.staff.first_name|default:sale.staff.email }}
+                                            {% else %}
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                                    <i class="bi bi-globe me-1"></i>Online
+                                                </span>
+                                            {% endif %}
+                                        </td>
                                         <td class="cell"><span class="truncate">{{sale.transaction_id}}</span></td>
                                         <td class="cell">
                                             {% if sale.cancelled %}
@@ -141,4 +154,12 @@
         </div><!--//tab-content-->             
     </div><!--//container-fluid-->
 </div><!--//app-content-->
+
+<script>
+function copyStoreUrl(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        alert("Store link copied to clipboard! You can share this with your buyers.");
+    });
+}
+</script>
 {% endblock content %}

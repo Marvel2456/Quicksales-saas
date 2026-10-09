@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Online Orders{% endblock %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h1 class="app-page-title mb-1">Incoming Online Orders</h1>
+                <div class="text-muted small">Review, confirm, dispatch, and track orders from your online storefront.</div>
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Status Filter Tabs -->
+        <div class="d-flex gap-2 overflow-auto mb-4 pb-2 text-nowrap">
+            <a href="{% url 'vendor_order_list' %}" class="btn {% if not status_filter %}btn-primary text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1.5 btn-sm fw-semibold">
+                All Orders ({{ counts.all }})
+            </a>
+            <a href="{% url 'vendor_order_list' %}?status=pending" class="btn {% if status_filter == 'pending' %}btn-warning text-dark{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1.5 btn-sm fw-semibold">
+                Pending Review ({{ counts.pending }})
+            </a>
+            <a href="{% url 'vendor_order_list' %}?status=confirmed" class="btn {% if status_filter == 'confirmed' %}btn-primary text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1.5 btn-sm fw-semibold">
+                Confirmed ({{ counts.confirmed }})
+            </a>
+            <a href="{% url 'vendor_order_list' %}?status=dispatched" class="btn {% if status_filter == 'dispatched' %}btn-info text-dark{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1.5 btn-sm fw-semibold">
+                Dispatched ({{ counts.dispatched }})
+            </a>
+            <a href="{% url 'vendor_order_list' %}?status=delivered" class="btn {% if status_filter == 'delivered' %}btn-success text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1.5 btn-sm fw-semibold">
+                Delivered ({{ counts.delivered }})
+            </a>
+            <a href="{% url 'vendor_order_list' %}?status=cancelled" class="btn {% if status_filter == 'cancelled' %}btn-danger text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1.5 btn-sm fw-semibold">
+                Cancelled ({{ counts.cancelled }})
+            </a>
+        </div>
+
+        <div class="app-card shadow-sm mb-4 rounded-3 border-0 overflow-hidden bg-white">
+            <div class="table-responsive">
+                <table class="table app-table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="cell py-3 ps-3">Order #</th>
+                            <th class="cell py-3">Customer</th>
+                            <th class="cell py-3">Items</th>
+                            <th class="cell py-3">Total</th>
+                            <th class="cell py-3">Status</th>
+                            <th class="cell py-3">Date</th>
+                            <th class="cell py-3 text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td class="cell ps-3">
+                                <a href="{% url 'vendor_order_detail' order.id %}" class="fw-bold text-decoration-none font-monospace text-primary">
+                                    #{{ order.order_number }}
+                                </a>
+                            </td>
+                            <td class="cell">
+                                <div class="fw-semibold text-dark">{{ order.buyer_name }}</div>
+                                <small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ order.buyer_phone }}</small>
+                            </td>
+                            <td class="cell">
+                                <span class="badge bg-light text-dark border">{{ order.items.count }} item{{ order.items.count|pluralize }}</span>
+                            </td>
+                            <td class="cell fw-bold text-dark">
+                                {% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ order.total_amount|floatformat:2|intcomma }}
+                            </td>
+                            <td class="cell">
+                                <span class="badge {% if order.status == 'confirmed' %}bg-primary{% elif order.status == 'dispatched' %}bg-info text-dark{% elif order.status == 'delivered' %}bg-success{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-warning text-dark{% endif %} rounded-pill px-3 py-1.5">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="cell text-muted small">
+                                {{ order.created_at|date:"M d, Y · h:i A" }}
+                            </td>
+                            <td class="cell text-end pe-3">
+                                <a href="{% url 'vendor_order_detail' order.id %}" class="btn btn-sm app-btn-secondary rounded-pill px-3 fw-semibold">
+                                    Fulfill Order <i class="bi bi-arrow-right ms-1"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox display-4 d-block mb-3 opacity-40"></i>
+                                <h6 class="fw-bold mb-1">No orders found</h6>
+                                <p class="small text-muted mb-0">Orders placed by customers on your public storefront will appear here.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

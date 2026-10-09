@@ -1,0 +1,354 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>{{ listing.display_title }} — {{ organization.name }}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-primary: {{ store.get_brand_color|default:organization.brand_color|default:'#2563eb' }};
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+        .store-header {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .product-gallery-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            overflow: hidden;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .product-gallery-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.25s ease-in-out;
+        }
+        .gallery-thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: 14px;
+            border: 2px solid transparent;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #ffffff;
+            padding: 2px;
+        }
+        .gallery-thumb:hover {
+            transform: translateY(-2px);
+        }
+        .gallery-thumb.active {
+            border-color: var(--brand-primary);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+        .product-info-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 2.5rem;
+        }
+        .btn-qty {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            font-weight: 700;
+        }
+        .qty-input {
+            width: 60px;
+            text-align: center;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="store-header py-3">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a href="{% url 'storefront' organization.slug %}" class="d-flex align-items-center gap-2 text-decoration-none text-dark">
+                <i class="bi bi-arrow-left fs-5"></i>
+                <span class="fw-bold">Back to Store</span>
+            </a>
+
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'store_checkout' organization.slug %}" class="btn btn-primary rounded-pill px-3 d-flex align-items-center gap-2" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
+                    <i class="bi bi-bag"></i>
+                    <span class="badge bg-white text-dark rounded-pill cart-badge">{{ cart_count }}</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container my-5">
+        <div class="row g-4 align-items-start">
+            <!-- Product Gallery (Multi-Image Support) -->
+            <div class="col-lg-6">
+                <div class="product-gallery-card shadow-sm mb-3">
+                    {% if listing.get_images %}
+                    <img id="mainGalleryImg" src="{{ listing.get_images.0 }}" alt="{{ listing.display_title }}" class="product-gallery-img">
+                    {% else %}
+                    <div class="text-muted text-center p-5">
+                        <i class="bi bi-box-seam display-1 opacity-25 d-block mb-3"></i>
+                        <span class="fw-semibold">No Image Available</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Gallery Thumbnails (if multiple images) -->
+                {% if listing.get_images|length > 1 %}
+                <div class="d-flex align-items-center gap-2.5 overflow-auto pb-2">
+                    {% for img_url in listing.get_images %}
+                    <img src="{{ img_url }}" alt="Angle {{ forloop.counter }}" 
+                         class="gallery-thumb border {% if forloop.first %}active{% endif %}" 
+                         onclick="switchMainImage('{{ img_url }}', this)">
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Product Details -->
+            <div class="col-lg-6">
+                <div class="product-info-card shadow-sm">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-light text-dark text-uppercase fw-bold rounded-pill px-3 py-2 border">
+                            {{ listing.inventory.product.category.category_name|default:'General Item' }}
+                        </span>
+                        {% if listing.featured %}
+                        <span class="badge bg-warning text-dark fw-bold rounded-pill px-3 py-2">
+                            <i class="bi bi-star-fill me-1"></i> Featured
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <h1 class="h3 fw-bold mb-3 text-dark">{{ listing.display_title }}</h1>
+
+                    <div class="d-flex align-items-baseline gap-3 mb-4">
+                        <span class="display-6 fw-bold text-dark">
+                            {% if organization.country and organization.country.lower != 'nigeria' %}
+                            ${{ listing.display_price|floatformat:2|intcomma }}
+                            {% else %}
+                            ₦{{ listing.display_price|floatformat:2|intcomma }}
+                            {% endif %}
+                        </span>
+                        {% if listing.is_in_stock %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-bold">
+                            <i class="bi bi-check2-circle me-1"></i> {{ listing.stock_quantity }} in stock
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-2 fw-bold">
+                            Out of Stock
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-4 text-muted opacity-25">
+
+                    <!-- Quantity & Action -->
+                    {% if listing.is_in_stock %}
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Quantity</label>
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <button type="button" class="btn-qty" onclick="changeQty(-1)">-</button>
+                            <input type="number" id="buyQty" class="qty-input py-2" value="1" min="1" max="{{ listing.stock_quantity }}">
+                            <button type="button" class="btn-qty" onclick="changeQty(1)">+</button>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button onclick="addSelectedQty()" class="btn btn-primary btn-lg rounded-pill fw-bold py-3" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
+                                <i class="bi bi-bag-plus me-2"></i> Add to Bag
+                            </button>
+                            <a href="{% url 'store_checkout' organization.slug %}" class="btn btn-dark btn-lg rounded-pill fw-bold py-3">
+                                Buy Now
+                            </a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mb-4">
+                        <button class="btn btn-light btn-lg rounded-pill fw-bold py-3 w-100 text-muted" disabled>
+                            Currently Out of Stock
+                        </button>
+                    </div>
+                    {% endif %}
+
+                    <!-- Description -->
+                    <div class="mt-4">
+                        <h6 class="fw-bold text-uppercase text-muted small">Description</h6>
+                        <p class="text-secondary mb-0" style="line-height: 1.7;">
+                            {{ listing.custom_description|default:listing.inventory.product.brand|default:'Quality guaranteed item from our direct inventory.' }}
+                        </p>
+                    </div>
+
+                    <!-- Vendor Contact Support -->
+                    <div class="bg-light rounded-4 p-3 mt-4 d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted d-block">Questions about this product?</small>
+                            <span class="fw-bold">{{ organization.name }}</span>
+                        </div>
+                        {% if store.whatsapp_number %}
+                        <a href="https://wa.me/{{ store.whatsapp_number }}?text=Hi,%20I%20am%20interested%20in%20{{ listing.display_title }}" target="_blank" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">
+                            <i class="bi bi-whatsapp me-1"></i> WhatsApp
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Items -->
+        {% if related_listings %}
+        <div class="mt-5 pt-4">
+            <h4 class="fw-bold mb-4">You May Also Like</h4>
+            <div class="row g-4">
+                {% for item in related_listings %}
+                <div class="col-lg-3 col-sm-6">
+                    <div class="card h-100 rounded-4 border p-3 bg-white shadow-sm">
+                        <a href="{% url 'product_detail' organization.slug item.id %}" class="text-decoration-none text-dark">
+                            {% if item.get_image_url %}
+                            <img src="{{ item.get_image_url }}" alt="" class="rounded-3 w-100 mb-2" style="aspect-ratio: 1/1; object-fit: cover;">
+                            {% endif %}
+                            <h6 class="fw-bold text-truncate mb-1">{{ item.display_title }}</h6>
+                            <div class="fw-bold text-primary">
+                                {% if organization.country and organization.country.lower != 'nigeria' %}
+                                ${{ item.display_price|floatformat:2|intcomma }}
+                                {% else %}
+                                ₦{{ item.display_price|floatformat:2|intcomma }}
+                                {% endif %}
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-top py-4 mt-5">
+        <div class="container text-center text-muted small">
+            <p class="mb-0">&copy; {{ organization.name }} {% now "Y" %}. Powered by Quicksales.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification Container -->
+    <div id="storeToastContainer" style="position: fixed; bottom: 28px; right: 28px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; max-width: 380px; width: calc(100% - 32px);"></div>
+
+    <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script>
+        const maxQty = {{ listing.inventory.quantity_available|default:1 }};
+        const CHECKOUT_URL = "{% url 'store_checkout' organization.slug %}";
+
+        function switchMainImage(url, thumbEl) {
+            const mainImg = document.getElementById('mainGalleryImg');
+            if (mainImg) {
+                mainImg.style.opacity = '0.5';
+                setTimeout(() => {
+                    mainImg.src = url;
+                    mainImg.style.opacity = '1';
+                }, 150);
+            }
+            document.querySelectorAll('.gallery-thumb').forEach(el => el.classList.remove('active'));
+            if (thumbEl) thumbEl.classList.add('active');
+        }
+
+        function changeQty(delta) {
+            const el = document.getElementById('buyQty');
+            let val = parseInt(el.value || 1) + delta;
+            if (val < 1) val = 1;
+            if (val > maxQty) val = maxQty;
+            el.value = val;
+        }
+
+        function showStoreToast(message, isError = false, showCheckoutBtn = true) {
+            const container = document.getElementById('storeToastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `p-3 rounded-4 shadow-lg border text-white d-flex align-items-center justify-content-between gap-3`;
+            toast.style.backgroundColor = isError ? '#ef4444' : '#0f172a';
+            toast.style.borderColor = isError ? '#dc2626' : '#334155';
+            toast.style.animation = 'toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+            toast.style.transition = 'all 0.3s ease';
+
+            toast.innerHTML = `
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; background: ${isError ? 'rgba(255,255,255,0.2)' : 'rgba(34,197,94,0.2)'}; color: ${isError ? '#ffffff' : '#22c55e'};">
+                        <i class="bi ${isError ? 'bi-exclamation-triangle-fill' : 'bi-bag-check-fill'} fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold small lh-sm">${isError ? 'Notice' : 'Added to Bag'}</div>
+                        <div class="small opacity-75" style="font-size: 0.82rem;">${message}</div>
+                    </div>
+                </div>
+                ${!isError && showCheckoutBtn ? `
+                    <a href="${CHECKOUT_URL}" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold flex-shrink-0" style="background-color: var(--brand-primary); border-color: var(--brand-primary); font-size: 0.8rem;">
+                        View Bag &rarr;
+                    </a>
+                ` : ''}
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(12px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function addSelectedQty() {
+            const qty = parseInt(document.getElementById('buyQty').value || 1);
+            fetch("{% url 'store_add_to_cart' organization.slug %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    listing_id: "{{ listing.id }}",
+                    quantity: qty
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.querySelectorAll('.cart-badge').forEach(el => el.textContent = data.cart_count);
+                    showStoreToast(data.message || `Added ${qty} item(s) to your shopping bag.`);
+                } else {
+                    showStoreToast(data.message || "Unable to add to bag.", true);
+                }
+            })
+            .catch(err => {
+                showStoreToast("Network error adding to bag.", true);
+            });
+        }
+    </script>
+</body>
+</html>

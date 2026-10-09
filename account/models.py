@@ -55,6 +55,14 @@ class Organization(models.Model):
     trial_start = models.DateTimeField(blank=True, null=True)
     trial_end = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True, db_index=True)
+    default_branch = models.ForeignKey(
+        'account.Branch',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='default_for_organizations',
+        help_text='The branch whose inventory is used for the online store.'
+    )
 
     class Meta:
         verbose_name_plural = "organizations"
@@ -71,6 +79,11 @@ class Organization(models.Model):
 
     def get_absolute_url(self):
         return reverse('org_login', kwargs={'org_slug': self.slug})
+
+    def get_store_url(self):
+        if self.slug:
+            return reverse('storefront', kwargs={'org_slug': self.slug})
+        return ""
 
     def save(self, *args, **kwargs):
         if not self.slug and self.name:

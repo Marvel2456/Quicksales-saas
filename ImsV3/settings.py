@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'subscriptions.apps.SubscriptionsConfig',
     'pages.apps.PagesConfig',
     'intelligence.apps.IntelligenceConfig',
+    'store.apps.StoreConfig',
     'simple_history',
     'anymail',
 ]
@@ -140,7 +141,14 @@ UNFOLD = {
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-if config('DB_NAME', default=None):
+if 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+elif config('DB_NAME', default=None):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -202,29 +210,37 @@ CELERY_BEAT_SCHEDULE = {
 # ============================================================================
 # CACHING CONFIGURATION - Redis Cache for Performance
 # ============================================================================
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
-            },
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,  # Don't crash if Redis is down
-        },
-        'KEY_PREFIX': 'quicksales',
-        'TIMEOUT': 300,  # Default 5-minute cache timeout
+if 'test' in sys.argv:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
     }
-}
-
-# Cache sessions in Redis (reduces database load)
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 50,
+                    'retry_on_timeout': True,
+                },
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                'IGNORE_EXCEPTIONS': True,  # Don't crash if Redis is down
+            },
+            'KEY_PREFIX': 'quicksales',
+            'TIMEOUT': 300,  # Default 5-minute cache timeout
+        }
+    }
+    # Cache sessions in Redis (reduces database load)
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    SESSION_CACHE_ALIAS = 'default'
 
 # ============================================================================
 # CACHE TIMEOUT SETTINGS (in seconds)
@@ -307,8 +323,70 @@ WHITENOISE_MANIFEST_STRICT = False
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
-CLOUDINARY_URL = config('CLOUDINARY_URL', default='')
+# Cloudinary Media Storage Settings
+import urllib.parse
+import cloudinary
+from decouple import RepositoryEnv
+
+def _read_env_val(key):
+    val = config(key, default='').strip()
+    if not val:
+        env_file_path = BASE_DIR / '.env'
+        if env_file_path.exists():
+            try:
+                repo_env = RepositoryEnv(str(env_file_path))
+                val = repo_env.data.get(key, '').strip()
+            except Exception:
+                pass
+    return val
+
+CLOUDINARY_URL = _read_env_val('CLOUDINARY_URL')
+CLOUDINARY_CLOUD_NAME = _read_env_val('CLOUDINARY_CLOUD_NAME')
+CLOUDINARY_API_KEY = _read_env_val('CLOUDINARY_API_KEY')
+CLOUDINARY_API_SECRET = _read_env_val('CLOUDINARY_API_SECRET')
+
 if CLOUDINARY_URL:
+    try:
+        parsed_cld = urllib.parse.urlsplit(CLOUDINARY_URL)
+        if parsed_cld.username:
+            CLOUDINARY_API_KEY = parsed_cld.username
+        if parsed_cld.password:
+            CLOUDINARY_API_SECRET = parsed_cld.password
+        if parsed_cld.hostname:
+            CLOUDINARY_CLOUD_NAME = parsed_cld.hostname
+        os.environ['CLOUDINARY_URL'] = CLOUDINARY_URL
+    except Exception:
+        pass
+
+CLOUDINARY_STORAGE = {
+    'PREFIX': 'media/',
+}
+
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    CLOUDINARY_STORAGE.update({
+        'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+        'API_KEY': CLOUDINARY_API_KEY,
+        'API_SECRET': CLOUDINARY_API_SECRET,
+    })
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,
+    )
+
+# Primary Media Storage Configuration
+if 'test' in sys.argv:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+elif CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
     STORAGES = {
         'default': {
             'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
@@ -317,6 +395,17 @@ if CLOUDINARY_URL:
             'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
         },
     }
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+else:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
@@ -338,8 +427,17 @@ LOGIN_URL = 'login'  # Points to account:login URL
 # }
 
 
-SQUAD_PUBLIC_KEY = config('SQUAD_PUBLIC_KEY', default='')
-SQUAD_SECRET_KEY = config('SQUAD_SECRET_KEY', default='')
+_raw_squad_pk = config('SQUAD_PUBLIC_KEY', default='').strip()
+_raw_squad_sk = config('SQUAD_SECRET_KEY', default='').strip()
+
+if (_raw_squad_pk.startswith('sandbox_sk_') or _raw_squad_pk.startswith('live_sk_') or _raw_squad_pk.startswith('sk_')) and \
+   (_raw_squad_sk.startswith('sandbox_pk_') or _raw_squad_sk.startswith('live_pk_') or _raw_squad_sk.startswith('pk_')):
+    SQUAD_PUBLIC_KEY = _raw_squad_sk
+    SQUAD_SECRET_KEY = _raw_squad_pk
+else:
+    SQUAD_PUBLIC_KEY = _raw_squad_pk
+    SQUAD_SECRET_KEY = _raw_squad_sk
+
 SQUAD_MERCHANT_ID = config('SQUAD_MERCHANT_ID', default='')
 SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='https://sandbox-api-d.squadco.com')
 
@@ -407,7 +505,10 @@ SESSION_COOKIE_AGE = 1800  # 30 minutes in seconds
 SESSION_SAVE_EVERY_REQUEST = True  # Refresh expiry on each request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Expire session when browser closes
 
-if ENV == 'production':
+if 'test' in sys.argv:
+    SECURE_SSL_REDIRECT = False
+    ALLOWED_HOSTS = ['*']
+elif ENV == 'production':
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', cast=bool, default=True)
     

@@ -31,12 +31,14 @@ class Plan(models.Model):
     size = models.CharField(max_length=20, choices=SIZE_CHOICES, default='starter')
     billing_frequency = models.CharField(max_length=20, choices=BILLING_FREQUENCY_CHOICES, default='monthly')
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    price_usd = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     duration_in_days = models.PositiveIntegerField(default=30)
     description = models.TextField(blank=True, null=True)
     max_users = models.IntegerField(default=1)
     max_branches = models.IntegerField(default=1, blank=True, null=True)
     max_products = models.IntegerField(default=100, blank=True, null=True)
     disable_store = models.BooleanField(default=False)
+    has_online_store = models.BooleanField(default=True, help_text="Enable online storefront, customer catalog link, and web orders for this plan")
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
@@ -144,6 +146,7 @@ class Payment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, blank=True, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='NGN')
     payment_method = models.CharField(max_length=100)
     transaction_id = models.CharField(max_length=255, unique=True)
     STATUS_CHOICES = [
@@ -157,4 +160,42 @@ class Payment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.subscription.organization.name} - {self.amount}"
+        return f"{self.subscription.organization.name} - {self.currency} {self.amount}"
+
+
+class PaymentGatewayConfig(models.Model):
+    GATEWAY_CHOICES = [
+        ('squadco',     'SquadCo'),
+        ('paystack',    'Paystack'),
+        ('monnify',     'Monnify'),
+        ('stripe',      'Stripe'),
+        ('flutterwave', 'Flutterwave'),
+    ]
+
+    active_gateway = models.CharField(
+        max_length=20,
+        choices=GATEWAY_CHOICES,
+        default='squadco',
+        help_text='The payment gateway used for subscription payments. Currency is determined by the business country (Nigeria = NGN, other countries = USD).'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        'account.CustomUser', on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
+    class Meta:
+        verbose_name = 'Payment Gateway Configuration'
+        verbose_name_plural = 'Payment Gateway Configuration'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_active_gateway(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj.active_gateway
+
+    def __str__(self):
+        return f"Active Gateway: {self.get_active_gateway_display()}"

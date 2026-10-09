@@ -22,7 +22,7 @@
                         <hr><br>
                         <p>Date: {{sale.date_added|date:"D, d M, Y"}}</p>
                         <p>Transaction ID: {{sale.transaction_id}}</p>
-                        <p>Sales Rep: {{sale.staff.get_full_name}}</p>
+                        <p>Sales Rep: {% if sale.staff %}{{sale.staff.get_full_name|default:sale.staff.first_name|default:sale.staff.email}}{% else %}Online Store{% endif %}</p>
                     </div><hr><br>
                     <div>
                         <table class="table text-center">

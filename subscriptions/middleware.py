@@ -22,6 +22,8 @@ class SubscriptionMiddleware:
         '/subscriptions/settings/',
         '/subscriptions/plan/',
         '/subscriptions/webhook/',
+        '/store/',
+        '/buyer/',
         '/static/',
         '/media/',
         '/admin/',

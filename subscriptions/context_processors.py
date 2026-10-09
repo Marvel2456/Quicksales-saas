@@ -1,6 +1,6 @@
 from django.conf import settings
 import logging
-from .utils import get_active_subscription, get_usage_stats, get_subscription_status
+from .utils import get_active_subscription, get_usage_stats, get_subscription_status, has_online_store_access
 
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ def subscription_context(request):
             and subscription.plan
             and getattr(subscription.plan, 'disable_store', False)
         )
+        online_store_access = has_online_store_access(organization)
         
         return {
             'active_subscription': subscription,
@@ -43,6 +44,7 @@ def subscription_context(request):
             'can_create_branch': usage_stats['branches']['can_create'],
             'can_create_product': usage_stats['products']['can_create'],
             'disable_store_sidebar': disable_store_sidebar,
+            'has_online_store_access': online_store_access,
         }
     except Exception:
         logger.exception("subscription_context processor failed")
@@ -64,4 +66,5 @@ def subscription_context(request):
             'can_create_branch': False,
             'can_create_product': False,
             'disable_store_sidebar': False,
+            'has_online_store_access': False,
         }

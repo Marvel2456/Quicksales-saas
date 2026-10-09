@@ -1,0 +1,121 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order #{{ order.order_number }} Received — {{ organization.name }}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+
+    <style>
+        :root {
+            --brand-primary: {{ organization.brand_color|default:'#2563eb' }};
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .success-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 680px;
+            margin: 3rem auto;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <div class="success-card text-center">
+            <div class="mb-4">
+                <span class="d-inline-flex align-items-center justify-content-center bg-success text-white rounded-circle" style="width: 72px; height: 72px;">
+                    <i class="bi bi-check2 fs-1"></i>
+                </span>
+            </div>
+
+            <h2 class="fw-bold mb-2">Order Received!</h2>
+            <p class="text-muted mb-4">Thank you for your order, <strong>{{ order.buyer_name }}</strong>. The vendor has been notified and will prepare your package.</p>
+
+            <div class="bg-light rounded-4 p-4 mb-4 text-start">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Order Reference</small>
+                        <span class="fw-bold fs-5 text-dark">#{{ order.order_number }}</span>
+                    </div>
+                    <div class="col-sm-6 text-sm-end">
+                        <small class="text-muted d-block">Order Status</small>
+                        {% if order.status == 'confirmed' or order.payment_status == 'paid' %}
+                            <span class="badge bg-success text-white px-3 py-2 rounded-pill fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Paid & Confirmed</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">{{ order.get_status_display }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-sm-6">
+                        <small class="text-muted d-block">Payment Method</small>
+                        <span class="fw-semibold text-dark">
+                            {% if order.payment_method == 'squadco' %}
+                                <i class="bi bi-credit-card-2-front text-primary me-1"></i> Squad (Card / Transfer / USSD)
+                            {% else %}
+                                <i class="bi bi-truck text-secondary me-1"></i> Pay on Delivery / Direct
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-sm-6 text-sm-end">
+                        <small class="text-muted d-block">Payment Status</small>
+                        {% if order.payment_status == 'paid' %}
+                            <span class="text-success fw-bold"><i class="bi bi-shield-check"></i> Paid Online</span>
+                        {% else %}
+                            <span class="text-muted fw-semibold">Pending Confirmation</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items Table -->
+            <div class="text-start mb-4">
+                <h6 class="fw-bold text-uppercase text-muted small mb-3">Order Items</h6>
+                <div class="list-group list-group-flush border rounded-4 overflow-hidden mb-3">
+                    {% for item in order.items.all %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                        <div>
+                            <div class="fw-bold">{{ item.product_name }}</div>
+                            <small class="text-muted">Qty: {{ item.quantity }} &times; {% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ item.unit_price|floatformat:2|intcomma }}</small>
+                        </div>
+                        <span class="fw-bold">{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ item.total_price|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% endfor %}
+                    <div class="list-group-item bg-light d-flex justify-content-between align-items-center py-3 fw-bold">
+                        <span>Total</span>
+                        <span class="fs-5 text-primary">{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ order.total_amount|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Seller -->
+            <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+                {% if store.whatsapp_number %}
+                <a href="https://wa.me/{{ store.whatsapp_number }}?text=Hi,%20I%20just%20placed%20Order%20%23{{ order.order_number }}" target="_blank" class="btn btn-success rounded-pill px-4 fw-bold">
+                    <i class="bi bi-whatsapp me-2"></i> Message Seller on WhatsApp
+                </a>
+                {% endif %}
+                <a href="{% url 'storefront' organization.slug %}" class="btn btn-outline-secondary rounded-pill px-4 fw-bold">
+                    Continue Shopping
+                </a>
+            </div>
+
+            <small class="text-muted">Confirmation details sent to <strong>{{ order.buyer_email }}</strong></small>
+        </div>
+    </main>
+
+    <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+</body>
+</html>

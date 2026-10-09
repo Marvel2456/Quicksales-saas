@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Store Settings{% endblock %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h1 class="app-page-title mb-1">Online Store Settings</h1>
+                <div class="text-muted small">Configure your public storefront, branding, social channels, and default branch.</div>
+            </div>
+            {% if organization.slug %}
+            <a href="{% url 'storefront' organization.slug %}" target="_blank" class="btn app-btn-primary d-inline-flex align-items-center gap-2 px-3 py-2">
+                <i class="bi bi-box-arrow-up-right"></i>
+                <span>Open Storefront</span>
+            </a>
+            {% endif %}
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="row g-4">
+            <!-- Left Column: Settings Form -->
+            <div class="col-12 col-xl-8">
+                <div class="app-card app-card-settings shadow-sm p-4 rounded-3">
+                    <form method="post" enctype="multipart/form-data" onsubmit="handleStoreSettingsSubmit(this)">
+                        {% csrf_token %}
+
+                        <!-- Public Storefront Enable Switch -->
+                        <div class="form-check form-switch mb-4 p-3 bg-light rounded-3 d-flex align-items-center justify-content-between">
+                            <div>
+                                <label class="form-check-label fw-bold mb-0" for="is_active">Enable Public Storefront</label>
+                                <div class="text-muted small">When active, shoppers can visit your link and place direct online orders.</div>
+                            </div>
+                            <input class="form-check-input ms-0 fs-4" type="checkbox" role="switch" id="is_active" name="is_active" {% if store.is_active %}checked{% endif %}>
+                        </div>
+
+                        <!-- Default Branch Selection -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Default Fulfillment Branch <span class="text-danger">*</span></label>
+                            <select name="branch_id" class="form-select form-select-lg fs-6" required>
+                                {% for b in branches %}
+                                <option value="{{ b.id }}" {% if b.id == active_branch.id %}selected{% endif %}>
+                                    {{ b.name }} {% if b.address %}({{ b.address }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">The branch inventory used for online store catalog stock and order fulfillment.</div>
+                        </div>
+
+                        <!-- Tagline & Announcement -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Store Tagline / Slogan</label>
+                            <input type="text" name="tagline" value="{{ store.tagline }}" class="form-control" placeholder="e.g. Trendy women's fashion and luxury accessories">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Announcement Banner (Optional)</label>
+                            <textarea name="announcement" rows="2" class="form-control" placeholder="e.g. 🚚 Free shipping on orders over ₦50,000 this weekend!">{{ store.announcement }}</textarea>
+                        </div>
+
+                        <!-- Banner Image -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Store Header Banner</label>
+                            <input type="file" name="banner" accept="image/*" class="form-control">
+                            {% if store.banner %}
+                            <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                <img src="{{ store.banner.url }}" alt="Banner" class="rounded-2" style="max-height: 120px; max-width: 100%; object-fit: cover;">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Primary Brand & Theme Color -->
+                        <div class="mb-4 p-3 bg-light rounded-3 border">
+                            <label class="form-label fw-bold mb-1">Storefront Primary Brand Color</label>
+                            <div class="text-muted small mb-3">Choose the accent theme color for buttons, badges, navigation headers, and highlights across your public storefront.</div>
+                            
+                            <div class="d-flex flex-wrap align-items-center gap-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="color" class="form-control form-control-color border-0 rounded-circle shadow-sm cursor-pointer p-0" 
+                                           id="primaryColorPicker" name="primary_color" 
+                                           value="{{ store.get_brand_color|default:'#2563eb' }}" 
+                                           style="width: 44px; height: 44px;" 
+                                           oninput="syncColorInput(this.value)">
+                                    <input type="text" class="form-control font-monospace text-uppercase" 
+                                           id="primaryColorHex" value="{{ store.get_brand_color|default:'#2563eb' }}" 
+                                           style="width: 110px;" 
+                                           oninput="syncColorPicker(this.value)">
+                                </div>
+
+                                <!-- Preset Swatches -->
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="small text-muted fw-semibold">Presets:</span>
+                                    <button type="button" class="btn p-0 rounded-circle border shadow-xs" style="width: 26px; height: 26px; background-color: #2563eb;" onclick="selectColorSwatch('#2563eb')" title="Royal Blue"></button>
+                                    <button type="button" class="btn p-0 rounded-circle border shadow-xs" style="width: 26px; height: 26px; background-color: #059669;" onclick="selectColorSwatch('#059669')" title="Emerald Green"></button>
+                                    <button type="button" class="btn p-0 rounded-circle border shadow-xs" style="width: 26px; height: 26px; background-color: #7c3aed;" onclick="selectColorSwatch('#7c3aed')" title="Purple Violet"></button>
+                                    <button type="button" class="btn p-0 rounded-circle border shadow-xs" style="width: 26px; height: 26px; background-color: #e11d48;" onclick="selectColorSwatch('#e11d48')" title="Rose Pink"></button>
+                                    <button type="button" class="btn p-0 rounded-circle border shadow-xs" style="width: 26px; height: 26px; background-color: #d97706;" onclick="selectColorSwatch('#d97706')" title="Amber Gold"></button>
+                                    <button type="button" class="btn p-0 rounded-circle border shadow-xs" style="width: 26px; height: 26px; background-color: #0f172a;" onclick="selectColorSwatch('#0f172a')" title="Midnight"></button>
+                                </div>
+
+                                <!-- Live Preview Badge -->
+                                <div class="ms-auto">
+                                    <span id="colorPreviewBadge" class="badge text-white px-3 py-2 rounded-pill shadow-xs" style="background-color: {{ store.get_brand_color|default:'#2563eb' }};">
+                                        <i class="bi bi-bag-check-fill me-1"></i> Preview Theme
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                            <i class="bi bi-share text-primary"></i>
+                            <span>Social & Contact Channels</span>
+                        </h5>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">WhatsApp Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-whatsapp text-success"></i></span>
+                                    <input type="text" name="whatsapp_number" value="{{ store.whatsapp_number }}" class="form-control" placeholder="e.g. 2348012345678">
+                                </div>
+                                <div class="form-text">Include country code for 1-click WhatsApp checkout.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Instagram Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-instagram text-danger"></i> @</span>
+                                    <input type="text" name="instagram_handle" value="{{ store.instagram_handle }}" class="form-control" placeholder="yourbrand">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Customer Support Phone</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-telephone"></i></span>
+                                    <input type="tel" name="contact_phone" value="{{ store.contact_phone }}" class="form-control" placeholder="080 000 0000">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Customer Support Email</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+                                    <input type="email" name="contact_email" value="{{ store.contact_email }}" class="form-control" placeholder="support@brand.com">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Online Store Order Notification Email -->
+                        <div class="mb-4 p-3 bg-light rounded-3 border">
+                            <label class="form-label fw-bold mb-1 d-flex align-items-center gap-2">
+                                <i class="bi bi-bell-fill text-primary"></i>
+                                <span>Online Store Notification Email</span>
+                            </label>
+                            <div class="text-muted small mb-2">
+                                Additional email to receive order completion notifications alongside the shop owner (<strong>{{ organization.owned_by.email|default:'Store Owner' }}</strong>). If left blank or matching the owner's email, notifications will only be sent once to the owner.
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-envelope-at text-muted"></i></span>
+                                <input type="email" name="online_store_email" value="{{ store.online_store_email|default:'' }}" class="form-control" placeholder="orders@yourstore.com">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn app-btn-primary px-4 py-2 fw-bold d-inline-flex align-items-center gap-2 store-settings-submit-btn">
+                            <i class="bi bi-check2-circle fs-5"></i>
+                            <span>Save Store Settings</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Shareable Link & Tips -->
+            <div class="col-12 col-xl-4">
+                <!-- Storefront Link Card -->
+                <div class="app-card shadow-sm p-4 mb-4 rounded-3 border-0 bg-white">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+                            <i class="bi bi-link-45deg fs-4"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-0">Shareable Storefront Link</h6>
+                            <small class="text-muted">Direct link for customers</small>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group mb-3">
+                        <input type="text" id="storeLinkInput" readonly class="form-control bg-light fs-7" value="{{ request.scheme }}://{{ request.get_host }}{% url 'storefront' organization.slug %}">
+                        <button class="btn btn-outline-primary fw-semibold px-3" type="button" id="copyStoreBtn" onclick="copyStoreLink(this)">
+                            <i class="bi bi-clipboard me-1"></i> Copy
+                        </button>
+                    </div>
+                    
+                    <p class="text-muted small mb-0 lh-base">
+                        Paste this link in your <strong>Instagram bio</strong>, <strong>WhatsApp status</strong>, or send directly in customer DMs for instant purchases.
+                    </p>
+                </div>
+
+                <!-- Vendor Quick Guide -->
+                <div class="app-card shadow-sm p-4 rounded-3 border-0 bg-white">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="p-2 bg-warning bg-opacity-10 text-warning rounded-3">
+                            <i class="bi bi-lightning-charge-fill fs-5"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0">Online Vendor Tips</h6>
+                    </div>
+                    <ul class="small text-muted ps-3 mb-0" style="line-height: 1.9;">
+                        <li>Keep stock in your default branch up to date.</li>
+                        <li>Toggle items in <strong>Catalog & Listings</strong> to show or hide them from buyers.</li>
+                        <li>Create promo codes in <strong>Discount Coupons</strong> for flash sales.</li>
+                        <li>When customers order, confirm orders under <strong>Online Orders</strong> to automatically deduct stock and record the sale.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function copyTextToClipboard(text, successMsg, buttonElement) {
+    // 1. Try Modern Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function() {
+            handleCopySuccess(successMsg, buttonElement);
+        }).catch(function() {
+            fallbackExecCommandCopy(text, successMsg, buttonElement);
+        });
+        return;
+    }
+    // 2. Fallback to execCommand
+    fallbackExecCommandCopy(text, successMsg, buttonElement);
+}
+
+function fallbackExecCommandCopy(text, successMsg, buttonElement) {
+    try {
+        var textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        textArea.setAttribute("readonly", "");
+        document.body.appendChild(textArea);
+        textArea.select();
+        textArea.setSelectionRange(0, 99999);
+        var successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (successful) {
+            handleCopySuccess(successMsg, buttonElement);
+        } else {
+            prompt("Copy to clipboard: Ctrl+C, Enter", text);
+        }
+    } catch (err) {
+        prompt("Copy to clipboard: Ctrl+C, Enter", text);
+    }
+}
+
+function handleCopySuccess(msg, buttonElement) {
+    if (buttonElement) {
+        var originalHtml = buttonElement.innerHTML;
+        var originalClass = buttonElement.className;
+        buttonElement.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+        buttonElement.classList.remove('btn-outline-primary', 'btn-outline-secondary');
+        buttonElement.classList.add('btn-success', 'text-white');
+        buttonElement.disabled = true;
+        setTimeout(function() {
+            buttonElement.innerHTML = originalHtml;
+            buttonElement.className = originalClass;
+            buttonElement.disabled = false;
+        }, 2000);
+    }
+    showToastNotification(msg || 'Store link copied to clipboard!');
+}
+
+function showToastNotification(message) {
+    var container = document.getElementById('toast-feedback-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-feedback-container';
+        container.style.position = 'fixed';
+        container.style.bottom = '24px';
+        container.style.right = '24px';
+        container.style.zIndex = '99999';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '8px';
+        document.body.appendChild(container);
+    }
+
+    var toast = document.createElement('div');
+    toast.className = 'shadow-lg rounded-pill px-4 py-2.5 text-white fw-semibold d-flex align-items-center gap-2';
+    toast.style.background = '#02296e';
+    toast.style.fontSize = '14px';
+    toast.style.boxShadow = '0 8px 24px rgba(2, 41, 110, 0.35)';
+    toast.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-5"></i> <span>' + message + '</span>';
+    
+    container.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 2500);
+}
+
+function copyStoreLink(btn) {
+    var input = document.getElementById('storeLinkInput');
+    copyTextToClipboard(input.value, 'Storefront link copied to clipboard!', btn);
+}
+
+function syncColorInput(val) {
+    document.getElementById('primaryColorHex').value = val;
+    updateColorPreview(val);
+}
+
+function syncColorPicker(val) {
+    if (/^#[0-9A-F]{6}$/i.test(val)) {
+        document.getElementById('primaryColorPicker').value = val;
+        updateColorPreview(val);
+    }
+}
+
+function selectColorSwatch(hex) {
+    document.getElementById('primaryColorPicker').value = hex;
+    document.getElementById('primaryColorHex').value = hex;
+    updateColorPreview(hex);
+}
+
+function updateColorPreview(hex) {
+    var badge = document.getElementById('colorPreviewBadge');
+    if (badge) {
+        badge.style.backgroundColor = hex;
+    }
+}
+
+function handleStoreSettingsSubmit(form) {
+    var btn = form.querySelector('.store-settings-submit-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span><span>Saving & Updating...</span>';
+    }
+    return true;
+}
+</script>
+{% endblock %}

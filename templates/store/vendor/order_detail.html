@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Order #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <a href="{% url 'vendor_order_list' %}" class="btn btn-sm btn-outline-secondary rounded-pill mb-2 px-3 fw-semibold">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Orders
+                </a>
+                <h1 class="app-page-title mb-0">Order #{{ order.order_number }}</h1>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge {% if order.status == 'confirmed' %}bg-primary{% elif order.status == 'dispatched' %}bg-info text-dark{% elif order.status == 'delivered' %}bg-success{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-warning text-dark{% endif %} rounded-pill px-3 py-2 fs-6">
+                    {{ order.get_status_display }}
+                </span>
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="row g-4">
+            <!-- Left: Order Items & Actions -->
+            <div class="col-12 col-lg-8">
+                <div class="app-card shadow-sm p-4 mb-4 rounded-3 border-0 bg-white">
+                    <h5 class="fw-bold mb-3">Order Items</h5>
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr class="text-muted small">
+                                    <th>Item</th>
+                                    <th>Unit Price</th>
+                                    <th>Qty</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order.items.all %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ item.product_name }}</div>
+                                        <small class="text-muted">Current branch stock: {{ item.inventory.quantity_available|default:0 }}</small>
+                                    </td>
+                                    <td>{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ item.unit_price|floatformat:2|intcomma }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ item.quantity }}</span></td>
+                                    <td class="text-end fw-bold text-dark">{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ item.total_price|floatformat:2|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Subtotal</span>
+                        <span>{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ order.subtotal|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% if order.discount_amount > 0 %}
+                    <div class="d-flex justify-content-between mb-2 text-success fw-semibold">
+                        <span>Coupon Discount ({{ order.discount.code }})</span>
+                        <span>-{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ order.discount_amount|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="d-flex justify-content-between fs-5 fw-bold text-dark pt-2 border-top">
+                        <span>Total Due</span>
+                        <span class="text-primary">{% if order.currency == 'USD' %}${% else %}₦{% endif %}{{ order.total_amount|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+
+                <!-- Fulfillment Action Center -->
+                <div class="app-card shadow-sm p-4 rounded-3 border-0 bg-white">
+                    <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-gear-wide-connected text-primary"></i>
+                        <span>Fulfillment Center</span>
+                    </h5>
+
+                    {% if order.status == 'pending' %}
+                    <div class="alert alert-warning rounded-3 p-3 mb-3">
+                        <strong><i class="bi bi-exclamation-triangle me-1"></i> Order Pending Review</strong>
+                        <p class="small mb-0 mt-1">Confirming this order creates an official IMS Sale record and automatically deducts stock from <strong>{{ order.branch.name }}</strong>.</p>
+                    </div>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="confirm">
+                        <button type="submit" class="btn btn-success btn-lg rounded-pill fw-bold px-4 me-2">
+                            <i class="bi bi-check2-circle me-1"></i> Accept & Confirm Order
+                        </button>
+                    </form>
+
+                    <button class="btn btn-outline-danger btn-lg rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        Decline / Cancel
+                    </button>
+
+                    {% elif order.status == 'confirmed' %}
+                    <div class="alert alert-primary rounded-3 p-3 mb-3">
+                        <strong><i class="bi bi-check-all me-1"></i> Order Confirmed & Stock Deducted</strong>
+                        <p class="small mb-0 mt-1">Sale record created in IMS. Next, dispatch the package and add delivery / tracking notes for the buyer.</p>
+                    </div>
+
+                    <button class="btn btn-info text-dark btn-lg rounded-pill fw-bold px-4 me-2" data-bs-toggle="modal" data-bs-target="#dispatchModal">
+                        <i class="bi bi-truck me-1"></i> Mark as Dispatched
+                    </button>
+
+                    <button class="btn btn-outline-danger rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        Cancel Order & Restore Stock
+                    </button>
+
+                    {% elif order.status == 'dispatched' %}
+                    <div class="alert alert-info rounded-3 p-3 mb-3">
+                        <strong><i class="bi bi-truck me-1"></i> Package In Transit</strong>
+                        <p class="small mb-0 mt-1">Tracking / Courier: {{ order.courier_name|default:'Manual delivery' }} ({{ order.tracking_number|default:'N/A' }})</p>
+                    </div>
+
+                    <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="deliver">
+                        <button type="submit" class="btn btn-success btn-lg rounded-pill fw-bold px-4">
+                            <i class="bi bi-box-arrow-down me-1"></i> Mark as Delivered
+                        </button>
+                    </form>
+
+                    {% elif order.status == 'delivered' %}
+                    <div class="alert alert-success rounded-3 p-3 mb-0">
+                        <i class="bi bi-check2-all me-1"></i> Order successfully delivered on {{ order.delivered_at|date:"M d, Y · h:i A" }}.
+                    </div>
+
+                    {% elif order.status == 'cancelled' %}
+                    <div class="alert alert-danger rounded-3 p-3 mb-0">
+                        <i class="bi bi-x-circle me-1"></i> Order cancelled. Reason: {{ order.cancelled_reason|default:'No reason specified' }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right: Customer Info -->
+            <div class="col-12 col-lg-4">
+                <div class="app-card shadow-sm p-4 mb-4 rounded-3 border-0 bg-white">
+                    <h6 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-person text-primary"></i>
+                        <span>Customer Contact</span>
+                    </h6>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Customer Name</small>
+                        <span class="fw-bold text-dark">{{ order.buyer_name }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Email</small>
+                        <a href="mailto:{{ order.buyer_email }}" class="text-decoration-none">{{ order.buyer_email }}</a>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Phone / WhatsApp</small>
+                        <a href="https://wa.me/{{ order.buyer_phone }}" target="_blank" class="btn btn-success btn-sm rounded-pill mt-1">
+                            <i class="bi bi-whatsapp me-1"></i> Chat {{ order.buyer_phone }}
+                        </a>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Delivery Address</small>
+                        <p class="mb-0 bg-light p-2.5 rounded-3 small text-dark">{{ order.shipping_address|default:'Pickup in Store' }}</p>
+                    </div>
+                    {% if order.customer_notes %}
+                    <div>
+                        <small class="text-muted d-block">Customer Note</small>
+                        <p class="mb-0 bg-light p-2.5 rounded-3 small text-muted fst-italic">{{ order.customer_notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if order.sale %}
+                <div class="app-card shadow-sm p-4 rounded-3 border-0 bg-white">
+                    <h6 class="fw-bold mb-2 d-flex align-items-center gap-2">
+                        <i class="bi bi-receipt text-primary"></i>
+                        <span>Linked IMS Sale</span>
+                    </h6>
+                    <small class="text-muted d-block mb-3">POS Sale ID: #{{ order.sale.id }}</small>
+                    <a href="{% url 'reciept' order.sale.id %}" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill w-100 fw-semibold">
+                        View IMS Sale Receipt
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Dispatch Modal -->
+<div class="modal fade" id="dispatchModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dispatch">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold">Dispatch Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Courier Name / Delivery Method</label>
+                        <input type="text" name="courier_name" class="form-control" placeholder="e.g. GIG Logistics, DHL, Dispatch Rider">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tracking Number (Optional)</label>
+                        <input type="text" name="tracking_number" class="form-control" placeholder="e.g. GIG-123456">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Dispatch Note / Rider Phone</label>
+                        <textarea name="dispatch_note" rows="2" class="form-control" placeholder="e.g. Rider is on the way, contact 080..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn app-btn-primary rounded-pill px-4 fw-bold">Save & Mark Dispatched</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="cancel">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger">Cancel Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="small text-muted">Are you sure you want to cancel this order? If it was already confirmed, reserved inventory stock will be restored.</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Reason for cancellation</label>
+                        <textarea name="cancelled_reason" rows="2" required class="form-control" placeholder="e.g. Buyer requested cancellation / out of stock"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Go Back</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">Confirm Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -193,7 +193,6 @@
             {% csrf_token %}
 
             <input type="hidden" name="brand_color" value="{{ form.brand_color.value|default:'#007bff' }}">
-            <input type="hidden" name="organization_country" value="{{ form.organization_country.value|default:'' }}">
 
             <!-- Step 1: Personal Info -->
             <div id="step1" class="step-content">
@@ -246,6 +245,16 @@
                 </div>
 
                 <div class="mb-3">
+                    <label for="id_organization_country" class="form-label text-gray-700 small fw-medium">Country</label>
+                    <select id="id_organization_country" name="organization_country" required class="form-select">
+                        {% for key, value in form.organization_country.field.choices %}
+                        <option value="{{ key }}" {% if form.organization_country.value == key or not form.organization_country.value and key == 'Nigeria' %}selected{% endif %}>{{ value }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if form.organization_country.errors %}<div class="text-danger small mt-1">{{ form.organization_country.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="mb-3">
                     <label for="id_business_type" class="form-label text-gray-700 small fw-medium">Business Type</label>
                     <select id="id_business_type" name="business_type" required class="form-select">
                         <option value="">Select Option</option>
@@ -291,8 +300,9 @@
                         Continue
                         <div id="step2-user-thumb" class="d-none"></div>
                     </button>
-                    <button type="submit" id="step2SubmitBtn" class="btn btn-primary w-100 position-relative d-none">
-                        Create Account
+                    <button type="submit" id="step2SubmitBtn" class="btn btn-primary w-100 position-relative d-none d-inline-flex align-items-center justify-content-center">
+                        <span class="spinner-border spinner-border-sm me-2 d-none" id="step2Spinner" role="status" aria-hidden="true"></span>
+                        <span id="step2BtnText">Create Account</span>
                     </button>
                 </div>
             </div>
@@ -339,7 +349,10 @@
 
                 <div class="d-flex gap-3 pt-2">
                     <button type="button" onclick="prevStep(2)" class="btn btn-outline-secondary w-50">Back</button>
-                    <button type="submit" class="btn btn-primary w-100">Create Account</button>
+                    <button type="submit" id="step3SubmitBtn" class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center">
+                        <span class="spinner-border spinner-border-sm me-2 d-none" id="step3Spinner" role="status" aria-hidden="true"></span>
+                        <span id="step3BtnText">Create Account</span>
+                    </button>
                 </div>
             </div>
 
@@ -561,18 +574,48 @@
                                       !/^\d+$/.test(password2) && 
                                       password1 === password2;
             
-            submitBtn.disabled = !allRequirementsMet;
+            if (submitBtn) {
+                submitBtn.disabled = !allRequirementsMet;
+            }
         }
 
         // Add event listeners to both password fields
         document.getElementById('id_password1').addEventListener('input', validatePasswords);
         document.getElementById('id_password2').addEventListener('input', validatePasswords);
 
-        // Initialize submit button as disabled
+        // Initialize submit button as disabled & attach form submit loading state
         document.addEventListener('DOMContentLoaded', function() {
-            const submitBtn = document.querySelector('#step3 button[type="submit"]');
+            const submitBtn = document.getElementById('step3SubmitBtn');
             if (submitBtn) {
                 submitBtn.disabled = true;
+            }
+
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', function(e) {
+                    const step3Btn = document.getElementById('step3SubmitBtn');
+                    const step3Spinner = document.getElementById('step3Spinner');
+                    const step3Text = document.getElementById('step3BtnText');
+
+                    const step2Btn = document.getElementById('step2SubmitBtn');
+                    const step2Spinner = document.getElementById('step2Spinner');
+                    const step2Text = document.getElementById('step2BtnText');
+
+                    // Show loader on whichever button is active
+                    if (currentStep === 2 && isExistingUser && step2Btn) {
+                        if (step2Spinner) step2Spinner.classList.remove('d-none');
+                        if (step2Text) step2Text.textContent = 'Creating Account...';
+                        step2Btn.classList.add('disabled');
+                        step2Btn.style.pointerEvents = 'none';
+                        setTimeout(function() { step2Btn.disabled = true; }, 20);
+                    } else if (step3Btn) {
+                        if (step3Spinner) step3Spinner.classList.remove('d-none');
+                        if (step3Text) step3Text.textContent = 'Creating Account...';
+                        step3Btn.classList.add('disabled');
+                        step3Btn.style.pointerEvents = 'none';
+                        setTimeout(function() { step3Btn.disabled = true; }, 20);
+                    }
+                });
             }
         });
     </script>

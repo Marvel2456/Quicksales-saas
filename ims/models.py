@@ -39,9 +39,12 @@ class Product(models.Model):
     updated_at = models.DateField(auto_now=True,)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     profit = models.FloatField(blank=True, null=True)
+    image = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Primary product image for online store display")
+    image_detail = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Additional detail / angle image for online store display")
+    image_extra = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Extra detail / angle image for online store display")
     
     def __str__(self):
-        return self.product_name
+        return self.product_name or 'Unnamed Product'
 
     class Meta:
         constraints = [
@@ -158,6 +161,12 @@ class Sale(models.Model):
         return profit
         # display daily profits on the dashboard and on the sales page
         #time based welcome greeting with javascript
+
+    @property
+    def sales_rep_name(self):
+        if self.staff:
+            return self.staff.first_name or self.staff.get_full_name() or self.staff.email
+        return "Online"
 
     @property
     def get_total_cost_price(self):

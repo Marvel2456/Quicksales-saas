@@ -1,0 +1,28 @@
+NEW ONLINE ORDER RECEIVED — {{ store_name }}
+==============================================
+Order Number: #{{ order_number }}
+Status: PAID / CONFIRMED
+Total Amount: {{ currency }} {{ total_amount }}
+
+CUSTOMER DETAILS
+----------------
+Name: {{ buyer_name }}
+Email: {{ buyer_email }}
+Phone: {{ buyer_phone|default:"N/A" }}
+Delivery Address: {{ shipping_address|default:"Standard / Digital" }}
+{% if customer_notes %}Customer Notes: {{ customer_notes }}{% endif %}
+
+ITEMS ORDERED ({{ items|length }})
+----------------------------------
+{% for item in items %}
+- {{ item.product_name }} x{{ item.quantity }} ({{ currency }} {{ item.unit_price }} each) -> {{ currency }} {{ item.total_price }}
+{% endfor %}
+
+Subtotal: {{ currency }} {{ subtotal }}
+{% if discount_amount and discount_amount > 0 %}Discount: -{{ currency }} {{ discount_amount }}{% endif %}
+TOTAL: {{ currency }} {{ total_amount }}
+
+{% if dashboard_order_url %}
+View this order in your merchant dashboard:
+{{ dashboard_order_url }}
+{% endif %}

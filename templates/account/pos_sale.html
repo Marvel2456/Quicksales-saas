@@ -69,7 +69,7 @@
                                     
                                     {% for sale in sale %}
                                     <tr>
-                                        <td class="cell">{{sale.staff}}</td>
+                                        <td class="cell">{% if sale.staff %}{{sale.staff.first_name|default:sale.staff.email}}{% else %}<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Online</span>{% endif %}</td>
                                         <td class="cell"><span class="truncate">{{sale.transaction_id}}</span></td>
                                         <td class="cell"><span>{{sale.method}}</span></td>
                                         <td class="cell"><span>{{sale.date_updated}}</span></td>
