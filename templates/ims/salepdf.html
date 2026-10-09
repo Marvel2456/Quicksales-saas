@@ -68,10 +68,14 @@
             {% for sale in sale %}
             <tr>
                 <td class="col-rep wrap">
-                    {% if sale.staff.first_name or sale.staff.last_name %}
-                        {{ sale.staff.first_name }} {{ sale.staff.last_name }}
+                    {% if sale.staff %}
+                        {% if sale.staff.first_name or sale.staff.last_name %}
+                            {{ sale.staff.first_name }} {{ sale.staff.last_name }}
+                        {% else %}
+                            {{ sale.staff.email }}
+                        {% endif %}
                     {% else %}
-                        {{ sale.staff.email }}
+                        Online
                     {% endif %}
                 </td>
                 <td class="col-trans wrap">{{ sale.transaction_id }}</td>

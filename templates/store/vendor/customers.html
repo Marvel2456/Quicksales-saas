@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Store Customers — Online Store{% endblock %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <!-- Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <h1 class="app-page-title mb-1">Store Customers & VIPs</h1>
+                <div class="text-muted small">Gain insights into your top shoppers, repeat buyer trends, order history, and contact profiles.</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="{% url 'vendor_order_list' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold">
+                    <i class="bi bi-bag-check"></i>
+                    <span>View All Orders</span>
+                </a>
+                <a href="{% url 'vendor_payouts' %}" class="btn app-btn-primary d-inline-flex align-items-center gap-1.5 px-3 py-2 fw-semibold text-white">
+                    <i class="bi bi-wallet2"></i>
+                    <span>Store Wallet</span>
+                </a>
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Stat Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Customers -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="app-card shadow-sm p-3 h-100 border-0 rounded-3 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="small fw-semibold text-muted text-uppercase">Total Customers</span>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="bi bi-people-fill fs-5 text-primary"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ total_customers_count }}</div>
+                    <small class="text-muted">Unique online shoppers</small>
+                </div>
+            </div>
+
+            <!-- Repeat Customers -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="app-card shadow-sm p-3 h-100 border-0 rounded-3 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="small fw-semibold text-muted text-uppercase">Repeat Buyers</span>
+                        <div class="bg-success bg-opacity-10 rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="bi bi-arrow-repeat fs-5 text-success"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ repeat_customers_count }} <span class="fs-6 fw-semibold text-success">({{ repeat_rate }}%)</span></div>
+                    <small class="text-muted">Customers with 2+ orders</small>
+                </div>
+            </div>
+
+            <!-- Total Customer Spend -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="app-card shadow-sm p-3 h-100 border-0 rounded-3 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="small fw-semibold text-muted text-uppercase">Total Buyer Revenue</span>
+                        <div class="bg-warning bg-opacity-10 rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="bi bi-cash-stack fs-5 text-warning"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">₦{{ total_customer_revenue|floatformat:2|intcomma }}</div>
+                    <small class="text-muted">From online storefront</small>
+                </div>
+            </div>
+
+            <!-- Average Order Value -->
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="app-card shadow-sm p-3 h-100 border-0 rounded-3 bg-white">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="small fw-semibold text-muted text-uppercase">Avg Customer Value</span>
+                        <div class="bg-info bg-opacity-10 rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="bi bi-graph-up-arrow fs-5 text-info"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">₦{{ avg_customer_spend|floatformat:2|intcomma }}</div>
+                    <small class="text-muted">Average spend per buyer</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top VIP Customers Showcase -->
+        {% if top_customers %}
+        <div class="mb-4">
+            <h5 class="fw-bold mb-3 text-dark d-flex align-items-center gap-2">
+                <i class="bi bi-trophy-fill text-warning"></i> Top Spenders & VIP Customers
+            </h5>
+            <div class="row g-3">
+                {% for vip in top_customers %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="app-card shadow-sm p-3 rounded-3 border-0 bg-white h-100 position-relative">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="position-relative">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white fs-5" style="width: 48px; height: 48px; background: {% if forloop.counter == 1 %}#eab308{% elif forloop.counter == 2 %}#94a3b8{% elif forloop.counter == 3 %}#d97706{% else %}#3b82f6{% endif %};">
+                                    {{ vip.name|slice:":1"|upper }}
+                                </div>
+                                <span class="position-absolute bottom-0 end-0 badge rounded-pill {% if forloop.counter == 1 %}bg-warning text-dark{% elif forloop.counter == 2 %}bg-secondary text-white{% elif forloop.counter == 3 %}bg-danger text-white{% else %}bg-dark text-white{% endif %}" style="font-size: 0.68rem;">
+                                    #{{ vip.rank }}
+                                </span>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <h6 class="fw-bold mb-0 text-truncate text-dark" title="{{ vip.name }}">{{ vip.name }}</h6>
+                                <small class="text-muted text-truncate d-block">{{ vip.email }}</small>
+                            </div>
+                        </div>
+
+                        <div class="bg-light rounded-3 p-2.5 mb-3 small d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted d-block" style="font-size: 0.75rem;">TOTAL SPENT</span>
+                                <span class="fw-bold text-success fs-6">₦{{ vip.total_spent|floatformat:2|intcomma }}</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="text-muted d-block" style="font-size: 0.75rem;">ORDERS</span>
+                                <span class="fw-bold text-dark fs-6">{{ vip.orders_count }} order{{ vip.orders_count|pluralize }}</span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between gap-2 pt-1 border-top">
+                            <div class="small text-muted text-truncate">
+                                {% if vip.phone %}
+                                <a href="https://wa.me/{{ vip.phone|cut:'+'|cut:' ' }}" target="_blank" class="text-success text-decoration-none fw-semibold me-2" title="WhatsApp Customer">
+                                    <i class="bi bi-whatsapp"></i> Chat
+                                </a>
+                                <a href="tel:{{ vip.phone }}" class="text-secondary text-decoration-none fw-semibold" title="Call Customer">
+                                    <i class="bi bi-telephone"></i> Call
+                                </a>
+                                {% else %}
+                                <span class="text-muted">No phone</span>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 fw-bold" onclick="showCustomerDetailsModal('{{ vip.email|escapejs }}')">
+                                View Profile
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Filter & Search Bar -->
+        <div class="app-card shadow-sm mb-4 rounded-3 border-0 bg-white p-3">
+            <form method="get" action="{% url 'vendor_customers' %}" class="row g-2 align-items-center">
+                <div class="col-md-7 col-12">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" name="q" value="{{ query }}" class="form-control border-start-0" placeholder="Search customers by name, email, phone number, or city...">
+                    </div>
+                </div>
+                <div class="col-md-3 col-8">
+                    <select name="tier" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Customer Tiers</option>
+                        <option value="vip" {% if tier_filter == 'vip' %}selected{% endif %}> VIP Customers</option>
+                        <option value="repeat" {% if tier_filter == 'repeat' %}selected{% endif %}> Repeat Customers (2+ orders)</option>
+                        <option value="new" {% if tier_filter == 'new' %}selected{% endif %}> New Customers (1 order)</option>
+                    </select>
+                </div>
+                <div class="col-md-2 col-4">
+                    <button type="submit" class="btn app-btn-primary w-100 fw-semibold text-white">Filter</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Full Customer Directory Table -->
+        <div class="app-card shadow-sm mb-4 rounded-3 border-0 overflow-hidden bg-white">
+            <div class="p-3 border-bottom d-flex align-items-center justify-content-between">
+                <h5 class="fw-bold mb-0 text-dark"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Customer Directory</h5>
+                <span class="badge bg-light text-dark border">{{ customers|length }} Customer{{ customers|length|pluralize }}</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table app-table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="cell py-3 ps-3">Rank</th>
+                            <th class="cell py-3">Customer Profile</th>
+                            <th class="cell py-3">Contact Details</th>
+                            <th class="cell py-3">Total Orders</th>
+                            <th class="cell py-3">Total Spent</th>
+                            <th class="cell py-3">Customer Tier</th>
+                            <th class="cell py-3 text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cust in customers %}
+                        <tr>
+                            <td class="cell ps-3">
+                                <span class="badge {% if cust.rank == 1 %}bg-warning text-dark{% elif cust.rank == 2 %}bg-secondary text-white{% elif cust.rank == 3 %}bg-danger text-white{% else %}bg-light text-dark border{% endif %} font-monospace">
+                                    #{{ cust.rank }}
+                                </span>
+                            </td>
+                            <td class="cell">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary fw-bold d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                                        {{ cust.name|slice:":1"|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ cust.name }}</div>
+                                        <small class="text-muted d-block">{{ cust.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="cell">
+                                <div class="small fw-semibold text-dark">
+                                    {% if cust.phone %}
+                                    <i class="bi bi-telephone me-1 text-muted"></i>{{ cust.phone }}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </div>
+                                {% if cust.address %}
+                                <small class="text-muted d-block text-truncate" style="max-width: 220px;" title="{{ cust.address }}">
+                                    <i class="bi bi-geo-alt me-1"></i>{{ cust.address }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td class="cell">
+                                <span class="fw-bold text-dark">{{ cust.orders_count }}</span>
+                                <small class="text-muted">order{{ cust.orders_count|pluralize }}</small>
+                            </td>
+                            <td class="cell fw-bold text-success fs-6">
+                                ₦{{ cust.total_spent|floatformat:2|intcomma }}
+                            </td>
+                            <td class="cell">
+                                <span class="badge {{ cust.tier_badge }} rounded-pill px-2.5 py-1 fw-semibold">
+                                    {{ cust.tier_label }}
+                                </span>
+                            </td>
+                            <td class="cell text-end pe-3">
+                                <div class="d-inline-flex align-items-center gap-2">
+                                    {% if cust.phone %}
+                                    <a href="https://wa.me/{{ cust.phone|cut:'+'|cut:' ' }}" target="_blank" class="btn btn-sm btn-outline-success rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Chat on WhatsApp">
+                                        <i class="bi bi-whatsapp"></i>
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="showCustomerDetailsModal('{{ cust.email|escapejs }}')">
+                                        View Orders
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-person-x display-6 d-block mb-3 opacity-50"></i>
+                                <h6 class="fw-bold">No Customers Found</h6>
+                                <p class="small text-muted mb-0">When shoppers place orders on your online store, their details and purchase analytics will appear here.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal: Customer Profile & Order History -->
+<div class="modal fade" id="customerDetailModal" tabindex="-1" aria-labelledby="customerDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom pb-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;" id="modalAvatar">
+                        C
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-dark" id="modalCustomerName">Customer Name</h5>
+                        <small class="text-muted" id="modalCustomerEmail">email@example.com</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <!-- Contact & Metrics Summary -->
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-4 col-12">
+                        <div class="bg-light p-3 rounded-3 border">
+                            <span class="text-muted small d-block">Phone Number</span>
+                            <span class="fw-bold text-dark" id="modalCustomerPhone">—</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4 col-12">
+                        <div class="bg-light p-3 rounded-3 border">
+                            <span class="text-muted small d-block">Total Orders</span>
+                            <span class="fw-bold text-dark" id="modalCustomerOrders">0</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4 col-12">
+                        <div class="bg-light p-3 rounded-3 border">
+                            <span class="text-muted small d-block">Total Spent</span>
+                            <span class="fw-bold text-success fs-6" id="modalCustomerSpent">₦0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="small fw-bold text-muted text-uppercase d-block mb-1"><i class="bi bi-geo-alt text-danger me-1"></i> Delivery Address</label>
+                    <div class="p-3 bg-light rounded-3 border small text-dark" id="modalCustomerAddress">—</div>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-3 mt-4"><i class="bi bi-bag-check me-2 text-primary"></i>Purchase History</h6>
+                <div class="table-responsive rounded-3 border">
+                    <table class="table table-sm mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="py-2.5 ps-3">Order Number</th>
+                                <th class="py-2.5">Date</th>
+                                <th class="py-2.5">Amount</th>
+                                <th class="py-2.5">Payment</th>
+                                <th class="py-2.5 text-end pe-3">Order Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalOrdersList">
+                            <!-- Populated dynamically by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top d-flex justify-content-between">
+                <div id="modalDirectContact">
+                    <!-- WhatsApp / Call links -->
+                </div>
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CUSTOMERS_DATA = {
+    {% for c in customers %}
+    "{{ c.email|escapejs }}": {
+        "name": "{{ c.name|escapejs }}",
+        "email": "{{ c.email|escapejs }}",
+        "phone": "{{ c.phone|escapejs }}",
+        "address": "{{ c.address|escapejs }}",
+        "orders_count": {{ c.orders_count }},
+        "total_spent": "₦{{ c.total_spent|floatformat:2|intcomma }}",
+        "orders": [
+            {% for o in c.orders %}
+            {
+                "order_number": "{{ o.order_number|escapejs }}",
+                "created_at": "{{ o.created_at|escapejs }}",
+                "amount": "{{ o.currency }} {{ o.total_amount|floatformat:2|intcomma }}",
+                "payment_status": "{{ o.payment_status|escapejs }}",
+                "status": "{{ o.status_display|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+function showCustomerDetailsModal(email) {
+    const cust = CUSTOMERS_DATA[email];
+    if (!cust) return;
+
+    document.getElementById('modalCustomerName').textContent = cust.name;
+    document.getElementById('modalCustomerEmail').textContent = cust.email;
+    document.getElementById('modalCustomerPhone').textContent = cust.phone || 'None provided';
+    document.getElementById('modalCustomerOrders').textContent = cust.orders_count;
+    document.getElementById('modalCustomerSpent').textContent = cust.total_spent;
+    document.getElementById('modalCustomerAddress').textContent = cust.address || 'No saved delivery address';
+    document.getElementById('modalAvatar').textContent = cust.name ? cust.name.charAt(0).toUpperCase() : 'C';
+
+    const ordersTbody = document.getElementById('modalOrdersList');
+    ordersTbody.innerHTML = '';
+
+    if (cust.orders && cust.orders.length > 0) {
+        cust.orders.forEach(o => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-3 py-2 fw-bold font-monospace text-dark">${o.order_number}</td>
+                <td class="py-2 text-muted small">${o.created_at}</td>
+                <td class="py-2 fw-bold text-dark">${o.amount}</td>
+                <td class="py-2"><span class="badge ${o.payment_status === 'paid' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}">${o.payment_status}</span></td>
+                <td class="text-end pe-3 py-2"><span class="badge bg-light text-dark border">${o.status}</span></td>
+            `;
+            ordersTbody.appendChild(tr);
+        });
+    } else {
+        ordersTbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted small">No order history available</td></tr>';
+    }
+
+    const contactDiv = document.getElementById('modalDirectContact');
+    if (cust.phone) {
+        const cleanPhone = cust.phone.replace(/[^0-9]/g, '');
+        contactDiv.innerHTML = `
+            <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn btn-success btn-sm rounded-pill px-3 text-white fw-bold me-2">
+                <i class="bi bi-whatsapp me-1"></i> WhatsApp
+            </a>
+            <a href="tel:${cust.phone}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                <i class="bi bi-telephone me-1"></i> Call Customer
+            </a>
+        `;
+    } else {
+        contactDiv.innerHTML = `
+            <a href="mailto:${cust.email}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                <i class="bi bi-envelope me-1"></i> Email Customer
+            </a>
+        `;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('customerDetailModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

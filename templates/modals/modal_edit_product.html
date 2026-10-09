@@ -1,36 +1,31 @@
 <!-- modal_edit_product.html -->
 <div class="modal fade" id="editProductModal{{ product.pk }}" tabindex="-1" aria-labelledby="editProductLabel{{ product.pk }}" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="POST" action="{% url 'edit_product' product.id %}">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form method="POST" action="{% url 'edit_product' product.id %}" enctype="multipart/form-data" onsubmit="handleEditProductSubmit(this)">
         {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title" id="editProductLabel{{ product.pk }}">
-            <i class="fas fa-edit"></i>&nbsp;&nbsp; Edit Product
+        <div class="modal-header border-bottom-0 pb-0">
+          <h5 class="modal-title fw-bold" id="editProductLabel{{ product.pk }}">
+            <i class="fas fa-edit text-primary me-2"></i>Edit Product
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
 
-        <div class="modal-body">
+        <div class="modal-body py-2">
           <input type="hidden" name="id" value="{{ product.id }}">
 
           <div class="mb-3">
-            <label for="productName{{ product.pk }}" class="form-label">Product Name</label>
-            <input type="text" class="form-control" id="productName{{ product.pk }}" name="product_name" value="{{ product.product_name }}">
+            <label for="productName{{ product.pk }}" class="form-label small fw-bold">Product Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="productName{{ product.pk }}" name="product_name" value="{{ product.product_name }}" required>
           </div>
 
           <div class="mb-3">
-            <label for="productCode{{ product.pk }}" class="form-label">Product Code / Barcode</label>
+            <label for="productCode{{ product.pk }}" class="form-label small fw-bold">Product Code / Barcode</label>
             <input type="text" class="form-control" id="productCode{{ product.pk }}" name="product_code" value="{{ product.product_code }}">
           </div>
 
           <div class="mb-3">
-            <label for="brand{{ product.pk }}" class="form-label">Brand</label>
-            <input type="text" class="form-control" id="brand{{ product.pk }}" name="brand" value="{{ product.brand }}">
-          </div>
-
-          <div class="mb-3">
-            <label for="category{{ product.pk }}" class="form-label">Category</label>
+            <label for="category{{ product.pk }}" class="form-label small fw-bold">Category <span class="text-danger">*</span></label>
             <select class="form-select" id="category{{ product.pk }}" name="category" required>
               {% if not product.category %}
                 <option value="" selected disabled>Select Category</option>
@@ -48,33 +43,115 @@
             </select>
           </div>
 
-
-
-
-
-          <div class="mb-3">
-            <label for="unit{{ product.pk }}" class="form-label">Unit</label>
-            <input type="text" class="form-control" id="unit{{ product.pk }}" name="unit" value="{{ product.unit }}">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label for="brand{{ product.pk }}" class="form-label small fw-bold">Brand <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="brand{{ product.pk }}" name="brand" value="{{ product.brand }}" required>
+            </div>
+            <div class="col-6">
+              <label for="unit{{ product.pk }}" class="form-label small fw-bold">Unit</label>
+              <input type="text" class="form-control" id="unit{{ product.pk }}" name="unit" value="{{ product.unit }}">
+            </div>
           </div>
 
           <div class="mb-3">
-            <label for="batchNo{{ product.pk }}" class="form-label">Batch No</label>
+            <label for="batchNo{{ product.pk }}" class="form-label small fw-bold">Batch No</label>
             <input type="text" class="form-control" id="batchNo{{ product.pk }}" name="batch_no" value="{{ product.batch_no }}">
+          </div>
+
+          <!-- Product Photos (Online Store Only) -->
+          <div class="p-3 bg-light rounded-3 border mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold small"><i class="bi bi-images text-primary me-1"></i> Storefront Photos</span>
+              <span class="badge bg-info text-white" style="font-size: 0.72rem;">Online Store Only</span>
+            </div>
+            <p class="text-muted small mb-3" style="font-size: 0.78rem;">
+              Upload up to 3 photos (main thumbnail + 2 detail/angle shots). Converted to optimized WebP.
+            </p>
+
+            <!-- 1. Primary Photo -->
+            <div class="mb-3">
+              <label class="form-label small text-muted mb-1">1. Primary Product Image (Main Thumbnail)</label>
+              {% if product.image %}
+                <div class="mb-2 d-flex align-items-center gap-2 p-2 border rounded bg-white">
+                  <img src="{{ product.image.url }}" alt="{{ product.product_name }}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover;">
+                  <span class="text-muted small">Current primary photo</span>
+                </div>
+              {% endif %}
+              <input type="file" class="form-control form-control-sm" id="productImage{{ product.pk }}" name="image" accept="image/*" onchange="previewEditProductImage(this, 'editPrimaryPreviewContainer{{ product.pk }}', 'editPrimaryPreview{{ product.pk }}')">
+              <div id="editPrimaryPreviewContainer{{ product.pk }}" class="mt-2 d-none">
+                <img id="editPrimaryPreview{{ product.pk }}" src="" alt="New Primary Preview" class="img-thumbnail rounded-3" style="max-height: 90px; object-fit: contain;">
+              </div>
+            </div>
+
+            <!-- 2. Detail Photo -->
+            <div class="mb-3">
+              <label class="form-label small text-muted mb-1">2. Detail / Angle Photo 2 (Secondary Image)</label>
+              {% if product.image_detail %}
+                <div class="mb-2 d-flex align-items-center gap-2 p-2 border rounded bg-white">
+                  <img src="{{ product.image_detail.url }}" alt="{{ product.product_name }}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover;">
+                  <span class="text-muted small">Current detail photo 2</span>
+                </div>
+              {% endif %}
+              <input type="file" class="form-control form-control-sm" id="productImageDetail{{ product.pk }}" name="image_detail" accept="image/*" onchange="previewEditProductImage(this, 'editDetailPreviewContainer{{ product.pk }}', 'editDetailPreview{{ product.pk }}')">
+              <div id="editDetailPreviewContainer{{ product.pk }}" class="mt-2 d-none">
+                <img id="editDetailPreview{{ product.pk }}" src="" alt="New Detail Preview" class="img-thumbnail rounded-3" style="max-height: 90px; object-fit: contain;">
+              </div>
+            </div>
+
+            <!-- 3. Extra Detail Photo -->
+            <div>
+              <label class="form-label small text-muted mb-1">3. Detail / Angle Photo 3 (Extra Image)</label>
+              {% if product.image_extra %}
+                <div class="mb-2 d-flex align-items-center gap-2 p-2 border rounded bg-white">
+                  <img src="{{ product.image_extra.url }}" alt="{{ product.product_name }}" class="rounded-2" style="width: 48px; height: 48px; object-fit: cover;">
+                  <span class="text-muted small">Current detail photo 3</span>
+                </div>
+              {% endif %}
+              <input type="file" class="form-control form-control-sm" id="productImageExtra{{ product.pk }}" name="image_extra" accept="image/*" onchange="previewEditProductImage(this, 'editExtraPreviewContainer{{ product.pk }}', 'editExtraPreview{{ product.pk }}')">
+              <div id="editExtraPreviewContainer{{ product.pk }}" class="mt-2 d-none">
+                <img id="editExtraPreview{{ product.pk }}" src="" alt="New Extra Preview" class="img-thumbnail rounded-3" style="max-height: 90px; object-fit: contain;">
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="modal-footer">
-          <div class="mt-4 text-center" style="width:100%;">
-            <button type="submit" class="btn btn-secondary">
-              <i class="fas fa-plus"></i>&nbsp;&nbsp; Save
-            </button>
-            
-            <button type="reset" class="btn btn-secondary" title="Reset">
-              <i class="fas fa-sync-alt"></i>
-            </button>
-          </div>
+        <div class="modal-footer border-top-0 pt-0">
+          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn app-btn-primary rounded-pill px-4 fw-bold edit-submit-btn">
+            <i class="fas fa-check me-1"></i> Save Changes
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<script>
+if (typeof previewEditProductImage === 'undefined') {
+  function previewEditProductImage(input, containerId, previewId) {
+    var container = document.getElementById(containerId);
+    var preview = document.getElementById(previewId);
+    if (input.files && input.files[0] && container && preview) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        container.classList.remove('d-none');
+      };
+      reader.readAsDataURL(input.files[0]);
+    } else if (container) {
+      container.classList.add('d-none');
+    }
+  }
+}
+if (typeof handleEditProductSubmit === 'undefined') {
+  function handleEditProductSubmit(form) {
+    var submitBtn = form.querySelector('.edit-submit-btn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving & Uploading...';
+    }
+    return true;
+  }
+}
+</script>

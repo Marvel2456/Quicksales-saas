@@ -18,7 +18,15 @@ class SalesService:
         if end_date:
             sales_qs = sales_qs.filter(date_updated__date__lte=end_date)
         if rep:
-            sales_qs = sales_qs.filter(staff__first_name__icontains=rep)
+            rep_clean = rep.strip()
+            if rep_clean.lower() == 'online':
+                sales_qs = sales_qs.filter(Q(staff__isnull=True) | Q(transaction_id__startswith='ONL-'))
+            else:
+                sales_qs = sales_qs.filter(
+                    Q(staff__first_name__icontains=rep_clean) |
+                    Q(staff__last_name__icontains=rep_clean) |
+                    Q(staff__email__icontains=rep_clean)
+                )
         if method:
             sales_qs = sales_qs.filter(method=method)
             

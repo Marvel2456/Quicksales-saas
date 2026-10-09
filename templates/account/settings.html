@@ -13,28 +13,65 @@
                 <div class="section-intro">View and manage your organization's basic information including business name, type, and location. These details are used across your account.</div>
             </div>
             <div class="col-12 col-md-8">
-                <div class="app-card-body">
-                    <form class="settings-form">
-                        <div class="mb-3">
-                            <label for="setting-input-1" class="form-label">Business Name</label>
-                            <input type="text" class="form-control" id="setting-input-1" value="{{ organization.name }}" disabled>
+                <div class="app-card app-card-settings shadow-sm p-4">
+                    <div class="app-card-body">
+                        <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+                            <div class="rounded-4 border shadow-sm d-flex align-items-center justify-content-center overflow-hidden bg-light" style="width: 70px; height: 70px;">
+                                {% if organization.logo %}
+                                    <img src="{{ organization.logo.url }}" alt="{{ organization.name }}" class="w-100 h-100" style="object-fit: cover;">
+                                {% else %}
+                                    <i class="fas fa-building fa-2x text-secondary opacity-50"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h4 class="mb-0 fw-bold">{{ organization.name }}</h4>
+                                <span class="badge bg-light text-dark border mt-1">{{ organization.get_business_type_display|default:'Business' }}</span>
+                                {% if organization.country %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle mt-1 ms-1">{{ organization.country }}</span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="setting-input-2" class="form-label">Business Type</label>
-                            <input type="text" class="form-control" id="setting-input-2" value="{{ organization.get_business_type_display }}" disabled>
-                        </div>
-                        <div class="mb-3">
-                            <label for="setting-input-3" class="form-label">Country</label>
-                            <input type="text" class="form-control" id="setting-input-3" value="{{ organization.country }}" disabled>
-                        </div>
-                        <div class="mb-3">
-                            <label for="setting-input-4" class="form-label">Active</label>
-                            <input type="text" class="form-control" id="setting-input-4" value="{{ organization.is_active }}" disabled>
-                        </div>
-                        <button type="button" class="btn app-btn-primary" data-bs-toggle="modal" data-bs-target="#editOrganizationModal">
-                            Edit Organization
-                        </button>
-                    </form>
+
+                        <form class="settings-form">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Business Name</label>
+                                    <input type="text" class="form-control bg-light" value="{{ organization.name }}" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Business Type</label>
+                                    <input type="text" class="form-control bg-light" value="{{ organization.get_business_type_display }}" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Country</label>
+                                    <input type="text" class="form-control bg-light" value="{{ organization.country|default:'Not set' }}" disabled>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Default Branch (Online Store)</label>
+                                    <input type="text" class="form-control bg-light" value="{% if organization.default_branch %}{{ organization.default_branch.name }}{% else %}Auto (First Branch){% endif %}" disabled>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold text-muted small text-uppercase">Account Status</label>
+                                    <div>
+                                        {% if organization.is_active %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill fw-semibold">
+                                            <i class="fas fa-check-circle me-1"></i> Active Organization
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill fw-semibold">
+                                            Inactive
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-2">
+                                <button type="button" class="btn app-btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#editOrganizationModal">
+                                    <i class="fas fa-edit me-1"></i> Edit Organization
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
             </div>
@@ -113,6 +150,7 @@
 </div><!--//app-content-->
 
 <!-- Include Modals -->
+{% include 'modals/edit_organization.html' %}
 {% include 'modals/subscription.html' %}
 {% include 'modals/cancel_subscription.html' %}
 {% include 'modals/edit_organization_branding.html' %}

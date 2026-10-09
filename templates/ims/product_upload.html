@@ -30,7 +30,7 @@
     {% endif %}
 
     <!-- Combined Form Section -->
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="productUploadForm" onsubmit="handleProductUploadSubmit(event, this)">
       {% csrf_token %}
 
       <!-- File Upload Section -->
@@ -54,8 +54,8 @@
               {% endif %}
             </div>
             <div class="col-md-4 d-flex align-items-end">
-              <button type="submit" name="upload_type" value="file" class="btn app-btn-primary">
-                <i class="fas fa-upload"></i> Upload File
+              <button type="submit" name="upload_type" value="file" id="fileUploadBtn" class="btn app-btn-primary">
+                <i class="fas fa-upload me-1"></i> Upload File
               </button>
             </div>
           </div>
@@ -139,9 +139,53 @@
                 <div class="text-danger small">{{ form.reorder_level.errors }}</div>
               {% endif %}
             </div>
+
+            <div class="col-md-4">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0 small fw-bold">1. Primary Image (Main)</label>
+                <span class="badge bg-info text-white" style="font-size: 0.72rem;">Online Store</span>
+              </div>
+              {{ form.image }}
+              <div class="form-text text-muted" style="font-size: 0.8rem;">
+                Main photo for online catalog. Converted to WebP.
+              </div>
+              {% if form.image.errors %}
+                <div class="text-danger small">{{ form.image.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-4">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0 small fw-bold">2. Detail Photo 2 (Secondary)</label>
+                <span class="badge bg-info text-white" style="font-size: 0.72rem;">Online Store</span>
+              </div>
+              {{ form.image_detail }}
+              <div class="form-text text-muted" style="font-size: 0.8rem;">
+                Optional 2nd angle for buyers. Converted to WebP.
+              </div>
+              {% if form.image_detail.errors %}
+                <div class="text-danger small">{{ form.image_detail.errors }}</div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-4">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label mb-0 small fw-bold">3. Detail Photo 3 (Extra)</label>
+                <span class="badge bg-info text-white" style="font-size: 0.72rem;">Online Store</span>
+              </div>
+              {{ form.image_extra }}
+              <div class="form-text text-muted" style="font-size: 0.8rem;">
+                Optional 3rd angle for buyers. Converted to WebP.
+              </div>
+              {% if form.image_extra.errors %}
+                <div class="text-danger small">{{ form.image_extra.errors }}</div>
+              {% endif %}
+            </div>
           </div>
           <div class="mt-4">
-            <button type="submit" name="upload_type" value="manual" class="btn app-btn-primary">Save Product</button>
+            <button type="submit" name="upload_type" value="manual" id="manualUploadBtn" class="btn app-btn-primary">
+              <i class="fas fa-save me-1"></i> Save Product
+            </button>
           </div>
         </div>
       </div>
@@ -150,6 +194,19 @@
 </div>
 
 <script>
+function handleProductUploadSubmit(e, form) {
+  var submitter = e.submitter;
+  if (submitter) {
+    submitter.disabled = true;
+    if (submitter.value === 'file') {
+      submitter.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading File...';
+    } else {
+      submitter.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving & Uploading...';
+    }
+  }
+  return true;
+}
+
 function downloadSample() {
   // Create sample CSV content
   const csvContent = `product_name,category,brand,unit,batch_no,product_code,cost_price,sale_price,quantity,reorder_level

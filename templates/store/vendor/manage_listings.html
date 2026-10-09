@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+
+{% block title %}Catalog & Online Listings{% endblock %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+        
+        <!-- Header & Action Controls -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+            <div>
+                <h1 class="app-page-title mb-1">Catalog & Online Listings</h1>
+                <div class="text-muted small">
+                    Manage items visible on your storefront from branch: <strong class="text-dark">{{ branch.name }}</strong>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="publish_all">
+                    <button type="submit" class="btn btn-outline-success btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-2">
+                        <i class="bi bi-eye"></i>
+                        <span>Publish All In-Stock</span>
+                    </button>
+                </form>
+                <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="hide_all">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-2">
+                        <i class="bi bi-eye-slash"></i>
+                        <span>Hide All</span>
+                    </button>
+                </form>
+                {% if organization.slug %}
+                <a href="{% url 'storefront' organization.slug %}" target="_blank" class="btn app-btn-primary btn-sm fw-semibold d-inline-flex align-items-center gap-1.5 px-3 py-2">
+                    <i class="bi bi-shop"></i>
+                    <span>View Store</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Filter / Search Utilities -->
+        <div class="app-card shadow-sm p-3 mb-4 rounded-3 border-0 bg-white">
+            <div class="row g-2 align-items-center justify-content-between">
+                <div class="col-12 col-md-6 col-lg-5">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" id="listingSearchInput" class="form-control border-start-0 bg-light" placeholder="Search by product name or code..." onkeyup="filterListings()">
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-6 text-md-end">
+                    <span class="badge bg-light text-dark border px-3 py-2 me-1">Total: <strong id="totalCount">{{ listings|length }}</strong></span>
+                    <span class="text-muted small">Instant switches sync directly with your online store.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listings Table Card -->
+        <div class="app-card shadow-sm mb-4 rounded-3 border-0 overflow-hidden bg-white">
+            <div class="table-responsive">
+                <table class="table app-table-hover mb-0 align-middle" id="listingsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="cell py-3 ps-3">Product</th>
+                            <th class="cell py-3">Category</th>
+                            <th class="cell py-3">Price</th>
+                            <th class="cell py-3">Branch Stock</th>
+                            <th class="cell py-3 text-center">Store Visibility</th>
+                            <th class="cell py-3 text-center">Featured</th>
+                            <th class="cell py-3 text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for listing in listings %}
+                        <tr class="listing-row" data-search="{{ listing.display_title|lower }} {{ listing.inventory.product.product_code|default:''|lower }}">
+                            <td class="cell ps-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    {% if listing.get_image_url %}
+                                    <img src="{{ listing.get_image_url }}" alt="" class="rounded-3 border flex-shrink-0" style="width: 46px; height: 46px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted flex-shrink-0" style="width: 46px; height: 46px;">
+                                        <i class="bi bi-box-seam fs-5"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-bold text-dark mb-0">{{ listing.display_title }}</div>
+                                        <small class="text-muted">Code: {{ listing.inventory.product.product_code|default:'N/A' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="cell">
+                                <span class="badge bg-light text-dark border font-monospace fw-normal">
+                                    {{ listing.inventory.product.category.category_name|default:'General' }}
+                                </span>
+                            </td>
+                            <td class="cell fw-bold text-dark">
+                                {% if organization.country and organization.country.lower != 'nigeria' %}
+                                ${{ listing.display_price|floatformat:2|intcomma }}
+                                {% else %}
+                                ₦{{ listing.display_price|floatformat:2|intcomma }}
+                                {% endif %}
+                            </td>
+                            <td class="cell">
+                                {% if listing.is_in_stock %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5">
+                                    <i class="bi bi-check-circle me-1"></i>{{ listing.stock_quantity }} in stock
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5">
+                                    <i class="bi bi-dash-circle me-1"></i>Out of stock
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="cell text-center">
+                                <div class="form-check form-switch d-inline-block mb-0">
+                                    <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" onchange="toggleVisibility('{{ listing.id }}')" {% if listing.is_visible %}checked{% endif %} title="Toggle visibility in store">
+                                </div>
+                            </td>
+                            <td class="cell text-center">
+                                <div class="form-check form-switch d-inline-block mb-0">
+                                    <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" onchange="toggleFeatured('{{ listing.id }}')" {% if listing.featured %}checked{% endif %} title="Toggle featured on homepage">
+                                </div>
+                            </td>
+                            <td class="cell text-end pe-3">
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 fw-semibold" 
+                                            onclick="copyProductLink('{{ request.scheme }}://{{ request.get_host }}{% url 'product_detail' organization.slug listing.id %}', this)" 
+                                            title="Copy direct product link">
+                                        <i class="bi bi-link-45deg fs-6"></i>
+                                        <span>Share Link</span>
+                                    </button>
+                                    <button class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editListingModal{{ listing.id }}" title="Edit listing details">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Edit Listing Modal -->
+                        <div class="modal fade" id="editListingModal{{ listing.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content rounded-4 border-0 shadow">
+                                    <form method="post" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="edit_details">
+                                        <input type="hidden" name="listing_id" value="{{ listing.id }}">
+                                        
+                                        <div class="modal-header border-bottom-0 pb-0">
+                                            <h5 class="modal-title fw-bold">Customize Store Listing</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body py-3">
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Display Title Override</label>
+                                                <input type="text" name="custom_title" value="{{ listing.custom_title }}" class="form-control" placeholder="{{ listing.inventory.product.product_name }}">
+                                                <div class="form-text">Leave blank to use default inventory name.</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">Custom Description</label>
+                                                <textarea name="custom_description" rows="3" class="form-control" placeholder="Write a compelling description for online shoppers...">{{ listing.custom_description }}</textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">1. Primary Store Photo (Main)</label>
+                                                <input type="file" name="image" accept="image/*" class="form-control form-control-sm">
+                                                {% if listing.image %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                                    <img src="{{ listing.image.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                                    <small class="text-muted d-block">Listing Override</small>
+                                                </div>
+                                                {% elif listing.inventory.product.image %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                                    <img src="{{ listing.inventory.product.image.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                                    <small class="text-muted d-block">Inherited from Product</small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">2. Detail / Angle Photo 2 (Secondary)</label>
+                                                <input type="file" name="image_detail" accept="image/*" class="form-control form-control-sm">
+                                                {% if listing.image_detail %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                                    <img src="{{ listing.image_detail.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                                    <small class="text-muted d-block">Listing Override</small>
+                                                </div>
+                                                {% elif listing.inventory.product.image_detail %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                                    <img src="{{ listing.inventory.product.image_detail.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                                    <small class="text-muted d-block">Inherited from Product</small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label small fw-bold">3. Detail / Angle Photo 3 (Tertiary)</label>
+                                                <input type="file" name="image_extra" accept="image/*" class="form-control form-control-sm">
+                                                {% if listing.image_extra %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                                    <img src="{{ listing.image_extra.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                                    <small class="text-muted d-block">Listing Override</small>
+                                                </div>
+                                                {% elif listing.inventory.product.image_extra %}
+                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
+                                                    <img src="{{ listing.inventory.product.image_extra.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                                    <small class="text-muted d-block">Inherited from Product</small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer border-top-0 pt-0">
+                                            <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn app-btn-primary rounded-pill px-4 fw-bold">Save Details</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr id="emptyRow">
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-box-seam display-4 d-block mb-3 opacity-40"></i>
+                                <h6 class="fw-bold mb-1">No products found in this branch</h6>
+                                <p class="small text-muted mb-0">Add products to your branch inventory to display them on your online storefront.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Universal Copy to Clipboard Helper
+function copyTextToClipboard(text, successMsg, buttonElement) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(function() {
+            handleCopySuccess(successMsg, buttonElement);
+        }).catch(function() {
+            fallbackExecCommandCopy(text, successMsg, buttonElement);
+        });
+        return;
+    }
+    fallbackExecCommandCopy(text, successMsg, buttonElement);
+}
+
+function fallbackExecCommandCopy(text, successMsg, buttonElement) {
+    try {
+        var textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        textArea.setAttribute("readonly", "");
+        document.body.appendChild(textArea);
+        textArea.select();
+        textArea.setSelectionRange(0, 99999);
+        var successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (successful) {
+            handleCopySuccess(successMsg, buttonElement);
+        } else {
+            prompt("Copy to clipboard: Ctrl+C, Enter", text);
+        }
+    } catch (err) {
+        prompt("Copy to clipboard: Ctrl+C, Enter", text);
+    }
+}
+
+function handleCopySuccess(msg, buttonElement) {
+    if (buttonElement) {
+        var originalHtml = buttonElement.innerHTML;
+        var originalClass = buttonElement.className;
+        buttonElement.innerHTML = '<i class="bi bi-check2"></i> <span>Copied!</span>';
+        buttonElement.classList.remove('btn-outline-primary', 'btn-outline-secondary');
+        buttonElement.classList.add('btn-success', 'text-white');
+        buttonElement.disabled = true;
+        setTimeout(function() {
+            buttonElement.innerHTML = originalHtml;
+            buttonElement.className = originalClass;
+            buttonElement.disabled = false;
+        }, 2000);
+    }
+    showToastNotification(msg || 'Product link copied to clipboard!');
+}
+
+function showToastNotification(message) {
+    var container = document.getElementById('toast-feedback-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-feedback-container';
+        container.style.position = 'fixed';
+        container.style.bottom = '24px';
+        container.style.right = '24px';
+        container.style.zIndex = '99999';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '8px';
+        document.body.appendChild(container);
+    }
+
+    var toast = document.createElement('div');
+    toast.className = 'shadow-lg rounded-pill px-4 py-2.5 text-white fw-semibold d-flex align-items-center gap-2';
+    toast.style.background = '#02296e';
+    toast.style.fontSize = '14px';
+    toast.style.boxShadow = '0 8px 24px rgba(2, 41, 110, 0.35)';
+    toast.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-5"></i> <span>' + message + '</span>';
+    
+    container.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 2500);
+}
+
+function copyProductLink(url, btn) {
+    copyTextToClipboard(url, 'Product link copied! Ready to send to customer.', btn);
+}
+
+function toggleVisibility(listingId) {
+    fetch("{% url 'manage_listings' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: "action=toggle_visibility&listing_id=" + encodeURIComponent(listingId)
+    }).then(function(res) {
+        return res.json();
+    }).then(function(data) {
+        if (data.success) {
+            showToastNotification(data.is_visible ? "Product is now visible on storefront" : "Product hidden from storefront");
+        }
+    });
+}
+
+function toggleFeatured(listingId) {
+    fetch("{% url 'manage_listings' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: "action=toggle_featured&listing_id=" + encodeURIComponent(listingId)
+    }).then(function(res) {
+        return res.json();
+    }).then(function(data) {
+        if (data.success) {
+            showToastNotification(data.featured ? "Product featured on store homepage" : "Removed from featured");
+        }
+    });
+}
+
+function filterListings() {
+    var query = document.getElementById('listingSearchInput').value.toLowerCase().trim();
+    var rows = document.querySelectorAll('.listing-row');
+    var visibleCount = 0;
+    
+    rows.forEach(function(row) {
+        var searchData = row.getAttribute('data-search') || '';
+        if (!query || searchData.indexOf(query) > -1) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    var countEl = document.getElementById('totalCount');
+    if (countEl) countEl.innerText = visibleCount;
+}
+</script>
+{% endblock %}

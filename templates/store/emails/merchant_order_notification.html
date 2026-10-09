@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Online Order #{{ order_number }} — {{ store_name }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+        }
+        .wrapper {
+            width: 100%;
+            background-color: #f1f5f9;
+            padding: 40px 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+        .header {
+            background-color: {{ brand_color|default:'#021024' }};
+            color: #ffffff;
+            padding: 36px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 32px 30px;
+        }
+        .order-badge {
+            display: inline-block;
+            background-color: #ecfdf5;
+            color: #059669;
+            font-weight: 700;
+            font-size: 12px;
+            padding: 6px 14px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #0f172a;
+        }
+        .intro-text {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .order-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .order-box-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .items-table th {
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .items-table td {
+            padding: 12px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+        .item-name {
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .total-row.grand-total {
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            border-top: 2px dashed #e2e8f0;
+            margin-top: 10px;
+            padding-top: 12px;
+        }
+        .info-grid {
+            width: 100%;
+            margin-bottom: 24px;
+        }
+        .info-grid td {
+            vertical-align: top;
+            padding: 0 10px 10px 0;
+            width: 50%;
+        }
+        .info-card {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            height: 100%;
+            box-sizing: border-box;
+        }
+        .info-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .info-value {
+            font-size: 13px;
+            color: #1e293b;
+            line-height: 1.5;
+        }
+        .cta-btn {
+            display: block;
+            text-align: center;
+            background-color: {{ brand_color|default:'#021024' }};
+            color: #ffffff !important;
+            font-weight: 700;
+            font-size: 15px;
+            text-decoration: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            margin: 28px 0;
+        }
+        .footer {
+            text-align: center;
+            padding: 24px 30px 32px;
+            font-size: 12px;
+            color: #94a3b8;
+            border-top: 1px solid #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <h1>{{ store_name }}</h1>
+                <p>New Online Order Alert 🛍️</p>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <div class="order-badge">✓ Payment Received • Order #{{ order_number }}</div>
+
+                <div class="greeting">You've got a new online order! 🎉</div>
+                <div class="intro-text">
+                    A customer just completed an order on your online storefront. The inventory has been reserved and the sale record created.
+                </div>
+
+                <!-- Customer Details & Delivery Info -->
+                <table class="info-grid">
+                    <tr>
+                        <td>
+                            <div class="info-card">
+                                <div class="info-label">Customer Details</div>
+                                <div class="info-value">
+                                    <strong>{{ buyer_name }}</strong><br>
+                                    <a href="mailto:{{ buyer_email }}" style="color: #2563eb; text-decoration: none;">{{ buyer_email }}</a><br>
+                                    {% if buyer_phone %}<a href="tel:{{ buyer_phone }}" style="color: #2563eb; text-decoration: none;">{{ buyer_phone }}</a>{% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="info-card">
+                                <div class="info-label">Delivery / Shipping</div>
+                                <div class="info-value">
+                                    {% if shipping_address %}
+                                        {{ shipping_address|linebreaksbr }}
+                                    {% else %}
+                                        <em>Standard Fulfillment / Digital</em>
+                                    {% endif %}
+                                    {% if customer_notes %}
+                                        <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+                                            <strong>Note:</strong> {{ customer_notes }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Items Breakdown -->
+                <div class="order-box">
+                    <div class="order-box-title">Order Items ({{ items|length }})</div>
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th style="text-align: center; width: 60px;">Qty</th>
+                                <th style="text-align: right; width: 100px;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="item-name">{{ item.product_name }}</div>
+                                    <div style="font-size: 12px; color: #64748b;">{{ currency }} {{ item.unit_price }} each</div>
+                                </td>
+                                <td style="text-align: center; font-weight: 600;">{{ item.quantity }}</td>
+                                <td style="text-align: right; font-weight: 600;">{{ currency }} {{ item.total_price }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                        <div class="total-row">
+                            <span>Subtotal</span>
+                            <span>{{ currency }} {{ subtotal }}</span>
+                        </div>
+                        {% if discount_amount and discount_amount > 0 %}
+                        <div class="total-row" style="color: #059669;">
+                            <span>Discount Applied</span>
+                            <span>-{{ currency }} {{ discount_amount }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="total-row grand-total">
+                            <span>Total Paid</span>
+                            <span>{{ currency }} {{ total_amount }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Call to Action -->
+                {% if dashboard_order_url %}
+                <a href="{{ dashboard_order_url }}" class="cta-btn">View Order in Dashboard</a>
+                {% endif %}
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p style="margin: 0 0 6px;">Automated order alert powered by <strong>QuickSales</strong>.</p>
+                <p style="margin: 0;">Manage your store catalog, stock, and orders at <a href="https://quicksales.app" style="color: #64748b; text-decoration: underline;">quicksales.app</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

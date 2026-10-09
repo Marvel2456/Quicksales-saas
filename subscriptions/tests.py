@@ -104,3 +104,113 @@ class PaymentIdempotencyTests(TestCase):
 		self.assertTrue(self.subscription.is_active)
 		mock_apply_async.assert_called_once()
 		mock_send_email.assert_called_once()
+
+
+class PlanOnlineStoreFeatureTests(TestCase):
+	def setUp(self):
+		self.owner = CustomUser.objects.create_user(
+			email="planowner@test.com",
+			password="Password123!",
+			role="owner"
+		)
+		self.organization = Organization.objects.create(
+			name="Boutique One",
+			slug="boutique-one",
+			owned_by=self.owner,
+			is_active=True
+		)
+		from account.models import Branch, OrganizationMembership
+		self.branch = Branch.objects.create(
+			name="Main Branch",
+			organization=self.organization
+		)
+		self.organization.default_branch = self.branch
+		self.organization.save()
+		OrganizationMembership.objects.create(
+			user=self.owner,
+			organization=self.organization,
+			branch=self.branch,
+			role="owner",
+			is_active=True
+		)
+
+		# Plan WITH online store enabled
+		self.plan_with_store, _ = Plan.objects.get_or_create(
+			tier="growth",
+			size="starter",
+			billing_frequency="monthly",
+			defaults={
+				"name": "Growth Plan With Store",
+				"price": Decimal("25000.00"),
+				"duration_in_days": 30,
+				"has_online_store": True
+			}
+		)
+		self.plan_with_store.has_online_store = True
+		self.plan_with_store.save(update_fields=['has_online_store'])
+
+		# Plan WITHOUT online store enabled
+		self.plan_without_store, _ = Plan.objects.get_or_create(
+			tier="basic",
+			size="starter",
+			billing_frequency="monthly",
+			defaults={
+				"name": "Basic Plan POS Only",
+				"price": Decimal("10000.00"),
+				"duration_in_days": 30,
+				"has_online_store": False
+			}
+		)
+		self.plan_without_store.has_online_store = False
+		self.plan_without_store.save(update_fields=['has_online_store'])
+
+	def test_plan_has_online_store_access_helper(self):
+		"""Verifies has_online_store_access returns True/False according to active plan"""
+		from subscriptions.utils import has_online_store_access
+
+		sub = Subscription.objects.create(
+			organization=self.organization,
+			plan=self.plan_with_store,
+			start_date=timezone.now(),
+			end_date=timezone.now() + timedelta(days=30),
+			is_active=True
+		)
+		self.assertTrue(has_online_store_access(self.organization))
+
+		# Switch to plan without online store
+		sub.plan = self.plan_without_store
+		sub.save()
+		self.assertFalse(has_online_store_access(self.organization))
+
+	def test_vendor_store_view_restricted_when_plan_disables_store(self):
+		"""Vendor views redirect to pricing with warning when plan does not include online store"""
+		Subscription.objects.create(
+			organization=self.organization,
+			plan=self.plan_without_store,
+			start_date=timezone.now(),
+			end_date=timezone.now() + timedelta(days=30),
+			is_active=True
+		)
+
+		self.client.force_login(self.owner)
+		url = reverse('manage_listings')
+		res = self.client.get(url)
+		# Redirects to subscription settings
+		self.assertEqual(res.status_code, 302)
+		self.assertIn('/settings', res.url)
+
+	def test_public_storefront_inactive_when_plan_disables_store(self):
+		"""Public storefront renders inactive template when owner's plan does not have online store"""
+		Subscription.objects.create(
+			organization=self.organization,
+			plan=self.plan_without_store,
+			start_date=timezone.now(),
+			end_date=timezone.now() + timedelta(days=30),
+			is_active=True
+		)
+
+		url = reverse('storefront', kwargs={'org_slug': self.organization.slug})
+		res = self.client.get(url)
+		self.assertEqual(res.status_code, 200)
+		self.assertTemplateUsed(res, 'store/store_inactive.html')
+

@@ -38,6 +38,7 @@ urlpatterns = [
     path('subscriptions/', include('subscriptions.urls')),
     path('account/', include('account.urls')),
     path('intelligence/', include('intelligence.urls')),
+    path('', include('store.urls')),
     path('service-worker.js', service_worker, name='service_worker'),
 ]
 urlpatterns += staticfiles_urlpatterns()

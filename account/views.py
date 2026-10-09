@@ -92,12 +92,17 @@ class OwnerRegisterView(View):
             trial_start = timezone.now()
             trial_end = timezone.now() + timedelta(days=7)
             
+            raw_logo = form.cleaned_data.get('organization_logo')
+            if raw_logo:
+                from ims.utils.image_optimizer import compress_image_to_webp
+                raw_logo = compress_image_to_webp(raw_logo, max_dimension=600, prefix='logo')
+
             # Create organization
             organization = Organization.objects.create(
                 name=form.cleaned_data['organization_name'],
                 business_type=form.cleaned_data['business_type'],
                 country=form.cleaned_data.get('organization_country', ''),
-                logo=form.cleaned_data.get('organization_logo'),
+                logo=raw_logo,
                 brand_color=form.cleaned_data.get('brand_color', '#007bff'),
                 trial_start=trial_start,
                 trial_end=trial_end,
@@ -440,15 +445,26 @@ def loginUser(request):
                 except:
                     redirect_role = user.role  # Fallback to user role
 
+            # Subdomain alignment: if logging in from a different subdomain, redirect to correct tenant domain
+            current_subdomain = request.organization.slug if getattr(request, 'organization', None) else None
+            needs_subdomain_redirect = (
+                log_org and log_org.slug and current_subdomain and current_subdomain != log_org.slug
+            )
+
             # Redirect logic
             if redirect_role == 'owner':
-                # Owners see the list of all branches in their organization (branchdash.html)
+                if needs_subdomain_redirect:
+                    protocol = get_protocol()
+                    return redirect(f"{protocol}://{log_org.slug}.{settings.DOMAIN}{reverse('index')}")
                 return redirect('index')
             elif redirect_role in ['manager', 'sales']:
                 if expired:
                     messages.error(request, 'Organization subscription has expired. Contact admin for a sales or manager role.')
                     return redirect('login')
                 if log_branch:
+                    if needs_subdomain_redirect:
+                        protocol = get_protocol()
+                        return redirect(f"{protocol}://{log_org.slug}.{settings.DOMAIN}{reverse('branchdash', pk=log_branch.id)}")
                     return redirect('branchdash', pk=log_branch.id)
                 else:
                     messages.error(request, 'You are not assigned to a branch yet.')
@@ -905,12 +921,15 @@ def update_profile(request):
     user.phone_number = phone_number or None
 
     # Handle profile picture upload
-    if 'profile_picture' in request.FILES:
-        profile_picture = request.FILES['profile_picture']
+    if 'profile_picture' in request.FILES and request.FILES['profile_picture']:
+        from ims.utils.image_optimizer import compress_image_to_webp
         # Delete old picture if exists
         if user.profile_picture:
-            user.profile_picture.delete(save=False)
-        user.profile_picture = profile_picture
+            try:
+                user.profile_picture.delete(save=False)
+            except Exception:
+                pass
+        user.profile_picture = compress_image_to_webp(request.FILES['profile_picture'], max_dimension=600, prefix='profile')
 
     user.save()
     messages.success(request, "Profile updated successfully.")
@@ -930,12 +949,15 @@ def update_organization_branding(request):
         return redirect('settings')
 
     # Handle logo upload
-    if 'logo' in request.FILES:
-        logo = request.FILES['logo']
+    if 'logo' in request.FILES and request.FILES['logo']:
+        from ims.utils.image_optimizer import compress_image_to_webp
         # Delete old logo if exists
         if organization.logo:
-            organization.logo.delete(save=False)
-        organization.logo = logo
+            try:
+                organization.logo.delete(save=False)
+            except Exception:
+                pass
+        organization.logo = compress_image_to_webp(request.FILES['logo'], max_dimension=600, prefix='logo')
 
     # Handle brand color
     brand_color = request.POST.get('brand_color', '').strip()

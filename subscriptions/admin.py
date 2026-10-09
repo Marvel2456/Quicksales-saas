@@ -1,15 +1,30 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
-from .models import Plan, Subscription, Payment, Coupon, CouponRedemption
+from .models import Plan, Subscription, Payment, Coupon, CouponRedemption, PaymentGatewayConfig
 # Register your models here.
 
+
+@admin.register(PaymentGatewayConfig)
+class PaymentGatewayConfigAdmin(ModelAdmin):
+    list_display = ('active_gateway', 'updated_at', 'updated_by')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not PaymentGatewayConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Plan)
 class PlanAdmin(ModelAdmin):
-    list_display = ('name', 'tier', 'size', 'billing_frequency', 'price', 'disable_store', 'max_users', 'max_branches', 'max_products', 'created_at')
+    list_display = ('name', 'tier', 'size', 'billing_frequency', 'price', 'price_usd', 'has_online_store', 'disable_store', 'max_users', 'max_branches', 'max_products', 'created_at')
     search_fields = ('name', 'tier', 'size')
-    list_filter = ('tier', 'size', 'billing_frequency')
+    list_filter = ('tier', 'size', 'billing_frequency', 'has_online_store')
     ordering = ('-created_at',)
     date_hierarchy = 'created_at'
     list_per_page = 10
@@ -21,8 +36,10 @@ class PlanAdmin(ModelAdmin):
         'size',
         'billing_frequency',
         'price',
+        'price_usd',
         'duration_in_days',
         'description',
+        'has_online_store',
         'disable_store',
         'max_users',
         'max_branches',
@@ -49,9 +66,9 @@ class SubscriptionAdmin(ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(ModelAdmin):
-    list_display = ('subscription', 'amount', 'payment_method', 'payment_status')
+    list_display = ('subscription', 'amount', 'currency', 'payment_method', 'payment_status')
     search_fields = ('subscription__organization__name', 'subscription__plan__name')
-    list_filter = ('payment_status',)
+    list_filter = ('payment_status', 'currency')
     ordering = ('-created_at',)
     date_hierarchy = 'created_at'
     list_per_page = 10

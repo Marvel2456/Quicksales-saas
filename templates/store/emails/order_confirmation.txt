@@ -1,0 +1,30 @@
+Order Confirmation — {{ store_name }}
+========================================
+
+Hello {{ buyer_name }},
+
+Thank you for shopping with {{ store_name }}!
+Your order #{{ order_number }} has been confirmed and paid.
+
+Order Summary:
+----------------------------------------
+{% for item in items %}
+- {{ item.product_name }} (x{{ item.quantity }}) : {{ currency }} {{ item.total_price }}
+{% endfor %}
+{% if discount_amount and discount_amount > 0 %}
+Discount Saved: -{{ currency }} {{ discount_amount }}
+{% endif %}
+Total Paid: {{ currency }} {{ total_amount }}
+
+Delivery Details:
+----------------------------------------
+Recipient: {{ buyer_name }} ({{ buyer_phone }})
+Address: {{ shipping_address }}
+{% if customer_notes %}Notes: {{ customer_notes }}{% endif %}
+
+{% if receipt_url %}
+View your online receipt: {{ receipt_url }}
+{% endif %}
+
+Thank you for your business!
+{{ store_name }}

@@ -200,3 +200,193 @@ class OfflineAPITests(TestCase):
             title__icontains="Offline Sync Shortage",
             branch=self.branch
         ).exists())
+
+
+class ProductImageWebPOptimizerTests(TestCase):
+    def setUp(self):
+        from PIL import Image
+        self.org = Organization.objects.create(name="Image Test Org", slug="image-test-org", is_active=True)
+        self.branch = Branch.objects.create(name="Main Branch", organization=self.org)
+        self.category = Category.objects.create(organization=self.org, branch=self.branch, category_name="Shoes")
+        plan, _ = Plan.objects.get_or_create(
+            tier='basic',
+            size='starter',
+            billing_frequency='monthly',
+            defaults={'price': Decimal('99.00')}
+        )
+        Subscription.objects.create(
+            organization=self.org,
+            plan=plan,
+            is_active=True,
+            end_date=timezone.now() + timedelta(days=30)
+        )
+
+    def test_optimize_product_image_jpeg(self):
+        """Test large JPEG image is downscaled to max 1600px and converted to WebP"""
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from ims.utils.image_optimizer import optimize_product_image
+
+        # Create a 2400x1800 raw test image in memory
+        img = Image.new('RGB', (2400, 1800), color=(200, 50, 50))
+        img_io = io.BytesIO()
+        img.save(img_io, format='JPEG', quality=95)
+        img_io.seek(0)
+
+        uploaded = SimpleUploadedFile("summer_shoes.jpg", img_io.read(), content_type="image/jpeg")
+        optimized_file = optimize_product_image(uploaded)
+
+        self.assertIsNotNone(optimized_file)
+        self.assertTrue(optimized_file.name.endswith('.webp'))
+
+        # Open optimized image and verify format & dimension constraints
+        result_img = Image.open(optimized_file)
+        self.assertEqual(result_img.format, 'WEBP')
+        self.assertLessEqual(result_img.width, 1600)
+        self.assertLessEqual(result_img.height, 1600)
+        # Verify aspect ratio preserved: 2400x1800 -> 1600x1200
+        self.assertEqual(result_img.size, (1600, 1200))
+
+    def test_optimize_product_image_png_transparency(self):
+        """Test PNG with transparency converts to WebP preserving RGBA mode"""
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from ims.utils.image_optimizer import optimize_product_image
+
+        img = Image.new('RGBA', (500, 500), color=(0, 100, 200, 128))
+        img_io = io.BytesIO()
+        img.save(img_io, format='PNG')
+        img_io.seek(0)
+
+        uploaded = SimpleUploadedFile("logo.png", img_io.read(), content_type="image/png")
+        optimized_file = optimize_product_image(uploaded)
+
+        self.assertIsNotNone(optimized_file)
+        self.assertTrue(optimized_file.name.endswith('.webp'))
+
+        result_img = Image.open(optimized_file)
+        self.assertEqual(result_img.format, 'WEBP')
+        self.assertEqual(result_img.mode, 'RGBA')
+
+    def test_product_form_with_image_upload(self):
+        """Test ProductForm cleans and optimizes uploaded image to WebP"""
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from ims.forms import ProductForm
+
+        img = Image.new('RGB', (800, 600), color=(50, 150, 50))
+        img_io = io.BytesIO()
+        img.save(img_io, format='JPEG')
+        img_io.seek(0)
+
+        uploaded = SimpleUploadedFile("sneakers.jpg", img_io.read(), content_type="image/jpeg")
+
+        data = {
+            'product_name': 'Running Sneakers',
+            'product_code': 'SNK-001',
+            'category': self.category.id,
+            'brand': 'Nike',
+            'unit': 'Pair',
+            'batch_no': 'B01',
+        }
+        files = {'image': uploaded}
+
+        form = ProductForm(data=data, files=files, organization=self.org, branch=self.branch)
+        self.assertTrue(form.is_valid(), form.errors)
+        product = form.save(commit=False)
+        product.organization = self.org
+        product.branch = self.branch
+        product.save()
+
+        self.assertTrue(bool(product.image))
+        self.assertTrue(product.image.name.endswith('.webp'))
+
+    def test_store_product_listing_inherits_product_image(self):
+        """Test ProductListing.get_image_url resolves product image for online shop"""
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from store.models import StoreListing, ProductListing
+
+        img = Image.new('RGB', (400, 400), color=(10, 20, 30))
+        img_io = io.BytesIO()
+        img.save(img_io, format='JPEG')
+        img_io.seek(0)
+
+        uploaded = SimpleUploadedFile("dress.jpg", img_io.read(), content_type="image/jpeg")
+
+        product = Product.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            product_name="Evening Gown",
+            category=self.category,
+            brand="Zara",
+            product_code="DRS-99",
+            image=uploaded
+        )
+        inventory = Inventory.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            product=product,
+            quantity=10,
+            sale_price=50000.0,
+            cost_price=30000.0,
+            status='Available'
+        )
+
+        store, _ = StoreListing.objects.get_or_create(organization=self.org)
+        listing, _ = ProductListing.objects.get_or_create(store=store, inventory=inventory)
+
+        self.assertIsNotNone(listing.get_image_url)
+        self.assertTrue('dress' in listing.get_image_url or '.webp' in listing.get_image_url)
+
+    def test_walk_in_store_update_cart_url_resolution(self):
+        """Ensure update_cart resolves to the IMS walk-in cart URL and does not collide with online store"""
+        url = reverse('update_cart', kwargs={'pk': self.branch.id})
+        self.assertEqual(url, f"/ims/update_cart/{self.branch.id}/")
+
+        user = User.objects.create_user(
+            email="carttester@example.com",
+            password="testpassword123",
+            first_name="Cart",
+            last_name="Tester"
+        )
+        from account.models import OrganizationMembership
+        OrganizationMembership.objects.create(
+            user=user,
+            organization=self.org,
+            branch=self.branch,
+            role="owner"
+        )
+        self.client.login(email="carttester@example.com", password="testpassword123")
+
+        product = Product.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            product_name="Walk-in Sneaker",
+            category=self.category,
+            product_code="W-SNK"
+        )
+        inventory = Inventory.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            product=product,
+            quantity=10,
+            quantity_available=10,
+            sale_price=10000.0,
+            cost_price=7000.0,
+            status='Available'
+        )
+
+        # Test AJAX add to cart for walk-in store
+        response = self.client.post(
+            url,
+            data=json.dumps({'inventoryId': str(inventory.id), 'action': 'add'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get('qty'), 1)
+

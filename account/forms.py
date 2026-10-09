@@ -7,6 +7,29 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
 
 
+COUNTRY_CHOICES = [
+    ('Nigeria', 'Nigeria (NGN)'),
+    ('Ghana', 'Ghana'),
+    ('Kenya', 'Kenya'),
+    ('South Africa', 'South Africa'),
+    ('Rwanda', 'Rwanda'),
+    ('Benin', 'Benin'),
+    ('Cameroon', 'Cameroon'),
+    ("Côte d'Ivoire", "Côte d'Ivoire"),
+    ('Gambia', 'Gambia'),
+    ('Guinea', 'Guinea'),
+    ('Liberia', 'Liberia'),
+    ('Senegal', 'Senegal'),
+    ('Sierra Leone', 'Sierra Leone'),
+    ('Togo', 'Togo'),
+    ('Egypt', 'Egypt'),
+    ('United Kingdom', 'United Kingdom'),
+    ('United States', 'United States'),
+    ('Canada', 'Canada'),
+    ('Others', 'Others'),
+]
+
+
 class OwnerRegisterForm(forms.Form):
     """
     Custom form for owner registration that doesn't inherit from UserCreationForm
@@ -20,7 +43,12 @@ class OwnerRegisterForm(forms.Form):
     password2 = forms.CharField(widget=forms.PasswordInput, label='Confirm Password', required=False)
     
     organization_name = forms.CharField(max_length=255, required=True, label='Organization Name')
-    organization_country = forms.CharField(max_length=300, required=False, label='Organization Country')
+    organization_country = forms.ChoiceField(
+        choices=COUNTRY_CHOICES,
+        required=True,
+        initial='Nigeria',
+        label='Business Country'
+    )
     organization_logo = forms.ImageField(required=False, label='Organization Logo')
     brand_color = forms.CharField(
         max_length=7, 
