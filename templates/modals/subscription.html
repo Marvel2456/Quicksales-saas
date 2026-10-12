@@ -15,7 +15,7 @@
             Monthly
           </button>
           <button class="billing-tab-modal btn btn-outline-primary text-dark" data-frequency="annually">
-            Yearly (Save 15%)
+            Yearly (Save 10%)
           </button>
         </div>
 
@@ -37,26 +37,18 @@
                    data-monthly-id="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.id }}{% endif %}{% endfor %}"
                    data-annual-price="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.price }}{% endif %}{% endfor %}"
                    data-annual-id="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.id }}{% endif %}{% endfor %}">
-                <div class="text-center mb-3">
-                  {% if plan_ref.size == 'starter' %}
-                    <span style="font-size: 2rem;">⭐</span>
-                  {% elif plan_ref.size == 'large' %}
-                    <span style="font-size: 2rem;">🚀</span>
-                  {% else %}
-                    <span style="font-size: 2rem;">👑</span>
-                  {% endif %}
-                </div>
-                <h6 class="card-title text-center">{{ plan_ref.tier|title }} {{ plan_ref.size|title }}</h6>
+                <h6 class="card-title text-center fw-bold pt-2 mb-2">{{ plan_ref.tier|title }} {{ plan_ref.size|title }}</h6>
                 <div class="text-center mb-3">
                   <div class="h4 fw-bold text-primary">₦<span class="plan-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price|floatformat:0 }}{% endif %}{% endfor %}</span></div>
                   <small class="text-muted"><span class="billing-period-modal">per month</span></small>
                 </div>
                 
                 <!-- Features -->
-                <ul class="list-unstyled mb-3 small" style="height: 120px; overflow-y: auto;">
+                <ul class="list-unstyled mb-3 small" style="min-height: 120px; max-height: 150px; overflow-y: auto;">
                   <li>✔ <strong>{{ plan_ref.max_users }}</strong> User{{ plan_ref.max_users|pluralize }}</li>
                   <li>✔ <strong>{{ plan_ref.max_branches }}</strong> Branch{{ plan_ref.max_branches|pluralize:"es" }}</li>
                   <li>✔ <strong>{{ plan_ref.max_products }}</strong> Products</li>
+                  <li>✔ Online Store</li>
                   <li>✔ Basic Analytics</li>
                   {% if plan_ref.tier != 'basic' %}
                     <li>✔ Advanced Reports</li>
