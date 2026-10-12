@@ -205,7 +205,7 @@ def get_or_create_plan(tier, size, billing_frequency):
     freq_multipliers = {
         'monthly': 1.0,
         'quarterly': 0.95,   # 5% discount
-        'annually': 0.85      # 15% discount
+        'annually': 0.90      # 10% discount
     }
     
     multiplier = freq_multipliers.get(freq_upper, 1.0)
