@@ -132,12 +132,7 @@
                         <div class="d-flex align-items-center justify-content-between gap-2 pt-1 border-top">
                             <div class="small text-muted text-truncate">
                                 {% if vip.phone %}
-                                <a href="https://wa.me/{{ vip.phone|cut:'+'|cut:' ' }}" target="_blank" class="text-success text-decoration-none fw-semibold me-2" title="WhatsApp Customer">
-                                    <i class="bi bi-whatsapp"></i> Chat
-                                </a>
-                                <a href="tel:{{ vip.phone }}" class="text-secondary text-decoration-none fw-semibold" title="Call Customer">
-                                    <i class="bi bi-telephone"></i> Call
-                                </a>
+                                <span><i class="bi bi-telephone text-muted me-1"></i>{{ vip.phone }}</span>
                                 {% else %}
                                 <span class="text-muted">No phone</span>
                                 {% endif %}
@@ -242,11 +237,6 @@
                             </td>
                             <td class="cell text-end pe-3">
                                 <div class="d-inline-flex align-items-center gap-2">
-                                    {% if cust.phone %}
-                                    <a href="https://wa.me/{{ cust.phone|cut:'+'|cut:' ' }}" target="_blank" class="btn btn-sm btn-outline-success rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Chat on WhatsApp">
-                                        <i class="bi bi-whatsapp"></i>
-                                    </a>
-                                    {% endif %}
                                     <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick="showCustomerDetailsModal('{{ cust.email|escapejs }}')">
                                         View Orders
                                     </button>
@@ -334,7 +324,7 @@
             </div>
             <div class="modal-footer border-top d-flex justify-content-between">
                 <div id="modalDirectContact">
-                    <!-- WhatsApp / Call links -->
+                    <!-- Direct Contact -->
                 </div>
                 <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
             </div>
@@ -399,22 +389,16 @@ function showCustomerDetailsModal(email) {
     }
 
     const contactDiv = document.getElementById('modalDirectContact');
-    if (cust.phone) {
-        const cleanPhone = cust.phone.replace(/[^0-9]/g, '');
-        contactDiv.innerHTML = `
-            <a href="https://wa.me/${cleanPhone}" target="_blank" class="btn btn-success btn-sm rounded-pill px-3 text-white fw-bold me-2">
-                <i class="bi bi-whatsapp me-1"></i> WhatsApp
-            </a>
-            <a href="tel:${cust.phone}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                <i class="bi bi-telephone me-1"></i> Call Customer
-            </a>
-        `;
-    } else {
-        contactDiv.innerHTML = `
-            <a href="mailto:${cust.email}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                <i class="bi bi-envelope me-1"></i> Email Customer
-            </a>
-        `;
+    if (contactDiv) {
+        if (cust.email) {
+            contactDiv.innerHTML = `
+                <a href="mailto:${cust.email}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                    <i class="bi bi-envelope me-1"></i> Email Customer
+                </a>
+            `;
+        } else {
+            contactDiv.innerHTML = '';
+        }
     }
 
     const modal = new bootstrap.Modal(document.getElementById('customerDetailModal'));

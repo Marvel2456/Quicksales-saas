@@ -56,11 +56,24 @@
                 <div class="col-12 col-md-6 col-lg-5">
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="listingSearchInput" class="form-control border-start-0 bg-light" placeholder="Search by product name or code..." onkeyup="filterListings()">
+                        <input type="text" 
+                               id="listingSearchInput" 
+                               name="q" 
+                               value="{{ search_query|default:'' }}" 
+                               class="form-control border-start-0 bg-light" 
+                               placeholder="Search by product name or code..."
+                               hx-get="{% url 'manage_listings' %}"
+                               hx-trigger="input changed delay:300ms, search"
+                               hx-target="#listingsTableBody"
+                               hx-swap="innerHTML"
+                               hx-indicator="#searchSpinner">
+                        <span id="searchSpinner" class="htmx-indicator input-group-text bg-light border-start-0 py-0 px-2" style="display:none;">
+                            <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                        </span>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg-6 text-md-end">
-                    <span class="badge bg-light text-dark border px-3 py-2 me-1">Total: <strong id="totalCount">{{ listings|length }}</strong></span>
+                    <span class="badge bg-light text-dark border px-3 py-2 me-1">Total: <strong id="totalCount">{{ total_count }}</strong></span>
                     <span class="text-muted small">Instant switches sync directly with your online store.</span>
                 </div>
             </div>
@@ -81,162 +94,69 @@
                             <th class="cell py-3 text-end pe-3">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for listing in listings %}
-                        <tr class="listing-row" data-search="{{ listing.display_title|lower }} {{ listing.inventory.product.product_code|default:''|lower }}">
-                            <td class="cell ps-3">
-                                <div class="d-flex align-items-center gap-3">
-                                    {% if listing.get_image_url %}
-                                    <img src="{{ listing.get_image_url }}" alt="" class="rounded-3 border flex-shrink-0" style="width: 46px; height: 46px; object-fit: cover;">
-                                    {% else %}
-                                    <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted flex-shrink-0" style="width: 46px; height: 46px;">
-                                        <i class="bi bi-box-seam fs-5"></i>
-                                    </div>
-                                    {% endif %}
-                                    <div>
-                                        <div class="fw-bold text-dark mb-0">{{ listing.display_title }}</div>
-                                        <small class="text-muted">Code: {{ listing.inventory.product.product_code|default:'N/A' }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="cell">
-                                <span class="badge bg-light text-dark border font-monospace fw-normal">
-                                    {{ listing.inventory.product.category.category_name|default:'General' }}
-                                </span>
-                            </td>
-                            <td class="cell fw-bold text-dark">
-                                {% if organization.country and organization.country.lower != 'nigeria' %}
-                                ${{ listing.display_price|floatformat:2|intcomma }}
-                                {% else %}
-                                ₦{{ listing.display_price|floatformat:2|intcomma }}
-                                {% endif %}
-                            </td>
-                            <td class="cell">
-                                {% if listing.is_in_stock %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5">
-                                    <i class="bi bi-check-circle me-1"></i>{{ listing.stock_quantity }} in stock
-                                </span>
-                                {% else %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5">
-                                    <i class="bi bi-dash-circle me-1"></i>Out of stock
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td class="cell text-center">
-                                <div class="form-check form-switch d-inline-block mb-0">
-                                    <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" onchange="toggleVisibility('{{ listing.id }}')" {% if listing.is_visible %}checked{% endif %} title="Toggle visibility in store">
-                                </div>
-                            </td>
-                            <td class="cell text-center">
-                                <div class="form-check form-switch d-inline-block mb-0">
-                                    <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" onchange="toggleFeatured('{{ listing.id }}')" {% if listing.featured %}checked{% endif %} title="Toggle featured on homepage">
-                                </div>
-                            </td>
-                            <td class="cell text-end pe-3">
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 fw-semibold" 
-                                            onclick="copyProductLink('{{ request.scheme }}://{{ request.get_host }}{% url 'product_detail' organization.slug listing.id %}', this)" 
-                                            title="Copy direct product link">
-                                        <i class="bi bi-link-45deg fs-6"></i>
-                                        <span>Share Link</span>
-                                    </button>
-                                    <button class="btn btn-sm btn-light border" data-bs-toggle="modal" data-bs-target="#editListingModal{{ listing.id }}" title="Edit listing details">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <!-- Edit Listing Modal -->
-                        <div class="modal fade" id="editListingModal{{ listing.id }}" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog modal-dialog-centered">
-                                <div class="modal-content rounded-4 border-0 shadow">
-                                    <form method="post" enctype="multipart/form-data">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="action" value="edit_details">
-                                        <input type="hidden" name="listing_id" value="{{ listing.id }}">
-                                        
-                                        <div class="modal-header border-bottom-0 pb-0">
-                                            <h5 class="modal-title fw-bold">Customize Store Listing</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body py-3">
-                                            <div class="mb-3">
-                                                <label class="form-label small fw-bold">Display Title Override</label>
-                                                <input type="text" name="custom_title" value="{{ listing.custom_title }}" class="form-control" placeholder="{{ listing.inventory.product.product_name }}">
-                                                <div class="form-text">Leave blank to use default inventory name.</div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label small fw-bold">Custom Description</label>
-                                                <textarea name="custom_description" rows="3" class="form-control" placeholder="Write a compelling description for online shoppers...">{{ listing.custom_description }}</textarea>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label small fw-bold">1. Primary Store Photo (Main)</label>
-                                                <input type="file" name="image" accept="image/*" class="form-control form-control-sm">
-                                                {% if listing.image %}
-                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
-                                                    <img src="{{ listing.image.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
-                                                    <small class="text-muted d-block">Listing Override</small>
-                                                </div>
-                                                {% elif listing.inventory.product.image %}
-                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
-                                                    <img src="{{ listing.inventory.product.image.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
-                                                    <small class="text-muted d-block">Inherited from Product</small>
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label small fw-bold">2. Detail / Angle Photo 2 (Secondary)</label>
-                                                <input type="file" name="image_detail" accept="image/*" class="form-control form-control-sm">
-                                                {% if listing.image_detail %}
-                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
-                                                    <img src="{{ listing.image_detail.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
-                                                    <small class="text-muted d-block">Listing Override</small>
-                                                </div>
-                                                {% elif listing.inventory.product.image_detail %}
-                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
-                                                    <img src="{{ listing.inventory.product.image_detail.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
-                                                    <small class="text-muted d-block">Inherited from Product</small>
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label small fw-bold">3. Detail / Angle Photo 3 (Tertiary)</label>
-                                                <input type="file" name="image_extra" accept="image/*" class="form-control form-control-sm">
-                                                {% if listing.image_extra %}
-                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
-                                                    <img src="{{ listing.image_extra.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
-                                                    <small class="text-muted d-block">Listing Override</small>
-                                                </div>
-                                                {% elif listing.inventory.product.image_extra %}
-                                                <div class="mt-2 p-2 bg-light rounded-3 border d-inline-block">
-                                                    <img src="{{ listing.inventory.product.image_extra.url }}" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
-                                                    <small class="text-muted d-block">Inherited from Product</small>
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer border-top-0 pt-0">
-                                            <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="submit" class="btn app-btn-primary rounded-pill px-4 fw-bold">Save Details</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        {% empty %}
-                        <tr id="emptyRow">
-                            <td colspan="7" class="text-center py-5 text-muted">
-                                <i class="bi bi-box-seam display-4 d-block mb-3 opacity-40"></i>
-                                <h6 class="fw-bold mb-1">No products found in this branch</h6>
-                                <p class="small text-muted mb-0">Add products to your branch inventory to display them on your online storefront.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                    <tbody id="listingsTableBody">
+                        {% include 'store/vendor/partials/listing_rows.html' %}
                     </tbody>
                 </table>
             </div>
         </div>
+
+    <!-- Single Reusable Edit Listing Modal -->
+    <div class="modal fade" id="editListingModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="edit_details">
+                    <input type="hidden" name="listing_id" id="editModalListingId" value="">
+                    
+                    <div class="modal-header border-bottom-0 pb-0">
+                        <h5 class="modal-title fw-bold">Customize Store Listing</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Display Title Override</label>
+                            <input type="text" name="custom_title" id="editModalCustomTitle" class="form-control" placeholder="">
+                            <div class="form-text">Leave blank to use default inventory name: <span id="editModalDefaultName" class="fw-semibold"></span></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Custom Description</label>
+                            <textarea name="custom_description" id="editModalCustomDescription" rows="3" class="form-control" placeholder="Write a compelling description for online shoppers..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">1. Primary Store Photo (Main)</label>
+                            <input type="file" name="image" accept="image/*" class="form-control form-control-sm">
+                            <div id="editModalImage1Preview" class="mt-2 p-2 bg-light rounded-3 border d-none">
+                                <img src="" id="editModalImage1Img" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                <small class="text-muted d-block" id="editModalImage1Label">Listing Override</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">2. Detail / Angle Photo 2 (Secondary)</label>
+                            <input type="file" name="image_detail" accept="image/*" class="form-control form-control-sm">
+                            <div id="editModalImage2Preview" class="mt-2 p-2 bg-light rounded-3 border d-none">
+                                <img src="" id="editModalImage2Img" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                <small class="text-muted d-block" id="editModalImage2Label">Listing Override</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">3. Detail / Angle Photo 3 (Tertiary)</label>
+                            <input type="file" name="image_extra" accept="image/*" class="form-control form-control-sm">
+                            <div id="editModalImage3Preview" class="mt-2 p-2 bg-light rounded-3 border d-none">
+                                <img src="" id="editModalImage3Img" alt="" class="rounded-2" style="max-height: 70px; object-fit: cover;">
+                                <small class="text-muted d-block" id="editModalImage3Label">Listing Override</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0 pt-0">
+                        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn app-btn-primary rounded-pill px-4 fw-bold">Save Details</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     </div>
 </div>
@@ -364,23 +284,56 @@ function toggleFeatured(listingId) {
     });
 }
 
-function filterListings() {
-    var query = document.getElementById('listingSearchInput').value.toLowerCase().trim();
-    var rows = document.querySelectorAll('.listing-row');
-    var visibleCount = 0;
-    
-    rows.forEach(function(row) {
-        var searchData = row.getAttribute('data-search') || '';
-        if (!query || searchData.indexOf(query) > -1) {
-            row.style.display = '';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    
-    var countEl = document.getElementById('totalCount');
-    if (countEl) countEl.innerText = visibleCount;
+function openEditListingModal(btn) {
+    document.getElementById('editModalListingId').value = btn.getAttribute('data-id') || '';
+    var prodName = btn.getAttribute('data-product-name') || '';
+    document.getElementById('editModalCustomTitle').value = btn.getAttribute('data-custom-title') || '';
+    document.getElementById('editModalCustomTitle').placeholder = prodName;
+    document.getElementById('editModalDefaultName').textContent = prodName;
+    document.getElementById('editModalCustomDescription').value = btn.getAttribute('data-custom-desc') || '';
+
+    // Image 1
+    var img1 = btn.getAttribute('data-img1');
+    var p1 = document.getElementById('editModalImage1Preview');
+    if (img1) {
+        document.getElementById('editModalImage1Img').src = img1;
+        document.getElementById('editModalImage1Label').textContent = btn.getAttribute('data-img1-type') || 'Listing Override';
+        p1.classList.remove('d-none');
+    } else {
+        p1.classList.add('d-none');
+    }
+
+    // Image 2
+    var img2 = btn.getAttribute('data-img2');
+    var p2 = document.getElementById('editModalImage2Preview');
+    if (img2) {
+        document.getElementById('editModalImage2Img').src = img2;
+        document.getElementById('editModalImage2Label').textContent = btn.getAttribute('data-img2-type') || 'Listing Override';
+        p2.classList.remove('d-none');
+    } else {
+        p2.classList.add('d-none');
+    }
+
+    // Image 3
+    var img3 = btn.getAttribute('data-img3');
+    var p3 = document.getElementById('editModalImage3Preview');
+    if (img3) {
+        document.getElementById('editModalImage3Img').src = img3;
+        document.getElementById('editModalImage3Label').textContent = btn.getAttribute('data-img3-type') || 'Listing Override';
+        p3.classList.remove('d-none');
+    } else {
+        p3.classList.add('d-none');
+    }
+
+    var modal = new bootstrap.Modal(document.getElementById('editListingModal'));
+    modal.show();
 }
+
+document.body.addEventListener('updateTotalCount', function(evt) {
+    var countEl = document.getElementById('totalCount');
+    if (countEl && evt.detail && evt.detail.count !== undefined) {
+        countEl.textContent = evt.detail.count;
+    }
+});
 </script>
 {% endblock %}

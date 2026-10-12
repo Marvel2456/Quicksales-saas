@@ -793,4 +793,62 @@ class SecurityAndIsolationTests(TestCase):
         self.assertEqual(store.online_store_email, 'notifications@teststore.com')
         self.assertEqual(store.contact_email, 'support@teststore.com')
 
+    def test_vendor_manage_listings_htmx_infinite_scroll(self):
+        """Test HTMX infinite scroll and pagination on manage listings view"""
+        self.client.force_login(self.user1)
+
+        # Create 25 products to exceed 20 per-page pagination
+        cat = Category.objects.create(organization=self.org1, branch=self.branch1, category_name='Scroll Category')
+        for i in range(25):
+            prod = Product.objects.create(
+                organization=self.org1,
+                branch=self.branch1,
+                product_name=f'Scroll Item {i:02d}',
+                category=cat,
+                product_code=f'SCR-{i:02d}'
+            )
+            Inventory.objects.create(
+                organization=self.org1,
+                branch=self.branch1,
+                product=prod,
+                quantity=10,
+                quantity_available=10,
+                sale_price=Decimal('100.00'),
+                cost_price=Decimal('50.00')
+            )
+
+        # 1. Full page request (non-HTMX)
+        res = self.client.get(reverse('manage_listings'))
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'store/vendor/manage_listings.html')
+        self.assertTemplateUsed(res, 'store/vendor/partials/listing_rows.html')
+        self.assertTrue(res.context['page_obj'].has_next())
+        self.assertEqual(len(res.context['listings']), 20)
+        self.assertContains(res, 'id="infinite-scroll-trigger"')
+        self.assertContains(res, 'hx-trigger="revealed"')
+
+        # 2. HTMX partial request for page 2
+        res_htmx = self.client.get(reverse('manage_listings') + '?page=2', HTTP_HX_REQUEST='true')
+        self.assertEqual(res_htmx.status_code, 200)
+        self.assertTemplateUsed(res_htmx, 'store/vendor/partials/listing_rows.html')
+        self.assertTemplateNotUsed(res_htmx, 'store/vendor/manage_listings.html')
+        # Page 2 has the remaining 5 items + initial test items
+        self.assertEqual(res_htmx.context['page_obj'].number, 2)
+
+        # 3. HTMX search query
+        res_search = self.client.get(reverse('manage_listings') + '?q=Scroll+Item+05', HTTP_HX_REQUEST='true')
+        self.assertEqual(res_search.status_code, 200)
+        self.assertContains(res_search, 'Scroll Item 05')
+
+    def test_store_customers_no_call_or_whatsapp(self):
+        """Verify store customers page does not have whatsapp or call links"""
+        self.client.force_login(self.user1)
+        res = self.client.get(reverse('vendor_customers'))
+        self.assertEqual(res.status_code, 200)
+        content = res.content.decode('utf-8')
+        self.assertNotIn('wa.me', content)
+        self.assertNotIn('tel:', content)
+        self.assertNotIn('bi-whatsapp', content)
+
+
 

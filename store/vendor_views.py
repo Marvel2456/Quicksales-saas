@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction, models
 from django.utils import timezone
 from django.http import JsonResponse
+from django.core.paginator import Paginator
 
 from account.decorators import role_required
 from account.utils import get_request_organization
@@ -230,23 +231,26 @@ def manage_listings(request):
         messages.warning(request, "Please set a default branch first in Store Settings.")
         return redirect('store_settings')
 
-    # Ensure all inventory items for this branch have a ProductListing record
-    branch_inventory = Inventory.objects.filter(
-        branch=branch,
-        organization=org
-    ).select_related('product', 'product__category')
+    is_htmx = bool(request.headers.get('HX-Request'))
 
-    for inv in branch_inventory:
-        ProductListing.objects.get_or_create(
-            store=store,
-            inventory=inv,
-            defaults={'is_visible': True}
-        )
+    # Ensure all inventory items for this branch have a ProductListing record on full page load
+    if not is_htmx and request.method == 'GET':
+        branch_inventory = Inventory.objects.filter(
+            branch=branch,
+            organization=org
+        ).select_related('product', 'product__category')
 
-    listings = ProductListing.objects.filter(
+        for inv in branch_inventory:
+            ProductListing.objects.get_or_create(
+                store=store,
+                inventory=inv,
+                defaults={'is_visible': True}
+            )
+
+    all_branch_listings = ProductListing.objects.filter(
         store=store,
         inventory__branch=branch
-    ).select_related('inventory', 'inventory__product', 'inventory__product__category').order_by('-featured', 'inventory__product__product_name')
+    )
 
     # Handle quick toggle actions
     if request.method == 'POST':
@@ -266,12 +270,12 @@ def manage_listings(request):
             return JsonResponse({'success': True, 'featured': item.featured})
 
         elif action == 'publish_all':
-            listings.update(is_visible=True)
+            all_branch_listings.update(is_visible=True)
             messages.success(request, "All branch products are now visible on your online store!")
             return redirect('manage_listings')
 
         elif action == 'hide_all':
-            listings.update(is_visible=False)
+            all_branch_listings.update(is_visible=False)
             messages.info(request, "All products have been hidden from your online store.")
             return redirect('manage_listings')
 
@@ -290,12 +294,39 @@ def manage_listings(request):
             messages.success(request, f"Updated '{item.display_title}' details.")
             return redirect('manage_listings')
 
+    listings_qs = all_branch_listings.select_related(
+        'inventory', 'inventory__product', 'inventory__product__category'
+    ).order_by('-featured', 'inventory__product__product_name')
+
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        listings_qs = listings_qs.filter(
+            models.Q(custom_title__icontains=search_query) |
+            models.Q(inventory__product__product_name__icontains=search_query) |
+            models.Q(inventory__product__product_code__icontains=search_query) |
+            models.Q(inventory__product__category__category_name__icontains=search_query)
+        )
+
+    total_count = listings_qs.count()
+    paginator = Paginator(listings_qs, 20)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'organization': org,
         'store': store,
         'branch': branch,
-        'listings': listings,
+        'listings': page_obj,
+        'page_obj': page_obj,
+        'total_count': total_count,
+        'search_query': search_query,
     }
+
+    if is_htmx:
+        response = render(request, 'store/vendor/partials/listing_rows.html', context)
+        response['HX-Trigger'] = json.dumps({'updateTotalCount': {'count': total_count}})
+        return response
+
     return render(request, 'store/vendor/manage_listings.html', context)
 
 
