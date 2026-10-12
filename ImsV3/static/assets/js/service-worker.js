@@ -3,7 +3,7 @@
  * Handles asset caching, request interception, and HTML fallbacks.
  */
 
-const CACHE_NAME = 'quicksales-offline-v3';
+const CACHE_NAME = 'quicksales-offline-v4';
 
 function getBranchIdFromPath(pathname) {
     const match = pathname.match(/\/(?:store|cart|checkout|completed|products|inventorys|branchdash|invoices|sales)\/([a-f0-9-]+)/i);

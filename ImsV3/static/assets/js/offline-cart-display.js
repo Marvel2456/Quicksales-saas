@@ -84,18 +84,22 @@ class OfflineCartDisplay {
                 offlineButtons.style.display = 'block';
             }
 
-            // Get offline cart
+            // Get offline cart (may be the continuation of the online cart)
             const cart = await window.offlineManager.getActiveOfflineSale();
             const sales = await window.offlineManager.getAllOfflineSales();
+            this.currentCart = cart;
             
             // Render open offline sales sessions in switcher
             let salesHtml = '';
             sales.forEach((s, idx) => {
                 const isActive = s.id === cart.id;
                 const itemsCount = s.items.reduce((sum, item) => sum + item.quantity, 0);
+                const originTag = s.server_sale_id
+                    ? `<i class="fa-solid fa-cloud ms-1" title="Continued from online cart"></i>`
+                    : `<i class="fa-solid fa-mobile-screen ms-1" title="Created offline"></i>`;
                 salesHtml += `
                     <button class="btn btn-sm ${isActive ? 'btn-primary text-white' : 'btn-outline-primary'} offline-switch-sale-btn me-1 mb-1" data-sale-id="${s.id}">
-                        Sale #${idx + 1}
+                        Sale #${idx + 1}${originTag}
                         ${itemsCount > 0 ? `<span class="badge bg-light text-dark ms-1">${itemsCount} items</span>` : ''}
                     </button>
                 `;
@@ -155,7 +159,9 @@ class OfflineCartDisplay {
                         id: cartItem.inventory_id,
                         name: catalogItem.product_name,
                         price: catalogItem.sale_price,
-                        maxQuantity: catalogItem.store_quantity,
+                        // Include units this cart already reserves on the server
+                        maxQuantity: window.offlineManager.availableQuantity(catalogItem, cartItem),
+                        reservedQty: cartItem.reserved_qty || 0,
                         quantity: cartItem.quantity,
                         total: totalItemPrice
                     });
@@ -263,6 +269,7 @@ class OfflineCartDisplay {
                 const item = cart.items.find(i => i.inventory_id === itemId);
                 if (item) {
                     item.quantity = val;
+                    cart.dirty = true;
                     await window.offlineManager.saveToStore('offline_sales', cart);
                     this.render();
                 }
@@ -276,6 +283,7 @@ class OfflineCartDisplay {
                 const itemId = e.currentTarget.dataset.id;
                 const cart = await window.offlineManager.getActiveOfflineSale();
                 cart.items = cart.items.filter(i => i.inventory_id !== itemId);
+                cart.dirty = true;
                 await window.offlineManager.saveToStore('offline_sales', cart);
                 window.offlineManager.showNotification('Item removed from offline cart.');
                 this.render();
@@ -359,6 +367,7 @@ class OfflineCartDisplay {
             try {
                 // 1. Generate temp ID and transaction object
                 const tempId = 'offline_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+                const activeSale = this.currentCart || await window.offlineManager.getActiveOfflineSale();
                 
                 const saleItems = items.map(item => ({
                     inventory_id: item.id,
@@ -368,6 +377,9 @@ class OfflineCartDisplay {
                 const offlineSale = {
                     tempId: tempId,
                     branch_id: this.branchId,
+                    // Links this checkout to the original online cart so the server
+                    // completes that Sale instead of creating a second one.
+                    server_sale_id: activeSale.server_sale_id || null,
                     items: saleItems,
                     method: selectedMethod,
                     total_cart: totalAmount,
@@ -377,18 +389,20 @@ class OfflineCartDisplay {
                 // 2. Save transaction to pending_sales store
                 await window.offlineManager.saveToStore('pending_sales', offlineSale);
 
-                // 3. Deduct stock quantities locally in catalog cache
+                // 3. Deduct stock quantities locally in catalog cache. Units this cart
+                //    reserved on the server were already excluded from store_quantity.
                 for (const item of items) {
                     const catalogItem = await window.offlineManager.getFromStore('catalog', item.id);
                     if (catalogItem) {
-                        catalogItem.store_quantity = Math.max(0, catalogItem.store_quantity - item.quantity);
+                        // Positive = extra units taken offline; negative = reserved units released
+                        const delta = item.quantity - (item.reservedQty || 0);
+                        catalogItem.store_quantity = Math.max(0, catalogItem.store_quantity - delta);
                         await window.offlineManager.saveToStore('catalog', catalogItem);
                     }
                 }
 
-                // 4. Clear branch offline cart
-                const activeSale = await window.offlineManager.getActiveOfflineSale();
-                await window.offlineManager.cancelOfflineSale(activeSale.id);
+                // 4. Remove the checked-out cart (the pending sale now carries the link)
+                await window.offlineManager.removeOfflineSaleAfterCheckout(activeSale.id);
 
                 // 5. Render success receipt
                 await this.renderReceipt(offlineSale, items, totalAmount);

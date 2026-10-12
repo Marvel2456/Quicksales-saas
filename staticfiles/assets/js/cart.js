@@ -20,7 +20,8 @@ for (let i = 0; i < updateCart.length; i++) {
 function UpdateUserCart(inventoryId, action, url){
     console.log('UpdateUserCart called with:', {inventoryId, action, url, csrftoken})
 
-    if (!navigator.onLine) {
+    const isOnline = window.offlineManager ? window.offlineManager.isOnline : navigator.onLine;
+    if (!isOnline) {
         console.warn('📡 Offline: Intercepted cart update action');
         if (window.offlineManager) {
             window.offlineManager.addCartItemOffline(inventoryId);
@@ -67,6 +68,8 @@ function UpdateUserCart(inventoryId, action, url){
         }
         // Show success notification
         showNotification('Item added to cart successfully')
+        // Keep the offline copy of this cart in sync in case the network drops
+        window.offlineManager?.scheduleMirror()
     })
     .catch((error) => {
         console.error('❌ Cart update failed:', error);
@@ -137,6 +140,7 @@ function updateQuantity(e){
         document.getElementById('sum_quantity').innerHTML = `<b>Item:</b><div>${data.total_quantity}</div>`
         document.getElementById('addCart').innerHTML = `${data.total_quantity}`
         showNotification('Quantity updated successfully')
+        window.offlineManager?.scheduleMirror()
     })
     .catch((error) => {
         console.error('❌ Quantity update failed:', error);
@@ -188,6 +192,7 @@ function deleteCartItem(e){
         document.getElementById('sum_quantity').innerHTML = `<b>Item:</b><div>${data.total_quantity}</div>`
         document.getElementById('addCart').innerHTML = `${data.total_quantity}`
         showNotification('Item removed from cart successfully')
+        window.offlineManager?.scheduleMirror()
     })
     .catch((error) => {
         console.error('❌ Delete failed:', error);

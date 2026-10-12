@@ -201,6 +201,165 @@ class OfflineAPITests(TestCase):
             branch=self.branch
         ).exists())
 
+    # --- Unified online/offline cart ---------------------------------------
+
+    def _open_sale(self, qty=2, staff=None):
+        sale = Sale.objects.create(staff=staff or self.user, branch=self.branch, organization=self.organization)
+        SalesItem.objects.create(
+            sale=sale, branch=self.branch, organization=self.organization,
+            inventory=self.inventory, quantity=qty
+        )
+        return sale
+
+    def _post_json(self, name, payload):
+        url = reverse(name, kwargs={'pk': self.branch.id})
+        return self.client.post(url, data=json.dumps(payload), content_type='application/json')
+
+    def test_sync_sale_completes_existing_online_sale(self):
+        sale = self._open_sale(qty=2)
+        # Cashier added one more unit while offline, then checked out
+        response = self._post_json('sync_sale', {
+            'tempId': 'offline_continue_1',
+            'server_sale_id': str(sale.id),
+            'method': 'POS',
+            'items': [{'inventory_id': str(self.inventory.id), 'quantity': 3}],
+        })
+        self.assertEqual(response.status_code, 201)
+        data = json.loads(response.content)
+        self.assertEqual(data['sale_id'], str(sale.id))
+        self.assertTrue(data['continued_online_sale'])
+
+        # No second Sale was created
+        self.assertEqual(Sale.objects.filter(branch=self.branch).count(), 1)
+        sale.refresh_from_db()
+        self.assertTrue(sale.completed)
+        self.assertEqual(sale.method, 'POS')
+        self.assertEqual(sale.final_total_price, 75.0)
+        self.assertEqual(sale.salesitem_set.count(), 1)
+        self.assertEqual(sale.salesitem_set.first().quantity, 3)
+
+        # Stock decremented exactly once and no reservation left behind
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.quantity, 12)
+        self.assertEqual(self.inventory.store_quantity, 12)
+
+    def test_sync_sale_rejects_when_online_sale_already_completed(self):
+        sale = self._open_sale(qty=2)
+        sale.completed = True
+        sale.save()
+
+        response = self._post_json('sync_sale', {
+            'tempId': 'offline_conflict_1',
+            'server_sale_id': str(sale.id),
+            'method': 'Cash',
+            'items': [{'inventory_id': str(self.inventory.id), 'quantity': 2}],
+        })
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(Sale.objects.filter(branch=self.branch).count(), 1)
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.quantity, 15)
+        self.assertTrue(ErrorTicket.objects.filter(
+            title__icontains="Offline Sync Conflict", branch=self.branch
+        ).exists())
+
+    def test_get_open_sales_returns_only_own_open_sales(self):
+        own = self._open_sale(qty=2)
+        closed = self._open_sale(qty=1)
+        closed.completed = True
+        closed.save()
+        other_user = User.objects.create_user(email="other@example.com", password="x12345678", is_active=True)
+        self._open_sale(qty=1, staff=other_user)
+
+        response = self.client.get(reverse('get_open_sales', kwargs={'pk': self.branch.id}))
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual([s['id'] for s in data['sales']], [str(own.id)])
+        self.assertEqual(data['sales'][0]['items'][0]['quantity'], 2)
+        self.assertEqual(data['active_sale_id'], str(own.id))
+
+    def test_sync_cart_updates_existing_open_sale(self):
+        sale = self._open_sale(qty=2)
+        response = self._post_json('sync_cart', {
+            'local_id': str(sale.id),
+            'server_sale_id': str(sale.id),
+            'items': [{'inventory_id': str(self.inventory.id), 'quantity': 5}],
+            'make_active': True,
+        })
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(data['server_sale_id'], str(sale.id))
+        self.assertEqual(data['adjustments'], [])
+        self.assertEqual(sale.salesitem_set.get().quantity, 5)
+        self.assertEqual(self.client.session.get(f'active_sale_{self.branch.id}'), str(sale.id))
+
+    def test_sync_cart_caps_to_available_stock(self):
+        sale = self._open_sale(qty=3)
+        # Another cashier reserved 10 of the 15 units meanwhile
+        other_user = User.objects.create_user(email="cashier2@example.com", password="x12345678", is_active=True)
+        self._open_sale(qty=10, staff=other_user)
+
+        response = self._post_json('sync_cart', {
+            'local_id': str(sale.id),
+            'server_sale_id': str(sale.id),
+            'items': [{'inventory_id': str(self.inventory.id), 'quantity': 8}],
+        })
+        data = json.loads(response.content)
+        # 15 total - 10 held by the other cart = 5 available to this cart
+        self.assertEqual(sale.salesitem_set.get().quantity, 5)
+        self.assertEqual(len(data['adjustments']), 1)
+        self.assertEqual(data['adjustments'][0]['requested'], 8)
+        self.assertEqual(data['adjustments'][0]['applied'], 5)
+
+    def test_sync_cart_creates_sale_for_offline_cart_idempotently(self):
+        payload = {
+            'local_id': 'temp-sale-abc123',
+            'items': [{'inventory_id': str(self.inventory.id), 'quantity': 2}],
+        }
+        first = json.loads(self._post_json('sync_cart', payload).content)
+        second = json.loads(self._post_json('sync_cart', payload).content)
+        self.assertEqual(first['server_sale_id'], second['server_sale_id'])
+        self.assertEqual(Sale.objects.filter(branch=self.branch, completed=False).count(), 1)
+
+    def test_sync_cart_applies_offline_cancel(self):
+        sale = self._open_sale(qty=2)
+        response = self._post_json('sync_cart', {
+            'local_id': str(sale.id),
+            'server_sale_id': str(sale.id),
+            'items': [],
+            'cancelled': True,
+        })
+        self.assertEqual(response.status_code, 200)
+        sale.refresh_from_db()
+        self.assertTrue(sale.cancelled)
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.store_quantity, 15)
+
+    def test_sync_cart_moves_items_when_sale_closed_elsewhere(self):
+        sale = self._open_sale(qty=2)
+        sale.completed = True
+        sale.save()
+        data = json.loads(self._post_json('sync_cart', {
+            'local_id': str(sale.id),
+            'server_sale_id': str(sale.id),
+            'items': [{'inventory_id': str(self.inventory.id), 'quantity': 1}],
+        }).content)
+        self.assertTrue(data['conflict'])
+        self.assertNotEqual(data['server_sale_id'], str(sale.id))
+        new_sale = Sale.objects.get(id=data['server_sale_id'])
+        self.assertFalse(new_sale.completed)
+        self.assertEqual(new_sale.salesitem_set.get().quantity, 1)
+
+    def test_sync_sale_requires_csrf_token(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.login(email="posowner@example.com", password="testpassword123")
+        response = csrf_client.post(
+            reverse('sync_sale', kwargs={'pk': self.branch.id}),
+            data=json.dumps({'tempId': 'offline_csrf', 'items': [{'inventory_id': str(self.inventory.id), 'quantity': 1}]}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Sale.objects.filter(transaction_id='offline_csrf').exists())
+
 
 class ProductImageWebPOptimizerTests(TestCase):
     def setUp(self):

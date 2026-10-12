@@ -30,5 +30,7 @@ class LandingPageTests(TestCase):
         self.assertIn('Instant Branded Storefront Link', content)
         self.assertIn('How does the Online Storefront feature work?', content)
         self.assertIn('Start free trial', content)
+        # Verify Online Storefront is displayed in the starter plans pricing card features
+        self.assertIn('Online Storefront', content)
 
 
