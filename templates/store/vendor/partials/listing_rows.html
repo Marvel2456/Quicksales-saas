@@ -1,0 +1,110 @@
+{% load humanize %}
+
+{% for listing in listings %}
+<tr class="listing-row" data-search="{{ listing.display_title|lower }} {{ listing.inventory.product.product_code|default:''|lower }}">
+    <td class="cell ps-3">
+        <div class="d-flex align-items-center gap-3">
+            {% if listing.get_image_url %}
+            <img src="{{ listing.get_image_url }}" alt="" class="rounded-3 border flex-shrink-0" style="width: 46px; height: 46px; object-fit: cover;">
+            {% else %}
+            <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted flex-shrink-0" style="width: 46px; height: 46px;">
+                <i class="bi bi-box-seam fs-5"></i>
+            </div>
+            {% endif %}
+            <div>
+                <div class="fw-bold text-dark mb-0">{{ listing.display_title }}</div>
+                <small class="text-muted">Code: {{ listing.inventory.product.product_code|default:'N/A' }}</small>
+            </div>
+        </div>
+    </td>
+    <td class="cell">
+        <span class="badge bg-light text-dark border font-monospace fw-normal">
+            {{ listing.inventory.product.category.category_name|default:'General' }}
+        </span>
+    </td>
+    <td class="cell fw-bold text-dark">
+        {% if organization.country and organization.country.lower != 'nigeria' %}
+        ${{ listing.display_price|floatformat:2|intcomma }}
+        {% else %}
+        ₦{{ listing.display_price|floatformat:2|intcomma }}
+        {% endif %}
+    </td>
+    <td class="cell">
+        {% if listing.is_in_stock %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5">
+            <i class="bi bi-check-circle me-1"></i>{{ listing.stock_quantity }} in stock
+        </span>
+        {% else %}
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5">
+            <i class="bi bi-dash-circle me-1"></i>Out of stock
+        </span>
+        {% endif %}
+    </td>
+    <td class="cell text-center">
+        <div class="form-check form-switch d-inline-block mb-0">
+            <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" onchange="toggleVisibility('{{ listing.id }}')" {% if listing.is_visible %}checked{% endif %} title="Toggle visibility in store">
+        </div>
+    </td>
+    <td class="cell text-center">
+        <div class="form-check form-switch d-inline-block mb-0">
+            <input class="form-check-input fs-5 cursor-pointer" type="checkbox" role="switch" onchange="toggleFeatured('{{ listing.id }}')" {% if listing.featured %}checked{% endif %} title="Toggle featured on homepage">
+        </div>
+    </td>
+    <td class="cell text-end pe-3">
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 fw-semibold" 
+                    type="button"
+                    onclick="copyProductLink('{{ request.scheme }}://{{ request.get_host }}{% url 'product_detail' organization.slug listing.id %}', this)" 
+                    title="Copy direct product link">
+                <i class="bi bi-link-45deg fs-6"></i>
+                <span>Share Link</span>
+            </button>
+            <button class="btn btn-sm btn-light border" 
+                    type="button"
+                    onclick="openEditListingModal(this)"
+                    data-id="{{ listing.id }}"
+                    data-product-name="{{ listing.inventory.product.product_name|escape }}"
+                    data-custom-title="{{ listing.custom_title|default:''|escape }}"
+                    data-custom-desc="{{ listing.custom_description|default:''|escape }}"
+                    data-img1="{% if listing.image %}{{ listing.image.url }}{% elif listing.inventory.product.image %}{{ listing.inventory.product.image.url }}{% endif %}"
+                    data-img1-type="{% if listing.image %}Listing Override{% elif listing.inventory.product.image %}Inherited from Product{% endif %}"
+                    data-img2="{% if listing.image_detail %}{{ listing.image_detail.url }}{% elif listing.inventory.product.image_detail %}{{ listing.inventory.product.image_detail.url }}{% endif %}"
+                    data-img2-type="{% if listing.image_detail %}Listing Override{% elif listing.inventory.product.image_detail %}Inherited from Product{% endif %}"
+                    data-img3="{% if listing.image_extra %}{{ listing.image_extra.url }}{% elif listing.inventory.product.image_extra %}{{ listing.inventory.product.image_extra.url }}{% endif %}"
+                    data-img3-type="{% if listing.image_extra %}Listing Override{% elif listing.inventory.product.image_extra %}Inherited from Product{% endif %}"
+                    title="Edit listing details">
+                <i class="bi bi-pencil"></i>
+            </button>
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr id="emptyRow">
+    <td colspan="7" class="text-center py-5 text-muted">
+        {% if search_query %}
+        <i class="bi bi-search display-5 d-block mb-3 opacity-40"></i>
+        <h6 class="fw-bold mb-1">No matching products found</h6>
+        <p class="small text-muted mb-0">Try searching with a different term.</p>
+        {% else %}
+        <i class="bi bi-box-seam display-4 d-block mb-3 opacity-40"></i>
+        <h6 class="fw-bold mb-1">No products found in this branch</h6>
+        <p class="small text-muted mb-0">Add products to your branch inventory to display them on your online storefront.</p>
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
+
+{% if page_obj.has_next %}
+<tr id="infinite-scroll-trigger"
+    hx-get="{% url 'manage_listings' %}?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+    hx-trigger="revealed"
+    hx-swap="outerHTML"
+    hx-target="this">
+    <td colspan="7" class="text-center py-3 text-muted">
+        <div class="d-inline-flex align-items-center gap-2">
+            <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+            <span class="small fw-semibold">Loading more products...</span>
+        </div>
+    </td>
+</tr>
+{% endif %}
