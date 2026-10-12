@@ -119,8 +119,16 @@
 
         })
         .then(res => res.json())
-        .then((data) =>{
+        .then(async (data) =>{
             console.log('Success', data)
+            // Remove the offline mirror of this now-completed cart
+            if (data.completed && window.offlineManager) {
+                try {
+                    await window.offlineManager.removeOfflineSaleAfterCheckout(data.sale_id)
+                } catch (e) {
+                    console.warn('Could not clear offline cart copy:', e)
+                }
+            }
             window.location.href = `/ims/reciept/${data.sale_id}/`
         })
         .catch(error => {

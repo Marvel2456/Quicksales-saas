@@ -21,11 +21,15 @@ class OfflineManager {
         try {
             await this.openDatabase();
             this.setupNetworkMonitoring();
+            this.flushQueuedNotices();
             
             if (this.branchId) {
                 // If online, refresh local product cache and trigger background sync
                 if (this.isOnline) {
+                    // Order matters: push offline work first, then pull fresh server state
                     await this.syncPendingSales();
+                    await this.syncOpenCarts();
+                    await this.mirrorOnlineCarts();
                     await this.refreshLocalCatalog();
                     this.triggerActivePrecaching().catch(err => {
                         console.error('📡 OfflineManager: Active pre-caching failed:', err);
@@ -34,6 +38,12 @@ class OfflineManager {
                     const cart = await this.getActiveOfflineSale();
                     this.updateCartBadgeCount(cart);
                 }
+                
+                // Safety net: keep the local mirror of the online cart fresh so a
+                // sudden network drop continues from the latest state.
+                setInterval(() => {
+                    if (this.isOnline) this.mirrorOnlineCarts();
+                }, 30000);
                 
                 this.setupAddToCartInterception();
                 
@@ -192,8 +202,14 @@ class OfflineManager {
         
         if (isOnline) {
             console.log('📡 OfflineManager: Device is ONLINE. Syncing queue...');
-            await this.syncPendingSales();
-            await this.refreshLocalCatalog();
+            // The service-worker offline shell has no CSRF token. In that case skip
+            // straight to the reload; init() on the real page performs the sync.
+            if (this.getCsrfToken()) {
+                await this.syncPendingSales();
+                await this.syncOpenCarts();
+                await this.mirrorOnlineCarts();
+                await this.refreshLocalCatalog();
+            }
             
             // Reload the page to restore live Django layouts and script event listeners
             this.showNotification('Connection restored! Syncing and updating storefront...');
@@ -207,6 +223,15 @@ class OfflineManager {
             // the status back to online causing a loop.
             if (window.location.pathname.includes('/store/')) {
                 this.renderOfflineStore(1, '');
+            }
+            
+            // Mid-sale drop on the live cart/checkout page: reload so the service
+            // worker serves the offline shell, which continues the SAME (mirrored) cart.
+            const path = window.location.pathname;
+            const onLiveCartPage = (path.includes('/cart/') || path.includes('/checkout/')) &&
+                                   !document.getElementById('offlineContentContainer');
+            if (onLiveCartPage) {
+                setTimeout(() => location.reload(), 800);
             }
         }
     }
@@ -292,25 +317,31 @@ class OfflineManager {
                 return;
             }
             
-            if (item.store_quantity <= 0) {
+            // 2. Fetch current active offline sale session (may be the mirrored online cart)
+            let cart = await this.getActiveOfflineSale();
+            const existingItem = cart.items.find(i => i.inventory_id === inventoryId);
+            
+            // Units this cart already reserves on the server are excluded from the
+            // cached store_quantity, so add them back to get what this cart may hold.
+            const available = this.availableQuantity(item, existingItem);
+            const currentQty = existingItem ? existingItem.quantity : 0;
+            
+            if (available <= 0) {
                 this.showNotification(`"${item.product_name}" is out of stock locally.`, true);
                 return;
             }
             
-            // 2. Fetch current active offline sale session
-            let cart = await this.getActiveOfflineSale();
-            
             // 3. Update or append item
-            const existingItem = cart.items.find(i => i.inventory_id === inventoryId);
+            if (currentQty + 1 > available) {
+                this.showNotification(`Cannot add more. Max stock available: ${available}`, true);
+                return;
+            }
             if (existingItem) {
-                if (existingItem.quantity + 1 > item.store_quantity) {
-                    this.showNotification(`Cannot add more. Max stock available: ${item.store_quantity}`, true);
-                    return;
-                }
                 existingItem.quantity += 1;
             } else {
-                cart.items.push({ inventory_id: inventoryId, quantity: 1 });
+                cart.items.push({ inventory_id: inventoryId, quantity: 1, reserved_qty: 0 });
             }
+            cart.dirty = true;
             
             // 4. Save back to IndexedDB
             await this.saveToStore('offline_sales', cart);
@@ -323,6 +354,16 @@ class OfflineManager {
             console.error('❌ OfflineManager: Add offline item failed:', error);
             this.showNotification('Offline cart update failed.', true);
         }
+    }
+
+    /**
+     * Max quantity a cart line may hold offline.
+     * catalog.store_quantity already subtracts every open server cart (including this
+     * one), so the units this cart reserved at mirror time are added back.
+     */
+    availableQuantity(catalogItem, cartItem) {
+        const reserved = (cartItem && cartItem.reserved_qty) ? cartItem.reserved_qty : 0;
+        return Math.max(0, (catalogItem ? catalogItem.store_quantity : 0) + reserved);
     }
 
     updateCartBadgeCount(cart) {
@@ -349,7 +390,11 @@ class OfflineManager {
             this.showNotification(`Syncing ${sales.length} offline sale(s)...`);
             
             // Fetch CSRF token from DOM meta tags
-            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || window.csrftoken;
+            const token = this.getCsrfToken();
+            if (!token) {
+                // Offline shell page: defer until the real page loads (it has a token)
+                return;
+            }
             
             for (const sale of sales) {
                 try {
@@ -367,13 +412,14 @@ class OfflineManager {
                         const resData = await response.json();
                         // Successfully synced, remove from queue
                         await this.deleteFromStore('pending_sales', sale.tempId);
-                        this.showNotification(`Sale of total ₦${sale.total_cart.toFixed(2)} synced successfully!`);
+                        this.queueNotice(`Sale of total ₦${sale.total_cart.toFixed(2)} synced successfully!`);
                         console.log(`✅ OfflineManager: Synced sale ${sale.tempId} -> Server ID: ${resData.sale_id}`);
                     } else if (response.status === 409) {
-                        // Stock conflict occurred and has been logged on the server.
+                        // Stock conflict, or the cart was already closed on another device.
+                        // The server logged an Error Ticket for the owner to review.
                         const errData = await response.json();
                         await this.deleteFromStore('pending_sales', sale.tempId); // Clear to prevent stuck queues
-                        this.showNotification(`Sync warning: Stock conflict. ${errData.error}`, true);
+                        this.queueNotice(`Sync warning: ${errData.error}`, true);
                         console.warn(`⚠️ OfflineManager: Sale ${sale.tempId} rejected due to conflict: ${errData.error}`);
                     } else {
                         throw new Error(`Server returned ${response.status}`);
@@ -612,66 +658,275 @@ class OfflineManager {
             console.error('❌ OfflineManager: Render offline store grid failed:', error);
         }
     }
-    async getActiveOfflineSale() {
-        let activeId = sessionStorage.getItem(`active_offline_sale_${this.branchId}`);
-        if (!activeId) {
-            const sales = await this.getAllOfflineSales();
-            if (sales.length > 0) {
-                activeId = sales[0].id;
-                sessionStorage.setItem(`active_offline_sale_${this.branchId}`, activeId);
-            } else {
-                activeId = 'temp-sale-' + Math.random().toString(36).substring(2, 11);
-                const defaultSale = {
-                    id: activeId,
-                    branch_id: this.branchId,
-                    date_added: new Date().toISOString(),
-                    items: []
-                };
-                await this.saveToStore('offline_sales', defaultSale);
-                sessionStorage.setItem(`active_offline_sale_${this.branchId}`, activeId);
+    // ------------------------------------------------------------------
+    // Unified cart: mirroring, active-cart selection and reconciliation
+    // ------------------------------------------------------------------
+
+    getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || null;
+    }
+
+    activeSaleKey() {
+        return `active_offline_sale_${this.branchId}`;
+    }
+
+    newLocalSale() {
+        return {
+            id: 'temp-sale-' + Math.random().toString(36).substring(2, 11),
+            server_sale_id: null,       // created while offline; promoted on reconnect
+            branch_id: this.branchId,
+            date_added: new Date().toISOString(),
+            items: [],
+            dirty: false,
+            cancelled: false
+        };
+    }
+
+    /**
+     * Notices that must survive the post-sync reload (sessionStorage-backed).
+     */
+    queueNotice(message, isError = false) {
+        this.showNotification(message, isError);
+        try {
+            const notices = JSON.parse(sessionStorage.getItem('quicksales_pending_notices') || '[]');
+            notices.push({ message, isError });
+            sessionStorage.setItem('quicksales_pending_notices', JSON.stringify(notices.slice(-10)));
+        } catch (e) { /* ignore */ }
+    }
+
+    flushQueuedNotices() {
+        try {
+            const notices = JSON.parse(sessionStorage.getItem('quicksales_pending_notices') || '[]');
+            sessionStorage.removeItem('quicksales_pending_notices');
+            notices.forEach((n, idx) => {
+                setTimeout(() => this.showNotification(n.message, n.isError), 300 + idx * 600);
+            });
+        } catch (e) { /* ignore */ }
+    }
+
+    /** Debounced mirror, called by cart.js after each successful online cart action. */
+    scheduleMirror() {
+        clearTimeout(this._mirrorTimer);
+        this._mirrorTimer = setTimeout(() => this.mirrorOnlineCarts(), 300);
+    }
+
+    /**
+     * Pull the user's open server carts into IndexedDB, keyed by Sale UUID, so that
+     * if the network drops the SAME cart continues offline. Dirty (edited offline)
+     * or tombstoned records are never overwritten.
+     */
+    async mirrorOnlineCarts() {
+        if (!this.isOnline || !this.branchId || !this.db) return;
+        if (this._mirrorInFlight) return this._mirrorInFlight;
+
+        this._mirrorInFlight = (async () => {
+            try {
+                const response = await fetch(`/ims/api/open-sales/${this.branchId}/`, {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const contentType = response.headers.get('content-type') || '';
+                if (!response.ok || !contentType.includes('application/json')) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                const serverSales = data.sales || [];
+                const serverIds = new Set(serverSales.map(s => s.id));
+
+                // Sales already checked out offline (awaiting sync) must not reappear as open carts
+                const pending = await this.getAllFromStore('pending_sales');
+                const pendingServerIds = new Set(pending.map(p => p.server_sale_id).filter(Boolean));
+
+                const localSales = await this.getAllOfflineSales(true);
+                const localById = new Map(localSales.map(s => [s.id, s]));
+
+                // Drop clean mirrored carts that are no longer open on the server
+                for (const rec of localSales) {
+                    if (rec.server_sale_id && !serverIds.has(rec.server_sale_id) && !rec.dirty && !rec.cancelled) {
+                        await this.deleteFromStore('offline_sales', rec.id);
+                    }
+                }
+
+                const now = new Date().toISOString();
+                for (const s of serverSales) {
+                    if (pendingServerIds.has(s.id)) continue;
+                    const existing = localById.get(s.id);
+                    if (existing && (existing.dirty || existing.cancelled)) continue;
+
+                    await this.saveToStore('offline_sales', {
+                        id: s.id,
+                        server_sale_id: s.id,
+                        branch_id: this.branchId,
+                        date_added: s.date_added || now,
+                        items: (s.items || []).map(i => ({
+                            inventory_id: i.inventory_id,
+                            quantity: i.quantity,
+                            reserved_qty: i.quantity
+                        })),
+                        dirty: false,
+                        cancelled: false,
+                        last_mirrored_at: now
+                    });
+                }
+
+                if (data.active_sale_id && !pendingServerIds.has(data.active_sale_id)) {
+                    sessionStorage.setItem(this.activeSaleKey(), data.active_sale_id);
+                } else {
+                    const activeId = sessionStorage.getItem(this.activeSaleKey());
+                    if (activeId && !(await this.getFromStore('offline_sales', activeId))) {
+                        sessionStorage.removeItem(this.activeSaleKey());
+                    }
+                }
+            } catch (error) {
+                console.warn('📡 OfflineManager: Could not mirror online carts:', error);
+            } finally {
+                this._mirrorInFlight = null;
+            }
+        })();
+        return this._mirrorInFlight;
+    }
+
+    /**
+     * Push carts that were edited, created or cancelled offline (but not checked out)
+     * back to the server. Quantities are capped server-side to available stock.
+     */
+    async syncOpenCarts() {
+        if (!this.isOnline || !this.branchId || !this.db) return;
+        const token = this.getCsrfToken();
+        if (!token) return;
+
+        const all = await this.getAllOfflineSales(true);
+        const activeId = sessionStorage.getItem(this.activeSaleKey());
+
+        for (const rec of all) {
+            const isLocalOnly = !rec.server_sale_id;
+            const hasItems = rec.items && rec.items.length > 0;
+
+            // Empty or cancelled offline-only carts never reached the server: just drop them
+            if (isLocalOnly && (!hasItems || rec.cancelled)) {
+                await this.deleteFromStore('offline_sales', rec.id);
+                if (rec.id === activeId) sessionStorage.removeItem(this.activeSaleKey());
+                continue;
+            }
+            // Clean mirrored carts need no reconciliation
+            if (!isLocalOnly && !rec.dirty && !rec.cancelled) continue;
+
+            try {
+                const response = await fetch(`/ims/api/sync-cart/${this.branchId}/`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': token
+                    },
+                    body: JSON.stringify({
+                        local_id: rec.id,
+                        server_sale_id: rec.server_sale_id || null,
+                        items: (rec.items || []).map(i => ({ inventory_id: i.inventory_id, quantity: i.quantity })),
+                        cancelled: !!rec.cancelled,
+                        make_active: rec.id === activeId
+                    })
+                });
+                if (!response.ok) throw new Error(`Server returned ${response.status}`);
+                const data = await response.json();
+
+                await this.deleteFromStore('offline_sales', rec.id);
+
+                if (data.server_sale_id && !data.cancelled && data.sale) {
+                    // Re-key the cart under its server Sale UUID
+                    await this.saveToStore('offline_sales', {
+                        id: data.server_sale_id,
+                        server_sale_id: data.server_sale_id,
+                        branch_id: this.branchId,
+                        date_added: data.sale.date_added || rec.date_added,
+                        items: (data.sale.items || []).map(i => ({
+                            inventory_id: i.inventory_id,
+                            quantity: i.quantity,
+                            reserved_qty: i.quantity
+                        })),
+                        dirty: false,
+                        cancelled: false,
+                        last_mirrored_at: new Date().toISOString()
+                    });
+                    if (rec.id === activeId) sessionStorage.setItem(this.activeSaleKey(), data.server_sale_id);
+                } else if (rec.id === activeId) {
+                    sessionStorage.removeItem(this.activeSaleKey());
+                }
+
+                for (const adj of (data.adjustments || [])) {
+                    if (adj.reason === 'insufficient_stock') {
+                        this.queueNotice(`"${adj.product_name}" reduced from ${adj.requested} to ${adj.applied}. Only ${adj.applied} left in stock.`, true);
+                    } else {
+                        this.queueNotice('An item in your cart is no longer available and was removed.', true);
+                    }
+                }
+                if (data.conflict) {
+                    this.queueNotice('A cart was closed on another device while you were offline. Your items were moved to a new open sale.', true);
+                }
+            } catch (error) {
+                console.error(`❌ OfflineManager: Cart sync failed for ${rec.id}:`, error);
+                break; // Transient failure: retry on next load
             }
         }
-        
-        let sale = await this.getFromStore('offline_sales', activeId);
-        if (!sale) {
-            activeId = 'temp-sale-' + Math.random().toString(36).substring(2, 11);
-            sale = {
-                id: activeId,
-                branch_id: this.branchId,
-                date_added: new Date().toISOString(),
-                items: []
-            };
-            await this.saveToStore('offline_sales', sale);
-            sessionStorage.setItem(`active_offline_sale_${this.branchId}`, activeId);
+    }
+
+    async getActiveOfflineSale() {
+        const key = this.activeSaleKey();
+        const activeId = sessionStorage.getItem(key);
+        let sale = activeId ? await this.getFromStore('offline_sales', activeId) : null;
+
+        if (!sale || sale.cancelled || sale.branch_id !== this.branchId) {
+            const sales = await this.getAllOfflineSales();
+            sale = sales.length > 0 ? sales[sales.length - 1] : null;
+            if (!sale) {
+                sale = this.newLocalSale();
+                await this.saveToStore('offline_sales', sale);
+            }
+            sessionStorage.setItem(key, sale.id);
         }
+        if (!Array.isArray(sale.items)) sale.items = [];
         return sale;
     }
 
-    async getAllOfflineSales() {
+    /** Open carts for this branch, oldest first. Tombstoned carts are hidden unless requested. */
+    async getAllOfflineSales(includeCancelled = false) {
         const sales = await this.getAllFromStore('offline_sales');
-        return sales.filter(s => s.branch_id === this.branchId);
+        return sales
+            .filter(s => s.branch_id === this.branchId && (includeCancelled || !s.cancelled))
+            .sort((a, b) => String(a.date_added || '').localeCompare(String(b.date_added || '')));
     }
 
     async createOfflineSale() {
-        const newId = 'temp-sale-' + Math.random().toString(36).substring(2, 11);
-        const sale = {
-            id: newId,
-            branch_id: this.branchId,
-            date_added: new Date().toISOString(),
-            items: []
-        };
+        const sale = this.newLocalSale();
         await this.saveToStore('offline_sales', sale);
-        sessionStorage.setItem(`active_offline_sale_${this.branchId}`, newId);
-        return newId;
+        sessionStorage.setItem(this.activeSaleKey(), sale.id);
+        return sale.id;
     }
 
     async cancelOfflineSale(saleId) {
-        await this.deleteFromStore('offline_sales', saleId);
-        const activeId = sessionStorage.getItem(`active_offline_sale_${this.branchId}`);
-        if (activeId === saleId) {
-            sessionStorage.removeItem(`active_offline_sale_${this.branchId}`);
+        const sale = await this.getFromStore('offline_sales', saleId);
+        if (sale && sale.server_sale_id) {
+            // Server-backed cart: keep a tombstone so the cancel is applied on reconnect
+            sale.cancelled = true;
+            sale.dirty = true;
+            await this.saveToStore('offline_sales', sale);
+        } else {
+            await this.deleteFromStore('offline_sales', saleId);
+        }
+        if (sessionStorage.getItem(this.activeSaleKey()) === saleId) {
+            sessionStorage.removeItem(this.activeSaleKey());
             // Force create/select another open sale
             await this.getActiveOfflineSale();
+        }
+    }
+
+    /** Remove a cart that has just been checked out (online or offline). */
+    async removeOfflineSaleAfterCheckout(saleId) {
+        if (!this.db || !saleId) return;
+        await this.deleteFromStore('offline_sales', saleId);
+        if (sessionStorage.getItem(this.activeSaleKey()) === saleId) {
+            sessionStorage.removeItem(this.activeSaleKey());
         }
     }
 }
