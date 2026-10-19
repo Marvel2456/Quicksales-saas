@@ -45,13 +45,14 @@ services:
   redis:
     networks:
       - app-net
-    image: redis:7-alpine
+    image: redis:7
     container_name: quicksales_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru
 
   celery_worker:
     networks:
