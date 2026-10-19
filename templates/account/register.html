@@ -198,32 +198,36 @@
             <div id="step1" class="step-content">
                 <div class="row g-3 mb-3">
                     <div class="col-6">
-                        <label for="id_first_name" class="form-label text-gray-700 small fw-medium">First Name</label>
+                        <label for="id_first_name" class="form-label text-gray-700 small fw-medium">First Name <span class="text-danger">*</span></label>
                         <input type="text" id="id_first_name" name="first_name"
                             value="{{ form.first_name.value|default:'' }}" required class="form-control" placeholder="">
+                        <div class="invalid-feedback">First name is required.</div>
                         {% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors.0}}
                         </div>{% endif %}
                     </div>
                     <div class="col-6">
-                        <label for="id_last_name" class="form-label text-gray-700 small fw-medium">Last Name</label>
+                        <label for="id_last_name" class="form-label text-gray-700 small fw-medium">Last Name <span class="text-danger">*</span></label>
                         <input type="text" id="id_last_name" name="last_name"
                             value="{{ form.last_name.value|default:'' }}" required class="form-control" placeholder="">
+                        <div class="invalid-feedback">Last name is required.</div>
                         {% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors.0 }}
                         </div>{% endif %}
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_email" class="form-label text-gray-700 small fw-medium">Business Email</label>
+                    <label for="id_email" class="form-label text-gray-700 small fw-medium">Business Email <span class="text-danger">*</span></label>
                     <input type="email" id="id_email" name="email" value="{{ form.email.value|default:'' }}" required
                         class="form-control" placeholder="">
+                    <div class="invalid-feedback">Please enter a valid business email.</div>
                     {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>{% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_phone_number" class="form-label text-gray-700 small fw-medium">Phone number</label>
+                    <label for="id_phone_number" class="form-label text-gray-700 small fw-medium">Phone number <span class="text-danger">*</span></label>
                     <input type="text" id="id_phone_number" name="phone_number"
                         value="{{ form.phone_number.value|default:'' }}" required class="form-control" placeholder="">
+                    <div class="invalid-feedback">Phone number is required.</div>
                     {% if form.phone_number.errors %}<div class="text-danger small mt-1">{{ form.phone_number.errors.0}}
                     </div>{% endif %}
                 </div>
@@ -238,24 +242,29 @@
             <!-- Step 2: Organization Info -->
             <div id="step2" class="step-content d-none">
                 <div class="mb-3">
-                    <label for="id_organization_name" class="form-label text-gray-700 small fw-medium">Organization
-                        Name</label>
+                    <label for="id_organization_name" class="form-label text-gray-700 small fw-medium">Organization Name <span class="text-danger">*</span></label>
                     <input type="text" id="id_organization_name" name="organization_name"
-                        value="{{ form.organization_name.value|default:'' }}" required class="form-control">
+                        value="{{ form.organization_name.value|default:'' }}" required class="form-control" placeholder="e.g. Acme Corp">
+                    <div class="invalid-feedback">Organization name cannot be empty. Please enter your organization name.</div>
+                    {% if form.organization_name.errors %}<div class="text-danger small mt-1">{{ form.organization_name.errors.0 }}</div>{% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_organization_country" class="form-label text-gray-700 small fw-medium">Country</label>
+                    <label for="id_organization_country" class="form-label text-gray-700 small fw-medium">Country <span class="text-danger">*</span></label>
                     <select id="id_organization_country" name="organization_country" required class="form-select">
+                        <option value="">Select Country</option>
                         {% for key, value in form.organization_country.field.choices %}
-                        <option value="{{ key }}" {% if form.organization_country.value == key or not form.organization_country.value and key == 'Nigeria' %}selected{% endif %}>{{ value }}</option>
+                            {% if key %}
+                            <option value="{{ key }}" {% if form.organization_country.value == key %}selected{% endif %}>{{ value }}</option>
+                            {% endif %}
                         {% endfor %}
                     </select>
+                    <div class="invalid-feedback">Please select your country to continue.</div>
                     {% if form.organization_country.errors %}<div class="text-danger small mt-1">{{ form.organization_country.errors.0 }}</div>{% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_business_type" class="form-label text-gray-700 small fw-medium">Business Type</label>
+                    <label for="id_business_type" class="form-label text-gray-700 small fw-medium">Business Type <span class="text-danger">*</span></label>
                     <select id="id_business_type" name="business_type" required class="form-select">
                         <option value="">Select Option</option>
                         {% for key, value in form.business_type.field.choices %}
@@ -263,6 +272,7 @@
                         </option>
                         {% endfor %}
                     </select>
+                    <div class="invalid-feedback">Please select your business type.</div>
                     {% if form.business_type.errors %}<div class="text-danger small mt-1">{{
                         form.business_type.errors.0}}</div>{% endif %}
                 </div>
@@ -277,18 +287,19 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_branch_name" class="form-label text-gray-700 small fw-medium">Branch Name</label>
+                    <label for="id_branch_name" class="form-label text-gray-700 small fw-medium">Branch Name <span class="text-danger">*</span></label>
                     <input type="text" id="id_branch_name" name="branch_name"
-                        value="{{ form.branch_name.value|default:'' }}" required class="form-control">
+                        value="{{ form.branch_name.value|default:'' }}" required class="form-control" placeholder="e.g. Main Branch, HQ">
+                    <div class="invalid-feedback">Branch name cannot be empty. Please enter a branch name.</div>
                     {% if form.branch_name.errors %}<div class="text-danger small mt-1">{{ form.branch_name.errors.0 }}
                     </div>{% endif %}
                 </div>
 
                 <div class="mb-3">
-                    <label for="id_branch_address" class="form-label text-gray-700 small fw-medium">Branch
-                        Address</label>
+                    <label for="id_branch_address" class="form-label text-gray-700 small fw-medium">Branch Address <span class="text-danger">*</span></label>
                     <input type="text" id="id_branch_address" name="branch_address"
-                        value="{{ form.branch_address.value|default:'' }}" required class="form-control">
+                        value="{{ form.branch_address.value|default:'' }}" required class="form-control" placeholder="e.g. 12 Marina Street, Lagos">
+                    <div class="invalid-feedback">Branch address cannot be empty. Please enter the branch address.</div>
                     {% if form.branch_address.errors %}<div class="text-danger small mt-1">{{
                         form.branch_address.errors.0 }}</div>{% endif %}
                 </div>
@@ -364,7 +375,7 @@
 
     <script>
         // If org-level errors exist, start on step 2 automatically
-        const hasOrgErrors = "{% if form.organization_name.errors or form.business_type.errors or form.branch_name.errors or form.branch_address.errors %}true{% else %}false{% endif %}" === "true";
+        const hasOrgErrors = "{% if form.organization_name.errors or form.organization_country.errors or form.business_type.errors or form.branch_name.errors or form.branch_address.errors %}true{% else %}false{% endif %}" === "true";
         let currentStep = hasOrgErrors ? 2 : 1;
         let isExistingUser = false;
         let originalPasswordRequiredState = true;
@@ -382,7 +393,7 @@
             } else if (step === 2) {
                 titleEl.textContent = 'Tell us about your organization';
                 descEl.textContent = 'Answer questions about your organization';
-                indicatorEl.textContent = 'Step 2/3';
+                indicatorEl.textContent = isExistingUser ? 'Step 2/2' : 'Step 2/3';
             } else if (step === 3) {
                 titleEl.textContent = 'Set your password';
                 descEl.textContent = 'Set your organization password';
@@ -398,11 +409,14 @@
             const stepEl = document.getElementById(`step${step}`);
             const inputs = stepEl.querySelectorAll('input[required], select[required]');
             let isValid = true;
+            let firstInvalid = null;
 
             inputs.forEach(input => {
-                if (!input.value.trim()) {
+                const val = input.value ? input.value.trim() : '';
+                if (!val) {
                     isValid = false;
                     input.classList.add('is-invalid');
+                    if (!firstInvalid) firstInvalid = input;
                 } else {
                     input.classList.remove('is-invalid');
 
@@ -410,9 +424,14 @@
                     if (input.type === 'email' && !validateEmail(input.value)) {
                         isValid = false;
                         input.classList.add('is-invalid');
+                        if (!firstInvalid) firstInvalid = input;
                     }
                 }
             });
+
+            if (firstInvalid) {
+                firstInvalid.focus();
+            }
 
             return isValid;
         }
@@ -590,9 +609,49 @@
                 submitBtn.disabled = true;
             }
 
+            // Real-time clearing of invalid styles as user inputs/selects
+            document.querySelectorAll('#registerForm input, #registerForm select').forEach(el => {
+                el.addEventListener('input', function() {
+                    if (this.value.trim()) {
+                        this.classList.remove('is-invalid');
+                    }
+                });
+                el.addEventListener('change', function() {
+                    if (this.value.trim()) {
+                        this.classList.remove('is-invalid');
+                    }
+                });
+            });
+
             const registerForm = document.getElementById('registerForm');
             if (registerForm) {
                 registerForm.addEventListener('submit', function(e) {
+                    // Always validate Step 1
+                    if (!validateStep(1)) {
+                        e.preventDefault();
+                        currentStep = 1;
+                        updateUI(1);
+                        return false;
+                    }
+
+                    // Always validate Step 2
+                    if (!validateStep(2)) {
+                        e.preventDefault();
+                        currentStep = 2;
+                        updateUI(2);
+                        return false;
+                    }
+
+                    // Validate Step 3 for new users
+                    if (!isExistingUser) {
+                        if (!validateStep(3)) {
+                            e.preventDefault();
+                            currentStep = 3;
+                            updateUI(3);
+                            return false;
+                        }
+                    }
+
                     const step3Btn = document.getElementById('step3SubmitBtn');
                     const step3Spinner = document.getElementById('step3Spinner');
                     const step3Text = document.getElementById('step3BtnText');

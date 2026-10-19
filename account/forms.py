@@ -35,19 +35,46 @@ class OwnerRegisterForm(forms.Form):
     Custom form for owner registration that doesn't inherit from UserCreationForm
     to avoid email uniqueness validation issues in multi-org setup.
     """
-    email = forms.EmailField(required=True, label='Business Email')
-    first_name = forms.CharField(max_length=100, required=True, label='First Name')
-    last_name = forms.CharField(max_length=100, required=True, label='Last Name')
-    phone_number = forms.CharField(max_length=100, required=False, label='Phone Number')
+    email = forms.EmailField(
+        required=True, 
+        label='Business Email',
+        error_messages={'required': 'Business email is required.'}
+    )
+    first_name = forms.CharField(
+        max_length=100, 
+        required=True, 
+        label='First Name',
+        error_messages={'required': 'First name is required.'}
+    )
+    last_name = forms.CharField(
+        max_length=100, 
+        required=True, 
+        label='Last Name',
+        error_messages={'required': 'Last name is required.'}
+    )
+    phone_number = forms.CharField(
+        max_length=100, 
+        required=True, 
+        label='Phone Number',
+        error_messages={'required': 'Phone number is required.'}
+    )
     password1 = forms.CharField(widget=forms.PasswordInput, label='Password', required=False)
     password2 = forms.CharField(widget=forms.PasswordInput, label='Confirm Password', required=False)
     
-    organization_name = forms.CharField(max_length=255, required=True, label='Organization Name')
+    organization_name = forms.CharField(
+        max_length=255, 
+        required=True, 
+        label='Organization Name',
+        error_messages={'required': 'Organization name cannot be empty. Please enter your organization name.'}
+    )
     organization_country = forms.ChoiceField(
-        choices=COUNTRY_CHOICES,
+        choices=[('', 'Select Country')] + COUNTRY_CHOICES,
         required=True,
-        initial='Nigeria',
-        label='Business Country'
+        label='Business Country',
+        error_messages={
+            'required': 'Please select your country.',
+            'invalid_choice': 'Please select a valid country.',
+        }
     )
     organization_logo = forms.ImageField(required=False, label='Organization Logo')
     brand_color = forms.CharField(
@@ -58,13 +85,70 @@ class OwnerRegisterForm(forms.Form):
         help_text='Hex color code (e.g., #007bff)',
         widget=forms.TextInput(attrs={'type': 'color'})
     )
-    branch_name = forms.CharField(max_length=255, required=True, label='Branch Name')
-    branch_address = forms.CharField(max_length=255, required=True, label='Branch Address')
+    branch_name = forms.CharField(
+        max_length=255, 
+        required=True, 
+        label='Branch Name',
+        error_messages={
+            'required': 'Branch name cannot be empty. Please enter a branch name.',
+        }
+    )
+    branch_address = forms.CharField(
+        max_length=255, 
+        required=True, 
+        label='Branch Address',
+        error_messages={
+            'required': 'Branch address cannot be empty. Please enter the branch address.',
+        }
+    )
     business_type = forms.ChoiceField(
         choices=Organization.BUSINESS_CHOICES,
         required=True,
-        label='Business Type'
+        label='Business Type',
+        error_messages={'required': 'Please select your business type.'}
     )
+
+    def clean_first_name(self):
+        val = self.cleaned_data.get('first_name', '').strip()
+        if not val:
+            raise forms.ValidationError("First name is required.")
+        return val
+
+    def clean_last_name(self):
+        val = self.cleaned_data.get('last_name', '').strip()
+        if not val:
+            raise forms.ValidationError("Last name is required.")
+        return val
+
+    def clean_phone_number(self):
+        val = self.cleaned_data.get('phone_number', '').strip()
+        if not val:
+            raise forms.ValidationError("Phone number is required.")
+        return val
+
+    def clean_organization_name(self):
+        val = self.cleaned_data.get('organization_name', '').strip()
+        if not val:
+            raise forms.ValidationError("Organization name cannot be empty. Please enter your organization name.")
+        return val
+
+    def clean_branch_name(self):
+        branch_name = self.cleaned_data.get('branch_name', '').strip()
+        if not branch_name:
+            raise forms.ValidationError("Branch name cannot be empty. Please enter a branch name.")
+        return branch_name
+
+    def clean_branch_address(self):
+        branch_address = self.cleaned_data.get('branch_address', '').strip()
+        if not branch_address:
+            raise forms.ValidationError("Branch address cannot be empty. Please enter the branch address.")
+        return branch_address
+
+    def clean_organization_country(self):
+        country = self.cleaned_data.get('organization_country', '').strip()
+        if not country:
+            raise forms.ValidationError("Please select your country.")
+        return country
     
     def clean(self):
         cleaned_data = super().clean()
