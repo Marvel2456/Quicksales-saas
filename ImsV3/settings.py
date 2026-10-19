@@ -439,7 +439,9 @@ else:
     SQUAD_SECRET_KEY = _raw_squad_sk
 
 SQUAD_MERCHANT_ID = config('SQUAD_MERCHANT_ID', default='')
-SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='https://sandbox-api-d.squadco.com')
+# SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='https://sandbox-api-d.squadco.com')
+SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='')
+
 
 
 LOGGING_CONFIG = 'logging.config.dictConfig'
