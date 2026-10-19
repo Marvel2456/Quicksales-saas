@@ -69,3 +69,91 @@ class ResendVerificationTests(TestCase):
 		self.assertContains(response, 'Verification email sent')
 		self.assertContains(response, 'Resend verification email')
 		mock_delay.assert_called_once()
+
+	def test_registration_fails_when_branch_name_is_empty(self):
+		response = self.client.post(reverse('register'), {
+			'email': 'branch_test@example.com',
+			'first_name': 'Test',
+			'last_name': 'Branch',
+			'phone_number': '08000000001',
+			'password1': 'strongpass123',
+			'password2': 'strongpass123',
+			'organization_name': 'No Branch Org',
+			'organization_country': 'Nigeria',
+			'brand_color': '#007bff',
+			'branch_name': '   ',  # whitespace should be invalid
+			'branch_address': 'Lagos',
+			'business_type': 'electronics',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, 'account/register.html')
+		self.assertFalse(Organization.objects.filter(name='No Branch Org').exists())
+		form = response.context['form']
+		self.assertIn('branch_name', form.errors)
+
+	def test_registration_fails_when_country_is_empty(self):
+		response = self.client.post(reverse('register'), {
+			'email': 'country_test@example.com',
+			'first_name': 'Test',
+			'last_name': 'Country',
+			'phone_number': '08000000002',
+			'password1': 'strongpass123',
+			'password2': 'strongpass123',
+			'organization_name': 'No Country Org',
+			'organization_country': '',
+			'brand_color': '#007bff',
+			'branch_name': 'Main Branch',
+			'branch_address': 'Lagos',
+			'business_type': 'electronics',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, 'account/register.html')
+		self.assertFalse(Organization.objects.filter(name='No Country Org').exists())
+		form = response.context['form']
+		self.assertIn('organization_country', form.errors)
+
+	def test_registration_fails_when_organization_name_is_empty(self):
+		response = self.client.post(reverse('register'), {
+			'email': 'org_name_test@example.com',
+			'first_name': 'Test',
+			'last_name': 'Org',
+			'phone_number': '08000000003',
+			'password1': 'strongpass123',
+			'password2': 'strongpass123',
+			'organization_name': '   ',  # whitespace should be invalid
+			'organization_country': 'Nigeria',
+			'brand_color': '#007bff',
+			'branch_name': 'Main Branch',
+			'branch_address': 'Lagos',
+			'business_type': 'electronics',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, 'account/register.html')
+		form = response.context['form']
+		self.assertIn('organization_name', form.errors)
+
+	def test_registration_fails_when_branch_address_is_empty(self):
+		response = self.client.post(reverse('register'), {
+			'email': 'address_test@example.com',
+			'first_name': 'Test',
+			'last_name': 'Address',
+			'phone_number': '08000000004',
+			'password1': 'strongpass123',
+			'password2': 'strongpass123',
+			'organization_name': 'Valid Org',
+			'organization_country': 'Nigeria',
+			'brand_color': '#007bff',
+			'branch_name': 'Main Branch',
+			'branch_address': '   ',  # whitespace should be invalid
+			'business_type': 'electronics',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, 'account/register.html')
+		self.assertFalse(Organization.objects.filter(name='Valid Org').exists())
+		form = response.context['form']
+		self.assertIn('branch_address', form.errors)
+

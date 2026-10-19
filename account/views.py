@@ -101,7 +101,7 @@ class OwnerRegisterView(View):
             organization = Organization.objects.create(
                 name=form.cleaned_data['organization_name'],
                 business_type=form.cleaned_data['business_type'],
-                country=form.cleaned_data.get('organization_country', ''),
+                country=form.cleaned_data['organization_country'],
                 logo=raw_logo,
                 brand_color=form.cleaned_data.get('brand_color', '#007bff'),
                 trial_start=trial_start,
