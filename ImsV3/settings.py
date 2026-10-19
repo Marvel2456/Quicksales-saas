@@ -238,8 +238,8 @@ else:
             'TIMEOUT': 300,  # Default 5-minute cache timeout
         }
     }
-    # Cache sessions in Redis (reduces database load)
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    # Cache sessions with database persistence (fast Redis reads + reliable DB fallback)
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
     SESSION_CACHE_ALIAS = 'default'
 
 # ============================================================================
