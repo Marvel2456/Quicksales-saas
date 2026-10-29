@@ -23,7 +23,7 @@ from ims.view.team_views import (staffs, staff, edit_staff, deactivate_staff, ac
 from ims.view.test_signal_view import test_low_stock_signal_view
 from ims.view.invoice_views import (
     branch_invoices, invoices, create_invoice, invoice_detail,
-    invoice_pdf, confirm_payment, close_invoice, delete_invoice, edit_invoice
+    invoice_pdf, confirm_payment, close_invoice, reopen_invoice, delete_invoice, edit_invoice
 )
 from ims.view.api_views import get_offline_data, sync_sale, get_open_sales, sync_cart
 
@@ -152,6 +152,7 @@ urlpatterns = [
     path('invoice/<uuid:pk>/pdf/', invoice_pdf, name='invoice_pdf'),
     path('invoice/<uuid:pk>/confirm/', confirm_payment, name='confirm_payment'),
     path('invoice/<uuid:pk>/close/', close_invoice, name='close_invoice'),
+    path('invoice/<uuid:pk>/reopen/', reopen_invoice, name='reopen_invoice'),
     path('invoice/<uuid:pk>/delete/', delete_invoice, name='delete_invoice'),
     path('invoice/<uuid:pk>/edit/', edit_invoice, name='edit_invoice'),
     

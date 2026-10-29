@@ -134,3 +134,27 @@ def cart_count(request):
     except Exception:
         logger.exception("cart_count context processor failed")
         return {"cart_item_count": 0}
+
+
+def currency_context(request):
+    """Provide currency symbol and code based on active organization."""
+    try:
+        organization = getattr(request, 'organization', None)
+        if not organization and hasattr(request, 'user') and request.user.is_authenticated:
+            organization = getattr(request.user, 'organization', None)
+
+        if organization:
+            return {
+                'currency_symbol': organization.currency_symbol,
+                'currency_code': organization.currency_code,
+                'is_nigeria': organization.is_nigeria,
+            }
+    except Exception:
+        logger.exception("currency_context context processor failed")
+
+    return {
+        'currency_symbol': '₦',
+        'currency_code': 'NGN',
+        'is_nigeria': True,
+    }
+

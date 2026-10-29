@@ -73,7 +73,7 @@
                             <i class="bi bi-cash-stack fs-5 text-warning"></i>
                         </div>
                     </div>
-                    <div class="h3 fw-bold text-dark mb-1">₦{{ total_customer_revenue|floatformat:2|intcomma }}</div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ currency_symbol }}{{ total_customer_revenue|floatformat:2|intcomma }}</div>
                     <small class="text-muted">From online storefront</small>
                 </div>
             </div>
@@ -87,7 +87,7 @@
                             <i class="bi bi-graph-up-arrow fs-5 text-info"></i>
                         </div>
                     </div>
-                    <div class="h3 fw-bold text-dark mb-1">₦{{ avg_customer_spend|floatformat:2|intcomma }}</div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ currency_symbol }}{{ avg_customer_spend|floatformat:2|intcomma }}</div>
                     <small class="text-muted">Average spend per buyer</small>
                 </div>
             </div>
@@ -121,7 +121,7 @@
                         <div class="bg-light rounded-3 p-2.5 mb-3 small d-flex justify-content-between align-items-center">
                             <div>
                                 <span class="text-muted d-block" style="font-size: 0.75rem;">TOTAL SPENT</span>
-                                <span class="fw-bold text-success fs-6">₦{{ vip.total_spent|floatformat:2|intcomma }}</span>
+                                <span class="fw-bold text-success fs-6">{{ currency_symbol }}{{ vip.total_spent|floatformat:2|intcomma }}</span>
                             </div>
                             <div class="text-end">
                                 <span class="text-muted d-block" style="font-size: 0.75rem;">ORDERS</span>
@@ -228,7 +228,7 @@
                                 <small class="text-muted">order{{ cust.orders_count|pluralize }}</small>
                             </td>
                             <td class="cell fw-bold text-success fs-6">
-                                ₦{{ cust.total_spent|floatformat:2|intcomma }}
+                                {{ currency_symbol }}{{ cust.total_spent|floatformat:2|intcomma }}
                             </td>
                             <td class="cell">
                                 <span class="badge {{ cust.tier_badge }} rounded-pill px-2.5 py-1 fw-semibold">
@@ -294,7 +294,7 @@
                     <div class="col-sm-4 col-12">
                         <div class="bg-light p-3 rounded-3 border">
                             <span class="text-muted small d-block">Total Spent</span>
-                            <span class="fw-bold text-success fs-6" id="modalCustomerSpent">₦0.00</span>
+                            <span class="fw-bold text-success fs-6" id="modalCustomerSpent">{{ currency_symbol }}0.00</span>
                         </div>
                     </div>
                 </div>
@@ -341,7 +341,7 @@ const CUSTOMERS_DATA = {
         "phone": "{{ c.phone|escapejs }}",
         "address": "{{ c.address|escapejs }}",
         "orders_count": {{ c.orders_count }},
-        "total_spent": "₦{{ c.total_spent|floatformat:2|intcomma }}",
+        "total_spent": "{{ currency_symbol }}{{ c.total_spent|floatformat:2|intcomma }}",
         "orders": [
             {% for o in c.orders %}
             {

@@ -33,13 +33,13 @@
               <div class="card shadow-sm p-3 h-100 plan-card-modal" 
                    data-tier="{{ plan_ref.tier }}" 
                    data-size="{{ plan_ref.size }}"
-                   data-monthly-price="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price }}{% endif %}{% endfor %}"
+                   data-monthly-price="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{% if is_nigeria %}{{ p.price }}{% else %}{{ p.price_usd }}{% endif %}{% endif %}{% endfor %}"
                    data-monthly-id="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.id }}{% endif %}{% endfor %}"
-                   data-annual-price="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.price }}{% endif %}{% endfor %}"
+                   data-annual-price="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{% if is_nigeria %}{{ p.price }}{% else %}{{ p.price_usd }}{% endif %}{% endif %}{% endfor %}"
                    data-annual-id="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.id }}{% endif %}{% endfor %}">
                 <h6 class="card-title text-center fw-bold pt-2 mb-2">{{ plan_ref.tier|title }} {{ plan_ref.size|title }}</h6>
                 <div class="text-center mb-3">
-                  <div class="h4 fw-bold text-primary">₦<span class="plan-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price|floatformat:0 }}{% endif %}{% endfor %}</span></div>
+                  <div class="h4 fw-bold text-primary">{{ currency_symbol }}<span class="plan-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{% if is_nigeria %}{{ p.price|floatformat:0 }}{% else %}{{ p.price_usd|floatformat:2 }}{% endif %}{% endif %}{% endfor %}</span></div>
                   <small class="text-muted"><span class="billing-period-modal">per month</span></small>
                 </div>
                 
@@ -65,7 +65,7 @@
                 <div class="mb-3">
                   <input type="text" class="form-control coupon-input-modal form-control-sm" placeholder="Coupon (optional)" data-tier="{{ plan_ref.tier }}" data-size="{{ plan_ref.size }}">
                   <small class="text-muted d-block mt-1">
-                    <span class="original-price-modal text-xs">Original: ₦<span class="base-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.price|floatformat:0 }}{% endif %}{% endfor %}</span></span>
+                    <span class="original-price-modal text-xs">Original: {{ currency_symbol }}<span class="base-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{% if is_nigeria %}{{ p.price|floatformat:0 }}{% else %}{{ p.price_usd|floatformat:2 }}{% endif %}{% endif %}{% endfor %}</span></span>
                   </small>
                 </div>
                 
@@ -108,6 +108,13 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
   window.__squadPlanModalInitialized = true;
+
+    const CURRENCY_SYMBOL = "{{ currency_symbol }}";
+    const CURRENCY_CODE = "{{ currency_code }}";
+    const IS_NIGERIA = {{ is_nigeria|yesno:"true,false" }};
+    const LOCALE = IS_NIGERIA ? 'en-NG' : 'en-US';
+    const FRACTION_DIGITS = IS_NIGERIA ? 0 : 2;
+
     // Billing frequency tab handling
     document.querySelectorAll('.billing-tab-modal').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -132,13 +139,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const basePriceEl = card.querySelector('.base-price-modal');
                 
                 if (priceEl) {
-                    priceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
+                    priceEl.textContent = price.toLocaleString(LOCALE, {maximumFractionDigits: FRACTION_DIGITS, minimumFractionDigits: FRACTION_DIGITS});
                 }
                 if (periodEl) {
                     periodEl.textContent = frequency === 'monthly' ? 'per month' : 'per year';
                 }
                 if (basePriceEl) {
-                    basePriceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
+                    basePriceEl.textContent = price.toLocaleString(LOCALE, {maximumFractionDigits: FRACTION_DIGITS, minimumFractionDigits: FRACTION_DIGITS});
                 }
             });
         });
@@ -234,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     key: rawPublicKey,
                     email: '{{ request.user.email|escapejs }}',
                     amount: Math.round(finalPrice * 100),
-                    currency_code: 'NGN',
+                    currency_code: CURRENCY_CODE,
                     transaction_ref: data.reference,
                     onClose: function() {
                       button.disabled = false;
@@ -366,12 +373,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             const originalPriceSpan = card.querySelector('.original-price-modal');
                             
                             if (priceEl) {
-                                priceEl.textContent = Math.round(data.final_amount).toLocaleString('en-NG');
+                                priceEl.textContent = parseFloat(data.final_amount).toLocaleString(LOCALE, {maximumFractionDigits: FRACTION_DIGITS, minimumFractionDigits: FRACTION_DIGITS});
                                 priceEl.style.color = '#28a745';
                             }
                             if (originalPriceSpan) {
                                 const discount = Math.round((data.discount / data.original_amount) * 100);
-                                originalPriceSpan.innerHTML = `Original: ₦${data.original_amount.toLocaleString('en-NG')} | Discount: <strong>${discount}%</strong> ✓`;
+                                originalPriceSpan.innerHTML = `Original: ${CURRENCY_SYMBOL}${parseFloat(data.original_amount).toLocaleString(LOCALE, {maximumFractionDigits: FRACTION_DIGITS, minimumFractionDigits: FRACTION_DIGITS})} | Discount: <strong>${discount}%</strong> ✓`;
                             }
                         } else {
                             input.classList.add('is-invalid');
@@ -381,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             const priceEl = card.querySelector('.plan-price-modal');
                             if (priceEl) {
-                                priceEl.textContent = price.toLocaleString('en-NG', {maximumFractionDigits: 0});
+                                priceEl.textContent = price.toLocaleString(LOCALE, {maximumFractionDigits: FRACTION_DIGITS, minimumFractionDigits: FRACTION_DIGITS});
                                 priceEl.style.color = '';
                             }
                         }

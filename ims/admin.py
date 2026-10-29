@@ -2,7 +2,10 @@ from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 from unfold.decorators import display
 from unfold.admin import ModelAdmin
-from .models import Product, Sale, SalesItem, Category, Inventory, Supplier, ErrorTicket, Invoice
+from .models import (
+    Product, Sale, SalesItem, Category, Inventory, Supplier,
+    ErrorTicket, Invoice, InvoicePayment, InvoiceEditLog
+)
 
 # Register your models here.
 
@@ -123,7 +126,21 @@ class ErrorTicketAdmin(ModelAdmin):
 
 @admin.register(Invoice)
 class InvoiceAdmin(ModelAdmin):
-    list_display = ['organization', 'branch', 'created_by', 'invoice_number', 'customer_name', 'date_created', 'due_date', 'status']
+    list_display = ['organization', 'branch', 'created_by', 'invoice_number', 'customer_name', 'payment_plan', 'total_amount', 'amount_paid', 'date_created', 'due_date', 'status']
     search_fields = ['invoice_number', 'customer_name', 'customer_email', 'branch__name', 'created_by__email']
-    list_filter = ['status', 'branch', 'organization']
+    list_filter = ['status', 'payment_plan', 'branch', 'organization']
     autocomplete_fields = ['organization', 'branch', 'created_by']
+
+
+@admin.register(InvoicePayment)
+class InvoicePaymentAdmin(ModelAdmin):
+    list_display = ['invoice', 'organization', 'branch', 'amount', 'payment_method', 'recorded_by', 'date_paid']
+    search_fields = ['invoice__invoice_number', 'invoice__customer_name', 'recorded_by__email']
+    list_filter = ['payment_method', 'branch', 'organization']
+
+
+@admin.register(InvoiceEditLog)
+class InvoiceEditLogAdmin(ModelAdmin):
+    list_display = ['invoice', 'organization', 'branch', 'user', 'action', 'timestamp']
+    search_fields = ['invoice__invoice_number', 'user__email', 'summary']
+    list_filter = ['action', 'branch', 'organization']

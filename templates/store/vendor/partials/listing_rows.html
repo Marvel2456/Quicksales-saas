@@ -23,11 +23,7 @@
         </span>
     </td>
     <td class="cell fw-bold text-dark">
-        {% if organization.country and organization.country.lower != 'nigeria' %}
-        ${{ listing.display_price|floatformat:2|intcomma }}
-        {% else %}
-        ₦{{ listing.display_price|floatformat:2|intcomma }}
-        {% endif %}
+        {{ currency_symbol }}{{ listing.display_price|floatformat:2|intcomma }}
     </td>
     <td class="cell">
         {% if listing.is_in_stock %}

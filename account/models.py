@@ -85,6 +85,18 @@ class Organization(models.Model):
             return reverse('storefront', kwargs={'org_slug': self.slug})
         return ""
 
+    @property
+    def is_nigeria(self):
+        return (self.country or '').strip().lower() == 'nigeria'
+
+    @property
+    def currency_code(self):
+        return 'NGN' if self.is_nigeria else 'USD'
+
+    @property
+    def currency_symbol(self):
+        return '₦' if self.is_nigeria else '$'
+
     def save(self, *args, **kwargs):
         if not self.slug and self.name:
             base_slug = slugify(self.name)

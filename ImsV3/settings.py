@@ -126,6 +126,7 @@ TEMPLATES = [
                 'account.context_processors.active_branch',
                 'account.context_processors.notification_count',
                 'account.context_processors.cart_count',
+                'account.context_processors.currency_context',
             ],
         },
     },

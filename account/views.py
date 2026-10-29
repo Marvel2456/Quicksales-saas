@@ -117,10 +117,23 @@ class OwnerRegisterView(View):
             )
 
             # Assign free plan
-            free_plan = Plan.objects.filter(price=0).first()
+            free_plan = Plan.objects.filter(price=0).first() or Plan.objects.filter(tier='free').first()
+            if not free_plan:
+                free_plan, _ = Plan.objects.get_or_create(
+                    tier='free',
+                    size='starter',
+                    billing_frequency='monthly',
+                    defaults={
+                        'name': 'Free Trial',
+                        'price': 0,
+                        'price_usd': 0,
+                        'duration_in_days': 14,
+                    }
+                )
             subscription = Subscription.objects.create(
                 organization=organization,
                 plan=free_plan,
+                currency=organization.currency_code,
                 start_date=trial_start,
                 end_date=trial_end,
                 is_active=True

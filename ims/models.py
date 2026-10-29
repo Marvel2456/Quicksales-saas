@@ -278,6 +278,7 @@ class TicketComment(models.Model):
 class Invoice(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('partially_paid', 'Partially Paid (Not Completed)'),
         ('paid', 'Paid'),
         ('closed', 'Closed'),
     ]
@@ -285,6 +286,10 @@ class Invoice(models.Model):
         ('Cash', 'Cash'),
         ('Transfer', 'Transfer'),
         ('POS', 'POS'),
+    ]
+    PAYMENT_PLAN_CHOICES = [
+        ('one_time', 'Pay Once (Full Payment)'),
+        ('installment', 'Installment Payment'),
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
@@ -296,8 +301,11 @@ class Invoice(models.Model):
     customer_phone = models.CharField(max_length=50, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    payment_plan = models.CharField(max_length=20, choices=PAYMENT_PLAN_CHOICES, default='one_time')
     due_date = models.DateField(blank=True, null=True)
     total_amount = models.FloatField(default=0, blank=True, null=True)
+    amount_paid = models.FloatField(default=0, blank=True, null=True)
+    inventory_deducted = models.BooleanField(default=False)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_CHOICES, blank=True, null=True)
     invoice_number = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     date_created = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_index=True)
@@ -315,6 +323,30 @@ class Invoice(models.Model):
     @property
     def get_total(self):
         return sum(item.total or 0 for item in self.items.all())
+
+    @property
+    def effective_amount_paid(self):
+        if self.status == 'paid':
+            return float(self.total_amount or 0.0)
+        return float(self.amount_paid or 0.0)
+
+    @property
+    def balance_due(self):
+        if self.status == 'paid':
+            return 0.0
+        total = float(self.total_amount or 0.0)
+        paid = float(self.amount_paid or 0.0)
+        return max(0.0, round(total - paid, 2))
+
+    @property
+    def payment_progress_percent(self):
+        if self.status == 'paid':
+            return 100
+        total = float(self.total_amount or 0.0)
+        if total <= 0:
+            return 0
+        paid = float(self.amount_paid or 0.0)
+        return min(100, max(0, int(round((paid / total) * 100))))
 
 
 class InvoiceItem(models.Model):
@@ -340,6 +372,55 @@ class InvoiceItem(models.Model):
         if self.unit_price and self.quantity:
             self.total = self.unit_price * self.quantity
         super().save(*args, **kwargs)
+
+
+class InvoicePayment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments', db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
+    amount = models.FloatField(default=0)
+    payment_method = models.CharField(max_length=50, choices=Invoice.PAYMENT_CHOICES, default='Cash')
+    recorded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    date_paid = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['date_paid']
+        indexes = [
+            models.Index(fields=['invoice', 'date_paid']),
+        ]
+
+    def __str__(self):
+        return f"Payment of {self.amount} on {self.invoice.invoice_number}"
+
+
+class InvoiceEditLog(models.Model):
+    ACTION_CHOICES = [
+        ('created', 'Created'),
+        ('edited', 'Edited'),
+        ('payment_recorded', 'Payment Recorded'),
+        ('closed', 'Closed'),
+        ('reopened', 'Reopened'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='edit_logs', db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True)
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES, default='edited')
+    summary = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['invoice', '-timestamp']),
+        ]
+
+    def __str__(self):
+        user_str = self.user.email if self.user else 'System'
+        return f"{self.invoice.invoice_number} - {self.action} by {user_str}"
 
 
 class APIKey(models.Model):

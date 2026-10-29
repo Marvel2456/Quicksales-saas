@@ -160,6 +160,7 @@ def storefront(request, org_slug):
     Public storefront for an organization.
     """
     org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    request.organization = org
     store, _ = StoreListing.objects.get_or_create(organization=org)
 
     if not has_online_store_access(org) or not store.is_active:
@@ -260,6 +261,7 @@ def product_detail(request, org_slug, listing_id):
     Detailed single product page.
     """
     org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    request.organization = org
     if not has_online_store_access(org):
         return render(request, 'store/store_inactive.html', {'organization': org})
     store = get_object_or_404(StoreListing, organization=org, is_active=True)
@@ -326,7 +328,7 @@ def add_to_cart_api(request, org_slug):
     if new_qty > available:
         return JsonResponse({
             'success': False,
-            'message': f"Only {available} items available in stock."
+            'message': "Requested quantity exceeds available stock."
         }, status=400)
 
     cart[listing_id] = new_qty
@@ -391,7 +393,7 @@ def update_cart_api(request, org_slug):
         if quantity > available:
             return JsonResponse({
                 'success': False,
-                'message': f"Only {available} items available in stock."
+                'message': "Requested quantity exceeds available stock."
             }, status=400)
         cart[listing_id] = quantity
         item_total = unit_price * quantity
@@ -441,6 +443,7 @@ def store_checkout(request, org_slug):
     Cart review, coupon redemption, and order placement.
     """
     org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    request.organization = org
     if not has_online_store_access(org):
         return render(request, 'store/store_inactive.html', {'organization': org})
     store = get_object_or_404(StoreListing, organization=org, is_active=True)

@@ -59,7 +59,7 @@
                                 {% if disc.discount_type == 'percent' %}
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">{{ disc.value|floatformat:0 }}% Off</span>
                                 {% else %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">₦{{ disc.value|floatformat:2|intcomma }} Off</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">{{ currency_symbol }}{{ disc.value|floatformat:2|intcomma }} Off</span>
                                 {% endif %}
                             </td>
                             <td class="cell">
@@ -137,7 +137,7 @@
                             <label class="form-label small fw-bold">Discount Type</label>
                             <select name="discount_type" class="form-select">
                                 <option value="percent">Percentage (%)</option>
-                                <option value="fixed">Fixed Amount (₦)</option>
+                                <option value="fixed">Fixed Amount ({{ currency_symbol }})</option>
                             </select>
                         </div>
                         <div class="col-6">

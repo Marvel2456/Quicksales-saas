@@ -11,25 +11,38 @@
             <div class="col-auto">
                 <h1 class="app-page-title mb-0">Invoice {{ invoice.invoice_number }}</h1>
             </div>
-            <div class="col-auto d-flex gap-2">
+            <div class="col-auto d-flex flex-wrap gap-2">
                 <a href="{% url 'invoices' branch.id %}" class="btn app-btn-secondary">&larr; Back</a>
                 <a href="{% url 'invoice_pdf' invoice.id %}" class="btn btn-outline-dark" target="_blank">
                     ⬇ Download PDF
                 </a>
-                {% if invoice.status != 'paid' %}
+                {% if invoice.status != 'paid' and invoice.status != 'closed' %}
                 <a href="{% url 'edit_invoice' invoice.id %}" class="btn btn-outline-primary">
                     ✎ Edit Invoice
                 </a>
                 {% endif %}
-                {% if invoice.status == 'pending' %}
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmPaymentModal">
-                    ✓ Confirm Payment
+                {% if org_role == 'owner' and invoice.status == 'closed' %}
+                <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#reopenInvoiceModal">
+                    ↻ Reopen Invoice
                 </button>
+                {% endif %}
+                {% if invoice.status == 'pending' or invoice.status == 'partially_paid' %}
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmPaymentModal">
+                    {% if invoice.status == 'partially_paid' %}
+                    + Update Payment
+                    {% elif invoice.payment_plan == 'installment' %}
+                    ✓ Record Installment
+                    {% else %}
+                    ✓ Confirm Payment
+                    {% endif %}
+                </button>
+                {% endif %}
+                {% if invoice.status == 'pending' and not invoice.amount_paid %}
                 <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#closeInvoiceModal">
                     ✕ Close Invoice
                 </button>
                 {% endif %}
-                {% if invoice.status != 'paid' %}
+                {% if org_role == 'owner' and invoice.status != 'paid' %}
                 <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal">
                     🗑 Delete
                 </button>
@@ -56,14 +69,36 @@
                             <td class="fw-semibold">{{ invoice.invoice_number }}</td>
                         </tr>
                         <tr>
-                            <th class="text-muted fw-normal ps-0">Status</th>
+                            <th class="text-muted fw-normal ps-0">Payment Status</th>
                             <td>
                                 {% if invoice.status == 'pending' %}
                                 <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif invoice.status == 'partially_paid' %}
+                                <span class="badge bg-info text-dark">Not Completed (Partially Paid)</span>
                                 {% elif invoice.status == 'paid' %}
-                                <span class="badge bg-success">Paid</span>
+                                <span class="badge bg-success">Paid (Completed)</span>
                                 {% else %}
                                 <span class="badge bg-secondary">Closed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Payment Plan</th>
+                            <td>
+                                {% if invoice.payment_plan == 'installment' %}
+                                <span class="badge bg-light text-dark border">Installment Payment</span>
+                                {% else %}
+                                <span class="badge bg-light text-secondary border">Pay Once (Full Payment)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted fw-normal ps-0">Inventory Status</th>
+                            <td>
+                                {% if invoice.inventory_deducted or invoice.status == 'paid' %}
+                                <span class="text-success small fw-semibold">✓ Deducted from Stock</span>
+                                {% else %}
+                                <span class="text-muted small">Pending First Payment</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -88,6 +123,27 @@
                             <td>{{ invoice.created_by.get_full_name|default:invoice.created_by.email }}</td>
                         </tr>
                     </table>
+
+                    <!-- Payment Progress Summary -->
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Payment Progress ({{ invoice.payment_progress_percent }}%)</span>
+                            <span class="fw-semibold">{{ currency_symbol }}{{ invoice.effective_amount_paid|floatformat:2 }} / {{ currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar {% if invoice.status == 'paid' %}bg-success{% else %}bg-info{% endif %}"
+                                role="progressbar"
+                                style="width: {{ invoice.payment_progress_percent }}%;"
+                                aria-valuenow="{{ invoice.payment_progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        {% if invoice.balance_due > 0 %}
+                        <div class="d-flex justify-content-between align-items-center mt-2 small">
+                            <span class="text-danger fw-semibold">Remaining Balance:</span>
+                            <span class="text-danger fw-bold">{{ currency_symbol }}{{ invoice.balance_due|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -137,8 +193,8 @@
                                     <td>{{ forloop.counter }}</td>
                                     <td>{{ item.inventory.product.product_name|default:"—" }}</td>
                                     <td>{{ item.quantity }}</td>
-                                    <td>₦{{ item.unit_price|floatformat:2 }}</td>
-                                    <td>₦{{ item.total|floatformat:2 }}</td>
+                                    <td>{{ currency_symbol }}{{ item.unit_price|floatformat:2 }}</td>
+                                    <td>{{ currency_symbol }}{{ item.total|floatformat:2 }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
@@ -148,55 +204,257 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="4" class="text-end fw-bold">Total</td>
-                                    <td class="fw-bold text-success">₦{{ invoice.total_amount|floatformat:2 }}</td>
+                                    <td colspan="4" class="text-end fw-bold">Grand Total</td>
+                                    <td class="fw-bold">{{ currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end text-muted">Amount Paid</td>
+                                    <td class="fw-semibold text-success">{{ currency_symbol }}{{ invoice.effective_amount_paid|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="text-end fw-bold">Balance Due</td>
+                                    <td class="fw-bold {% if invoice.balance_due > 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ currency_symbol }}{{ invoice.balance_due|floatformat:2 }}
+                                    </td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </div>
             </div>
+
+            <!-- Installment / Payment History -->
+            <div class="col-12">
+                <div class="app-card shadow-sm p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Payment History</h5>
+                        {% if invoice.status == 'partially_paid' %}
+                        <span class="badge bg-info text-dark">Payment Not Completed — Balance: {{ currency_symbol }}{{ invoice.balance_due|floatformat:2 }}</span>
+                        {% elif invoice.status == 'paid' %}
+                        <span class="badge bg-success">Payment Completed</span>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table app-table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date & Time</th>
+                                    <th>Amount Paid</th>
+                                    <th>Method</th>
+                                    <th>Recorded By</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ payment.date_paid|date:"M d, Y H:i" }}</td>
+                                    <td class="fw-semibold text-success">{{ currency_symbol }}{{ payment.amount|floatformat:2 }}</td>
+                                    <td>{{ payment.payment_method }}</td>
+                                    <td>
+                                        {% if payment.recorded_by %}
+                                        {{ payment.recorded_by.get_full_name|default:payment.recorded_by.email }}
+                                        {% else %}
+                                        —
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ payment.notes|default:"—" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">No payments recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Owner-Only Edit & Activity Log -->
+            {% if org_role == 'owner' %}
+            <div class="col-12">
+                <div class="app-card shadow-sm p-4 border-start border-4 border-primary">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="mb-0">Invoice Edit & Activity Log</h5>
+                            <small class="text-muted">Visible only to the Organization Owner — tracks who created, edited, or updated payments on this invoice.</small>
+                        </div>
+                        <span class="badge bg-primary">Owner Audit Log</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table app-table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 170px;">Date & Time</th>
+                                    <th style="width: 140px;">Action</th>
+                                    <th style="width: 200px;">Staff Member</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in edit_logs %}
+                                <tr>
+                                    <td class="text-muted small">{{ log.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if log.action == 'created' %}
+                                        <span class="badge bg-secondary">Created</span>
+                                        {% elif log.action == 'edited' %}
+                                        <span class="badge bg-warning text-dark">Edited</span>
+                                        {% elif log.action == 'payment_recorded' %}
+                                        <span class="badge bg-success">Payment Recorded</span>
+                                        {% elif log.action == 'closed' %}
+                                        <span class="badge bg-dark">Closed</span>
+                                        {% elif log.action == 'reopened' %}
+                                        <span class="badge bg-info text-dark">Reopened</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark border">{{ log.action|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-medium">
+                                        {% if log.user %}
+                                        {{ log.user.get_full_name|default:log.user.email }}
+                                        {% else %}
+                                        —
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.summary }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">No activity logs recorded for this invoice yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
         </div>
 
     </div>
 </div>
 
-<!-- Confirm Payment Modal -->
-{% if invoice.status == 'pending' %}
+<!-- Confirm / Update Payment Modal -->
+{% if invoice.status == 'pending' or invoice.status == 'partially_paid' %}
 <div class="modal fade" id="confirmPaymentModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="{% url 'confirm_payment' invoice.id %}">
                 {% csrf_token %}
                 <div class="modal-header">
-                    <h5 class="modal-title">Confirm Payment</h5>
+                    <h5 class="modal-title">
+                        {% if invoice.status == 'partially_paid' %}
+                        Update Installment Payment
+                        {% elif invoice.payment_plan == 'installment' %}
+                        Record Installment Payment
+                        {% else %}
+                        Confirm / Record Payment
+                        {% endif %}
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Confirm payment of <strong>₦{{ invoice.total_amount|floatformat:2 }}</strong> from <strong>{{ invoice.customer_name|default:"customer" }}</strong>?</p>
-                    <p class="text-muted small">This will deduct the sold quantities from your inventory and mark the
-                        invoice as <strong>Paid</strong>.</p>
+                    <div class="bg-light rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Invoice Total:</span>
+                            <span class="fw-semibold">{{ currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Already Paid:</span>
+                            <span class="text-success fw-semibold">{{ currency_symbol }}{{ invoice.amount_paid|default:0|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-top pt-1 mt-1">
+                            <span class="fw-bold">Remaining Balance:</span>
+                            <span class="fw-bold text-danger">{{ currency_symbol }}{{ invoice.balance_due|floatformat:2 }}</span>
+                        </div>
+                    </div>
+
+                    {% if not invoice.inventory_deducted %}
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <strong>Inventory Notice:</strong> Confirming this payment will deduct the invoice items from branch inventory.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary py-2 px-3 small mb-3">
+                        <strong>Inventory Notice:</strong> Stock was already deducted upon the first installment.
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Amount Being Paid Now ({{ currency_symbol }})</label>
+                        <input type="number" name="amount_paid" id="paymentAmountInput" class="form-control"
+                            step="0.01" min="0.01" max="{{ invoice.balance_due|floatformat:2 }}"
+                            value="{{ invoice.balance_due|floatformat:2 }}" required>
+                        <div class="form-text d-flex justify-content-between mt-1">
+                            <span>Enter a partial amount for an installment, or the full balance to complete payment.</span>
+                        </div>
+                        <div class="mt-2 small fw-semibold" id="remainingBalancePreview"></div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label fw-medium">Payment Method</label>
                         <select name="payment_method" class="form-select">
-                            <option value="Cash" {% if invoice.payment_method == 'Cash' %}selected{% endif %}>Cash
-                            </option>
-                            <option value="Transfer" {% if invoice.payment_method == 'Transfer' %}selected{% endif %}>
-                                Transfer</option>
+                            <option value="Cash" {% if invoice.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+                            <option value="Transfer" {% if invoice.payment_method == 'Transfer' %}selected{% endif %}>Transfer</option>
                             <option value="POS" {% if invoice.payment_method == 'POS' %}selected{% endif %}>POS</option>
                         </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-medium">Payment Note <span class="text-muted">(optional)</span></label>
+                        <input type="text" name="payment_notes" class="form-control"
+                            placeholder="e.g. 1st installment, bank ref...">
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Yes, Confirm Payment</button>
+                    <button type="submit" class="btn btn-success">Save Payment</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<script>
+    (function () {
+        const amountInput = document.getElementById('paymentAmountInput');
+        const previewEl = document.getElementById('remainingBalancePreview');
+        const balanceDue = parseFloat("{{ invoice.balance_due|floatformat:2 }}") || 0;
+        const currency = "{{ currency_symbol }}";
+
+        function updatePreview() {
+            if (!amountInput || !previewEl) return;
+            const paidNow = parseFloat(amountInput.value) || 0;
+            const remaining = Math.max(0, balanceDue - paidNow);
+            if (paidNow <= 0) {
+                previewEl.className = "mt-2 small fw-semibold text-danger";
+                previewEl.textContent = "Please enter an amount greater than 0.";
+            } else if (paidNow > balanceDue + 0.01) {
+                previewEl.className = "mt-2 small fw-semibold text-danger";
+                previewEl.textContent = "Amount cannot exceed the remaining balance.";
+            } else if (remaining > 0.009) {
+                previewEl.className = "mt-2 small fw-semibold text-info";
+                previewEl.textContent = `Balance after this installment: ${currency}${remaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Status: Not Completed)`;
+            } else {
+                previewEl.className = "mt-2 small fw-semibold text-success";
+                previewEl.textContent = `Balance after this payment: ${currency}0.00 (Status: Paid / Completed)`;
+            }
+        }
+
+        if (amountInput) {
+            amountInput.addEventListener('input', updatePreview);
+            updatePreview();
+        }
+    })();
+</script>
+{% endif %}
+
 <!-- Close Invoice Modal -->
+{% if invoice.status == 'pending' and not invoice.amount_paid %}
 <div class="modal fade" id="closeInvoiceModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -208,7 +466,7 @@
                 </div>
                 <div class="modal-body">
                     <p>Close invoice <strong>{{ invoice.invoice_number }}</strong> without confirming payment?</p>
-                    <p class="text-muted small">No inventory will be deducted. This action cannot be undone.</p>
+                    <p class="text-muted small">No inventory will be deducted. While closed, the invoice cannot be edited unless reopened by the Owner.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -220,8 +478,33 @@
 </div>
 {% endif %}
 
-<!-- Delete Invoice Modal -->
-{% if invoice.status != 'paid' %}
+<!-- Reopen Invoice Modal (Owner Only) -->
+{% if org_role == 'owner' and invoice.status == 'closed' %}
+<div class="modal fade" id="reopenInvoiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'reopen_invoice' invoice.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Reopen Invoice</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Reopen invoice <strong>{{ invoice.invoice_number }}</strong>?</p>
+                    <p class="text-muted small">This will restore the invoice to active status so it can be edited or receive payments.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Reopen Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Invoice Modal (Owner Only) -->
+{% if org_role == 'owner' and invoice.status != 'paid' %}
 <div class="modal fade" id="deleteInvoiceModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -233,6 +516,9 @@
                 </div>
                 <div class="modal-body">
                     <p>Permanently delete invoice <strong>{{ invoice.invoice_number }}</strong>?</p>
+                    {% if invoice.inventory_deducted %}
+                    <p class="text-info small">Note: Items deducted from inventory for this invoice will be restored to stock.</p>
+                    {% endif %}
                     <p class="text-danger small">This cannot be undone.</p>
                 </div>
                 <div class="modal-footer">
