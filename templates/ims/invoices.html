@@ -31,6 +31,7 @@
                 <select name="status" class="form-select">
                     <option value="">All Statuses</option>
                     <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="partially_paid" {% if status_filter == 'partially_paid' %}selected{% endif %}>Not Completed (Installment)</option>
                     <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
                     <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
                 </select>
@@ -57,10 +58,12 @@
                             <tr>
                                 <th>Invoice #</th>
                                 <th>Customer</th>
-                                <th>Phone</th>
+                                <th>Plan</th>
                                 <th>Date</th>
                                 <th>Due Date</th>
                                 <th>Total</th>
+                                <th>Paid</th>
+                                <th>Balance</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -69,14 +72,31 @@
                             {% for invoice in invoice_page %}
                             <tr>
                                 <td><span class="fw-semibold">{{ invoice.invoice_number }}</span></td>
-                                <td>{{ invoice.customer_name|default:"—" }}</td>
-                                <td>{{ invoice.customer_phone|default:"—" }}</td>
+                                <td>
+                                    <div>{{ invoice.customer_name|default:"—" }}</div>
+                                    {% if invoice.customer_phone %}
+                                    <div class="small text-muted">{{ invoice.customer_phone }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if invoice.payment_plan == 'installment' %}
+                                    <span class="badge bg-light text-dark border">Installment</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-secondary border">Pay Once</span>
+                                    {% endif %}
+                                </td>
                                 <td>{{ invoice.date_created|date:"M d, Y" }}</td>
                                 <td>{{ invoice.due_date|date:"M d, Y"|default:"—" }}</td>
-                                <td>₦{{ invoice.total_amount|floatformat:2 }}</td>
+                                <td class="fw-semibold">{{ currency_symbol }}{{ invoice.total_amount|floatformat:2 }}</td>
+                                <td class="text-success">{{ currency_symbol }}{{ invoice.effective_amount_paid|floatformat:2 }}</td>
+                                <td class="{% if invoice.balance_due > 0 %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                                    {{ currency_symbol }}{{ invoice.balance_due|floatformat:2 }}
+                                </td>
                                 <td>
                                     {% if invoice.status == 'pending' %}
                                     <span class="badge bg-warning text-dark">Pending</span>
+                                    {% elif invoice.status == 'partially_paid' %}
+                                    <span class="badge bg-info text-dark">Not Completed</span>
                                     {% elif invoice.status == 'paid' %}
                                     <span class="badge bg-success">Paid</span>
                                     {% else %}
@@ -108,7 +128,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">No invoices found.</td>
+                                <td colspan="10" class="text-center text-muted py-4">No invoices found.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

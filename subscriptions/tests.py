@@ -214,3 +214,102 @@ class PlanOnlineStoreFeatureTests(TestCase):
 		self.assertEqual(res.status_code, 200)
 		self.assertTemplateUsed(res, 'store/store_inactive.html')
 
+
+class CurrencyAndPlanSeedTests(TestCase):
+	def setUp(self):
+		from django.core.management import call_command
+		call_command('seed_plans')
+
+		self.user_ng = CustomUser.objects.create_user(
+			email="user_ng@example.com",
+			password="password123",
+		)
+		self.org_ng = Organization.objects.create(
+			name="Nigerian Business",
+			country="Nigeria",
+			owned_by=self.user_ng,
+		)
+
+		self.user_us = CustomUser.objects.create_user(
+			email="user_us@example.com",
+			password="password123",
+		)
+		self.org_us = Organization.objects.create(
+			name="US Business",
+			country="United States",
+			owned_by=self.user_us,
+		)
+
+	def test_organization_currency_properties(self):
+		"""Test Nigeria businesses use NGN/₦ and non-Nigeria businesses use USD/$"""
+		self.assertTrue(self.org_ng.is_nigeria)
+		self.assertEqual(self.org_ng.currency_code, "NGN")
+		self.assertEqual(self.org_ng.currency_symbol, "₦")
+
+		self.assertFalse(self.org_us.is_nigeria)
+		self.assertEqual(self.org_us.currency_code, "USD")
+		self.assertEqual(self.org_us.currency_symbol, "$")
+
+	def test_currency_context_processor(self):
+		"""Test context processor outputs appropriate currency variables"""
+		from account.context_processors import currency_context
+		from django.test import RequestFactory
+		factory = RequestFactory()
+
+		# Request with Nigerian organization
+		req_ng = factory.get('/')
+		req_ng.user = self.user_ng
+		req_ng.organization = self.org_ng
+		ctx_ng = currency_context(req_ng)
+		self.assertEqual(ctx_ng['currency_symbol'], "₦")
+		self.assertEqual(ctx_ng['currency_code'], "NGN")
+		self.assertTrue(ctx_ng['is_nigeria'])
+
+		# Request with US organization
+		req_us = factory.get('/')
+		req_us.user = self.user_us
+		req_us.organization = self.org_us
+		ctx_us = currency_context(req_us)
+		self.assertEqual(ctx_us['currency_symbol'], "$")
+		self.assertEqual(ctx_us['currency_code'], "USD")
+		self.assertFalse(ctx_us['is_nigeria'])
+
+	def test_seed_plans_created_with_ngn_and_usd(self):
+		"""Test seed_plans creates free plan and paid plans with both NGN and USD amounts"""
+		free_plan = Plan.objects.filter(price=0).first()
+		self.assertIsNotNone(free_plan)
+		self.assertEqual(free_plan.price, Decimal('0.00'))
+		self.assertEqual(free_plan.price_usd, Decimal('0.00'))
+
+		basic_starter = Plan.objects.get(tier='basic', size='starter', billing_frequency='monthly')
+		self.assertEqual(basic_starter.price, Decimal('15000.00'))
+		self.assertEqual(basic_starter.price_usd, Decimal('15.00'))
+
+		growth_xl_annual = Plan.objects.get(tier='growth', size='xl', billing_frequency='annually')
+		self.assertEqual(growth_xl_annual.price, Decimal('90000.00'))
+		self.assertEqual(growth_xl_annual.price_usd, Decimal('90.00'))
+
+	def test_apply_coupon_with_currency(self):
+		"""Test coupon discount applies against USD for US org and NGN for Nigerian org"""
+		from subscriptions.views import apply_coupon
+		from subscriptions.models import Coupon
+
+		coupon = Coupon.objects.create(
+			code="SAVE20",
+			type="percent",
+			value=Decimal('20.00'),
+			max_uses=10,
+		)
+		plan = Plan.objects.get(tier='basic', size='starter', billing_frequency='monthly')
+
+		# Nigerian org (base price NGN 15000 - 20% = NGN 12000)
+		ok_ng, final_ng, _, _ = apply_coupon("SAVE20", self.org_ng, plan)
+		self.assertTrue(ok_ng)
+		self.assertEqual(final_ng, Decimal('12000.00'))
+
+		# US org (base price USD 15 - 20% = USD 12)
+		ok_us, final_us, _, _ = apply_coupon("SAVE20", self.org_us, plan)
+		self.assertTrue(ok_us)
+		self.assertEqual(final_us, Decimal('12.00'))
+
+

@@ -408,7 +408,7 @@
                             {% endif %}
 
                             {% if item.is_in_stock %}
-                            <span class="badge-stock bg-success text-white">In Stock ({{ item.stock_quantity }})</span>
+                            <span class="badge-stock bg-success text-white">In Stock</span>
                             {% else %}
                             <span class="badge-stock bg-danger text-white">Out of Stock</span>
                             {% endif %}
@@ -424,11 +424,7 @@
                                 </a>
                             </h3>
                             <div class="fw-bold fs-5 text-dark mb-3">
-                                {% if organization.country and organization.country.lower != 'nigeria' %}
-                                ${{ item.display_price|floatformat:2|intcomma }}
-                                {% else %}
-                                ₦{{ item.display_price|floatformat:2|intcomma }}
-                                {% endif %}
+                                {{ organization.currency_symbol }}{{ item.display_price|floatformat:2|intcomma }}
                             </div>
                         </div>
 

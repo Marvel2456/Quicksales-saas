@@ -38,7 +38,7 @@
                         <div class="item-label"><strong>{{item.inventory.product.product_name}}</strong></div>
                     </div><!--//col-->
                     <div class="col text-end">
-                        <div class="item-data"><span class="px-5">{{item.quantity}}</span><span class=""><i class="fa-solid fa-naira-sign"></i>{{item.get_total}}</span></div>
+                        <div class="item-data"><span class="px-5">{{item.quantity}}</span><span class="">{{ currency_symbol }}{{item.get_total}}</span></div>
                     </div><!--//col-->
                 </div><!--//row-->
             </div><!--//item-->
@@ -49,7 +49,7 @@
                         <div class="item-label"><strong>Total : </strong></div>
                     </div><!--//col-->
                     <div class="col text-end">
-                        <div class="item-data"><span class="px-5">{{sale.get_cart_items}}</span><span class=""><i class="fa-solid fa-naira-sign"></i>{{sale.get_cart_total}}</span></div>
+                        <div class="item-data"><span class="px-5">{{sale.get_cart_items}}</span><span class="">{{ currency_symbol }}{{sale.get_cart_total}}</span></div>
                     </div><!--//col-->
                 </div><!--//row-->   
             </div><!--//item-->

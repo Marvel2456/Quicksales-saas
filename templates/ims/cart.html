@@ -77,7 +77,7 @@
                                     <th class="cell"><h6 id="sum_quantity"><b>Item: </b><div>{% if sale %}{{sale.get_cart_items}}{% else %}0{% endif %}</div></h6></th>
                                     <th class="cell">
                                         <h6 id="final_total"><b>Total: </b>
-                                        <div><i class="fa-solid fa-naira-sign"></i>{% if sale %}{{sale.get_cart_total}}{% else %}0{% endif %}</div>
+                                        <div>{{ currency_symbol }}{% if sale %}{{sale.get_cart_total}}{% else %}0{% endif %}</div>
               
                                     </h6>
                                     </th>

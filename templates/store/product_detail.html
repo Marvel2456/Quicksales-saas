@@ -151,15 +151,11 @@
 
                     <div class="d-flex align-items-baseline gap-3 mb-4">
                         <span class="display-6 fw-bold text-dark">
-                            {% if organization.country and organization.country.lower != 'nigeria' %}
-                            ${{ listing.display_price|floatformat:2|intcomma }}
-                            {% else %}
-                            ₦{{ listing.display_price|floatformat:2|intcomma }}
-                            {% endif %}
+                            {{ organization.currency_symbol }}{{ listing.display_price|floatformat:2|intcomma }}
                         </span>
                         {% if listing.is_in_stock %}
                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-bold">
-                            <i class="bi bi-check2-circle me-1"></i> {{ listing.stock_quantity }} in stock
+                            <i class="bi bi-check2-circle me-1"></i> In Stock
                         </span>
                         {% else %}
                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-2 fw-bold">
@@ -235,11 +231,7 @@
                             {% endif %}
                             <h6 class="fw-bold text-truncate mb-1">{{ item.display_title }}</h6>
                             <div class="fw-bold text-primary">
-                                {% if organization.country and organization.country.lower != 'nigeria' %}
-                                ${{ item.display_price|floatformat:2|intcomma }}
-                                {% else %}
-                                ₦{{ item.display_price|floatformat:2|intcomma }}
-                                {% endif %}
+                                {{ organization.currency_symbol }}{{ item.display_price|floatformat:2|intcomma }}
                             </div>
                         </a>
                     </div>

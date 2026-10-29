@@ -275,8 +275,10 @@ def apply_coupon(coupon_code, organization, plan):
     if CouponRedemption.objects.filter(coupon=coupon, organization=organization).exists():
         return False, Decimal('0.00'), "You have already used this coupon", coupon
 
-    # Calculate discount
-    original_amount = Decimal(str(plan.price))
+    # Calculate discount based on organization's country/currency
+    is_nigeria = bool(organization and (organization.country or '').strip().lower() == 'nigeria')
+    base_price = plan.price if is_nigeria else (plan.price_usd if plan.price_usd > 0 else plan.price)
+    original_amount = Decimal(str(base_price))
 
     if coupon.type == 'percent':
         discount = (original_amount * coupon.value) / Decimal('100')
