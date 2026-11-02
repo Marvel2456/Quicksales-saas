@@ -25,6 +25,11 @@ from ims.view.invoice_views import (
     branch_invoices, invoices, create_invoice, invoice_detail,
     invoice_pdf, confirm_payment, close_invoice, reopen_invoice, delete_invoice, edit_invoice
 )
+from ims.view.restock_views import (
+    restock_requests, create_restock_request, restock_request_detail,
+    restock_request_pdf, fulfill_restock_request, resend_restock_email,
+    cancel_restock_request, supplier_restock_quote, approve_restock_item_prices
+)
 from ims.view.api_views import get_offline_data, sync_sale, get_open_sales, sync_cart
 
 
@@ -71,6 +76,16 @@ urlpatterns = [
     path('restock/<uuid:pk>/', restock, name='restock'),
     # path('adminrestock/', adminRestock, name='adminrestock'),
     path('productlist/<str:pk>/', inventoryView, name='productlist'),
+    # Supplier Restock Request URLs
+    path('restock-requests/<uuid:pk>/', restock_requests, name='restock_requests'),
+    path('restock-request/create/<uuid:pk>/', create_restock_request, name='create_restock_request'),
+    path('restock-request/<uuid:pk>/', restock_request_detail, name='restock_request_detail'),
+    path('restock-request/<uuid:pk>/pdf/', restock_request_pdf, name='restock_request_pdf'),
+    path('restock-request/<uuid:pk>/fulfill/', fulfill_restock_request, name='fulfill_restock_request'),
+    path('restock-request/<uuid:pk>/resend-email/', resend_restock_email, name='resend_restock_email'),
+    path('restock-request/<uuid:pk>/cancel/', cancel_restock_request, name='cancel_restock_request'),
+    path('restock-request/<uuid:pk>/quote/', supplier_restock_quote, name='supplier_restock_quote'),
+    path('restock-request/<uuid:pk>/approve-prices/', approve_restock_item_prices, name='approve_restock_item_prices'),
     
 
 

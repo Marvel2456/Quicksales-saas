@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseRedirect
 from django.contrib import messages
 from datetime import datetime, date
-from ims.models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket
+from ims.models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket, RestockRequest
 from account.models import CustomUser, Branch, ActivityLog
 from django.contrib.auth.decorators import login_required
 from ims.forms import *
@@ -88,6 +88,12 @@ def inventory_list(request, pk):
                 cache.delete(key_pattern)
             return redirect('inventorys', pk=branch.id)
 
+    pending_restock_count = RestockRequest.objects.filter(
+        organization=organization,
+        branch=branch,
+        status__in=['pending', 'partially_supplied']
+    ).count()
+
     context = {
         'branch': branch,
         'inventory': inventory_qs,
@@ -96,6 +102,7 @@ def inventory_list(request, pk):
         'inventory_page': inventory_page,
         'nums': nums,
         'org_role': get_request_org_role(request, organization),
+        'pending_restock_count': pending_restock_count,
     }
     return render(request, 'ims/inventory.html', context)
 

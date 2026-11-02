@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}New Supplier Restock Request — {{ branch.name }}{% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <a href="{% url 'restock_requests' branch.id %}" class="text-muted text-decoration-none small d-block mb-1">
+                    &larr; Back to Restock Requests
+                </a>
+                <h1 class="app-page-title mb-0">Request Supplier Restock — {{ branch.name }}</h1>
+            </div>
+        </div>
+
+        <form method="POST" id="restockRequestForm">
+            {% csrf_token %}
+            <input type="hidden" name="items_json" id="itemsJsonInput">
+
+            <div class="row g-4">
+                <!-- Left Column: Supplier & Optional POC Emails -->
+                <div class="col-12 col-lg-5">
+                    <div class="app-card app-card-settings shadow-sm p-4 h-100">
+                        <h5 class="mb-3 fw-bold">Supplier & Contact Information</h5>
+                        <p class="text-muted small mb-3">
+                            Supplier POC email(s) are optional. You can leave them blank to simply generate a downloadable PDF, enter 1 POC email, or add multiple POC emails (e.g., 3 vendor contacts) so they all receive the email and PDF simultaneously.
+                        </p>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Supplier / Company Name <span class="text-muted fw-normal small">(Optional)</span></label>
+                            <input type="text" name="supplier_name" class="form-control" placeholder="e.g., Prime Wholesale Suppliers">
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">
+                                    Vendor Point-of-Contact Email(s)
+                                    <span class="text-muted fw-normal small">(Optional)</span>
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="addPocBtn">
+                                    + Add Another POC Email
+                                </button>
+                            </div>
+                            <div id="pocEmailsWrapper" class="mt-2">
+                                <div class="input-group mb-2 poc-email-group">
+                                    <input type="email" name="vendor_email" class="form-control poc-email-input" placeholder="poc1@vendor.com (optional)">
+                                </div>
+                            </div>
+                            <div class="form-text small">
+                                All entered POC emails will receive the Restock Request email with the PDF attached and a download link.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Expected Delivery Date <span class="text-muted fw-normal small">(Optional)</span></label>
+                            <input type="date" name="expected_date" class="form-control">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Notes / Delivery Instructions <span class="text-muted fw-normal small">(Optional)</span></label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Any special instructions or delivery notes for the supplier..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Products Needed -->
+                <div class="col-12 col-lg-7">
+                    <div class="app-card app-card-settings shadow-sm p-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0 fw-bold">Products Needed for {{ branch.name }}</h5>
+                            <button type="button" class="btn btn-sm app-btn-secondary" id="addProductRowBtn">
+                                + Add Product Row
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle" id="itemsTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60%;">Product</th>
+                                        <th style="width: 28%;">Quantity Needed</th>
+                                        <th style="width: 12%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itemsTableBody">
+                                    <tr class="product-item-row">
+                                        <td>
+                                            <select class="form-select product-select" required onchange="onProductSelectChange(this)">
+                                                <option value="">-- Select Product --</option>
+                                                {% for inv in inventories %}
+                                                <option value="{{ inv.id }}" data-emails="{{ inv.product.supplier_emails|default:'' }}">
+                                                    {{ inv.product.product_name }} (In stock: {{ inv.store_quantity }} {{ inv.product.unit|default:'units' }})
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control qty-input" min="1" value="10" required>
+                                        </td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" onclick="removeProductRow(this)" title="Remove row">&times;</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-end gap-2">
+                            <a href="{% url 'restock_requests' branch.id %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn app-btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i> Create Restock Request & Generate PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<script>
+const pocWrapper = document.getElementById('pocEmailsWrapper');
+document.getElementById('addPocBtn').addEventListener('click', function () {
+    addPocInput('');
+});
+
+function addPocInput(emailValue) {
+    const group = document.createElement('div');
+    group.className = 'input-group mb-2 poc-email-group';
+    group.innerHTML = `
+        <input type="email" name="vendor_email" class="form-control poc-email-input" value="${emailValue || ''}" placeholder="vendor@example.com (optional)">
+        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()" title="Remove email">&times;</button>
+    `;
+    pocWrapper.appendChild(group);
+}
+
+function onProductSelectChange(selectEl) {
+    const option = selectEl.options[selectEl.selectedIndex];
+    if (!option) return;
+    const savedEmails = (option.getAttribute('data-emails') || '').trim();
+    if (!savedEmails) return;
+
+    // Only auto-populate if all existing POC inputs are currently blank
+    const existingInputs = Array.from(document.querySelectorAll('.poc-email-input'));
+    const hasAnyValue = existingInputs.some(input => input.value.trim() !== '');
+    if (!hasAnyValue) {
+        const emails = savedEmails.split(',').map(e => e.trim()).filter(Boolean);
+        if (emails.length > 0) {
+            pocWrapper.innerHTML = '';
+            emails.forEach((email, idx) => {
+                if (idx === 0 && emails.length === 1) {
+                    const div = document.createElement('div');
+                    div.className = 'input-group mb-2 poc-email-group';
+                    div.innerHTML = `<input type="email" name="vendor_email" class="form-control poc-email-input" value="${email}" placeholder="poc1@vendor.com (optional)">`;
+                    pocWrapper.appendChild(div);
+                } else {
+                    addPocInput(email);
+                }
+            });
+        }
+    }
+}
+
+document.getElementById('addProductRowBtn').addEventListener('click', function () {
+    const tbody = document.getElementById('itemsTableBody');
+    const firstRow = tbody.querySelector('.product-item-row');
+    const clone = firstRow.cloneNode(true);
+    clone.querySelector('.product-select').value = '';
+    clone.querySelector('.qty-input').value = '10';
+    tbody.appendChild(clone);
+});
+
+function removeProductRow(btn) {
+    const tbody = document.getElementById('itemsTableBody');
+    if (tbody.querySelectorAll('.product-item-row').length <= 1) {
+        return;
+    }
+    btn.closest('.product-item-row').remove();
+}
+
+document.getElementById('restockRequestForm').addEventListener('submit', function (e) {
+    const rows = document.querySelectorAll('#itemsTableBody .product-item-row');
+    const items = [];
+    rows.forEach(row => {
+        const invId = row.querySelector('.product-select').value;
+        const qty = parseInt(row.querySelector('.qty-input').value, 10);
+        if (invId && qty > 0) {
+            items.push({ inventory_id: invId, quantity: qty });
+        }
+    });
+    if (items.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one product and enter a valid quantity.');
+        return;
+    }
+    document.getElementById('itemsJsonInput').value = JSON.stringify(items);
+});
+</script>
+{% endblock content %}
+

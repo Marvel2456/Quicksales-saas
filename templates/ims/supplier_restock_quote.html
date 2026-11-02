@@ -1,0 +1,217 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Price Quote — {{ restock_request.request_number }} ({{ organization.name }})</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            color: #1f2937;
+        }
+        .quote-container {
+            max-width: 920px;
+            margin: 36px auto;
+            padding: 0 16px;
+        }
+        .quote-header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: #fff;
+            border-radius: 12px 12px 0 0;
+            padding: 24px 28px;
+        }
+        .quote-card {
+            background: #fff;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            padding: 28px;
+        }
+    </style>
+</head>
+<body>
+    <div class="quote-container">
+        <div class="quote-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <div class="text-uppercase small fw-semibold opacity-75">Supplier Price Quote Portal</div>
+                <h3 class="mb-1 fw-bold">{{ organization.name }} — {{ branch.name }}</h3>
+                <div class="small opacity-90">
+                    Request <strong>#{{ restock_request.request_number }}</strong>
+                    &bull; Created {{ restock_request.date_created|date:"M d, Y" }}
+                    {% if restock_request.expected_date %}
+                    &bull; Expected Delivery: {{ restock_request.expected_date|date:"M d, Y" }}
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'restock_request_pdf' restock_request.id %}" class="btn btn-light btn-sm fw-semibold">
+                    ⬇ Download Request PDF
+                </a>
+            </div>
+        </div>
+
+        <div class="quote-card">
+            {% if submitted_success %}
+            <div class="alert alert-success border-0 shadow-sm mb-4">
+                <strong>✓ Thank you! Your cost price quote has been submitted to {{ organization.name }}.</strong>
+                <div class="small mt-1">
+                    You can update any price below and resubmit if needed before the order is fulfilled.
+                </div>
+            </div>
+            {% endif %}
+
+            {% if is_locked %}
+            <div class="alert alert-secondary mb-4">
+                This restock request is currently <strong>{{ restock_request.get_status_display }}</strong> and can no longer be modified.
+            </div>
+            {% endif %}
+
+            {% if restock_request.notes %}
+            <div class="p-3 mb-4 rounded bg-light border-start border-4 border-primary small">
+                <strong>Delivery Instructions / Notes from {{ organization.name }}:</strong><br>
+                {{ restock_request.notes }}
+            </div>
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+
+                <h6 class="fw-bold text-uppercase text-muted small mb-3">1. Your Point-of-Contact Details</h6>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Your Name / Company Contact <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" name="quote_submitted_by_name" class="form-control"
+                            value="{{ restock_request.quote_submitted_by_name|default:restock_request.supplier_name|default:'' }}"
+                            placeholder="e.g., John Doe ({{ restock_request.supplier_name|default:'Supplier' }})"
+                            {% if is_locked %}disabled{% endif %}>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Your Email Address <span class="text-muted fw-normal">(So we know which POC responded)</span></label>
+                        {% if restock_request.email_list %}
+                        <input type="email" name="quote_submitted_by_email" list="pocEmailOptions" class="form-control"
+                            value="{{ restock_request.quote_submitted_by_email|default:'' }}"
+                            placeholder="Select or type your email address"
+                            {% if is_locked %}disabled{% endif %}>
+                        <datalist id="pocEmailOptions">
+                            {% for email in restock_request.email_list %}
+                            <option value="{{ email }}"></option>
+                            {% endfor %}
+                        </datalist>
+                        {% else %}
+                        <input type="email" name="quote_submitted_by_email" class="form-control"
+                            value="{{ restock_request.quote_submitted_by_email|default:'' }}"
+                            placeholder="your.email@vendor.com (optional)"
+                            {% if is_locked %}disabled{% endif %}>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-uppercase text-muted small mb-3">2. Enter Unit Cost Prices &amp; Available Quantities</h6>
+                <div class="table-responsive mb-4">
+                    <table class="table align-middle table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Product Needed</th>
+                                <th class="text-center">Qty Requested</th>
+                                <th style="width: 170px;">Qty You Can Supply</th>
+                                <th style="width: 200px;">Unit Cost Price ({{ currency_symbol }})</th>
+                                <th class="text-end" style="width: 160px;">Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="quote-item-row">
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ item.inventory.product.product_name }}</div>
+                                    <div class="small text-muted">
+                                        {{ item.inventory.product.category }}
+                                        {% if item.inventory.product.brand %} &bull; {{ item.inventory.product.brand }}{% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center fw-semibold">
+                                    {{ item.quantity_requested }} {{ item.inventory.product.unit|default:"units" }}
+                                </td>
+                                <td>
+                                    <input type="number" name="quoted_quantity_{{ item.id }}"
+                                        class="form-control qty-avail-input"
+                                        min="0"
+                                        value="{{ item.quoted_quantity|default:item.quantity_requested }}"
+                                        {% if is_locked or item.is_restocked %}disabled{% endif %}
+                                        oninput="recalcQuoteTotals()">
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">{{ currency_symbol }}</span>
+                                        <input type="number" step="0.01" min="0"
+                                            name="quoted_cost_price_{{ item.id }}"
+                                            class="form-control unit-cost-input"
+                                            value="{% if item.quoted_cost_price is not None %}{{ item.quoted_cost_price|floatformat:2 }}{% endif %}"
+                                            placeholder="0.00"
+                                            required
+                                            {% if is_locked or item.is_restocked %}disabled{% endif %}
+                                            oninput="recalcQuoteTotals()">
+                                    </div>
+                                </td>
+                                <td class="text-end fw-semibold line-total-cell">
+                                    {{ currency_symbol }}0.00
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <td colspan="5" class="text-end fw-bold">Estimated Total Supply Cost:</td>
+                                <td class="text-end fw-bold text-primary fs-6" id="grandTotalCell">{{ currency_symbol }}0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small">Supplier Notes / Terms <span class="text-muted fw-normal">(Optional)</span></label>
+                    <textarea name="supplier_quote_notes" class="form-control" rows="2"
+                        placeholder="e.g., Delivery within 24 hours, payment terms, or stock notes..."
+                        {% if is_locked %}disabled{% endif %}>{{ restock_request.supplier_quote_notes|default:'' }}</textarea>
+                </div>
+
+                {% if not is_locked %}
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+                        Submit Cost Price Quote to {{ organization.name }}
+                    </button>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const CURRENCY = "{{ currency_symbol|escapejs }}";
+        function recalcQuoteTotals() {
+            let grandTotal = 0;
+            document.querySelectorAll('.quote-item-row').forEach(row => {
+                const qtyInput = row.querySelector('.qty-avail-input');
+                const costInput = row.querySelector('.unit-cost-input');
+                const totalCell = row.querySelector('.line-total-cell');
+                const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+                const cost = parseFloat(costInput ? costInput.value : 0) || 0;
+                const lineTotal = qty * cost;
+                grandTotal += lineTotal;
+                if (totalCell) {
+                    totalCell.textContent = CURRENCY + lineTotal.toFixed(2);
+                }
+            });
+            const grandCell = document.getElementById('grandTotalCell');
+            if (grandCell) {
+                grandCell.textContent = CURRENCY + grandTotal.toFixed(2);
+            }
+        }
+        document.addEventListener('DOMContentLoaded', recalcQuoteTotals);
+    </script>
+</body>
+</html>
+

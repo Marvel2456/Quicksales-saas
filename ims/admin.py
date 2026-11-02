@@ -4,7 +4,8 @@ from unfold.decorators import display
 from unfold.admin import ModelAdmin
 from .models import (
     Product, Sale, SalesItem, Category, Inventory, Supplier,
-    ErrorTicket, Invoice, InvoicePayment, InvoiceEditLog
+    ErrorTicket, Invoice, InvoicePayment, InvoiceEditLog,
+    RestockRequest, RestockRequestItem
 )
 
 # Register your models here.
@@ -144,3 +145,29 @@ class InvoiceEditLogAdmin(ModelAdmin):
     list_display = ['invoice', 'organization', 'branch', 'user', 'action', 'timestamp']
     search_fields = ['invoice__invoice_number', 'user__email', 'summary']
     list_filter = ['action', 'branch', 'organization']
+
+
+class RestockRequestItemInline(admin.TabularInline):
+    model = RestockRequestItem
+    extra = 0
+    fields = [
+        'inventory', 'quantity_requested', 'quoted_quantity', 'quoted_cost_price',
+        'price_status', 'approved_cost_price', 'new_sale_price',
+        'quantity_supplied', 'is_supplied', 'is_restocked', 'restocked_at', 'restocked_by'
+    ]
+    readonly_fields = ['restocked_at']
+
+
+@admin.register(RestockRequest)
+class RestockRequestAdmin(ModelAdmin):
+    list_display = ['request_number', 'organization', 'branch', 'supplier_name', 'vendor_emails', 'quote_submitted', 'status', 'email_sent', 'requested_by', 'date_created']
+    search_fields = ['request_number', 'supplier_name', 'vendor_emails', 'quote_submitted_by_email', 'branch__name']
+    list_filter = ['status', 'quote_submitted', 'email_sent', 'branch', 'organization']
+    inlines = [RestockRequestItemInline]
+
+
+@admin.register(RestockRequestItem)
+class RestockRequestItemAdmin(ModelAdmin):
+    list_display = ['restock_request', 'inventory', 'quantity_requested', 'quoted_quantity', 'quoted_cost_price', 'price_status', 'approved_cost_price', 'new_sale_price', 'quantity_supplied', 'is_restocked']
+    search_fields = ['restock_request__request_number', 'inventory__product__product_name']
+    list_filter = ['price_status', 'is_supplied', 'is_restocked', 'branch', 'organization']

@@ -42,9 +42,16 @@ class Product(models.Model):
     image = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Primary product image for online store display")
     image_detail = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Additional detail / angle image for online store display")
     image_extra = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Extra detail / angle image for online store display")
+    supplier_emails = models.TextField(blank=True, null=True, help_text="Optional comma-separated vendor point-of-contact emails")
     
     def __str__(self):
         return self.product_name or 'Unnamed Product'
+
+    @property
+    def supplier_email_list(self):
+        if not self.supplier_emails:
+            return []
+        return [e.strip() for e in self.supplier_emails.replace(';', ',').split(',') if e.strip()]
 
     class Meta:
         constraints = [
@@ -440,4 +447,92 @@ class APIKey(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.organization.name}"
+
+
+class RestockRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending Supply'),
+        ('partially_supplied', 'Partially Supplied'),
+        ('completed', 'Completed & Restocked'),
+        ('cancelled', 'Cancelled'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
+    requested_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
+    request_number = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    supplier_name = models.CharField(max_length=255, blank=True, null=True)
+    vendor_emails = models.TextField(blank=True, null=True, help_text="Optional comma-separated vendor point-of-contact emails")
+    expected_date = models.DateField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending', db_index=True)
+    email_sent = models.BooleanField(default=False)
+    quote_submitted = models.BooleanField(default=False)
+    quote_submitted_at = models.DateTimeField(blank=True, null=True)
+    quote_submitted_by_name = models.CharField(max_length=255, blank=True, null=True)
+    quote_submitted_by_email = models.EmailField(blank=True, null=True)
+    supplier_quote_notes = models.TextField(blank=True, null=True)
+    date_created = models.DateTimeField(auto_now_add=True, db_index=True)
+    date_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date_created']
+        indexes = [
+            models.Index(fields=['organization', '-date_created']),
+            models.Index(fields=['branch', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Restock Request #{self.request_number} ({self.branch.name if self.branch else ''})"
+
+    @property
+    def email_list(self):
+        if not self.vendor_emails:
+            return []
+        return [e.strip() for e in self.vendor_emails.replace(';', ',').split(',') if e.strip()]
+
+
+class RestockRequestItem(models.Model):
+    PRICE_STATUS_CHOICES = [
+        ('pending', 'Awaiting Quote'),
+        ('quoted', 'Quote Received — Pending Owner Approval'),
+        ('accepted', 'Accepted by Owner'),
+        ('rejected', 'Rejected'),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    restock_request = models.ForeignKey(RestockRequest, on_delete=models.CASCADE, related_name='items', db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
+    inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, db_index=True)
+    quantity_requested = models.IntegerField(default=1)
+    quoted_quantity = models.IntegerField(blank=True, null=True, help_text="Available quantity indicated by supplier")
+    quoted_cost_price = models.FloatField(blank=True, null=True, help_text="Unit cost price quoted by supplier")
+    quoted_at = models.DateTimeField(blank=True, null=True)
+    price_status = models.CharField(max_length=20, choices=PRICE_STATUS_CHOICES, default='pending')
+    approved_cost_price = models.FloatField(blank=True, null=True, help_text="Cost price accepted by Owner to apply on restock")
+    new_sale_price = models.FloatField(blank=True, null=True, help_text="New sale price set by Owner to apply on restock")
+    price_approved_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, blank=True, null=True, related_name='approved_restock_prices'
+    )
+    price_approved_at = models.DateTimeField(blank=True, null=True)
+    quantity_supplied = models.IntegerField(default=0)
+    is_supplied = models.BooleanField(default=False)
+    is_restocked = models.BooleanField(default=False)
+    restocked_at = models.DateTimeField(blank=True, null=True)
+    restocked_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['restock_request']),
+        ]
+
+    def __str__(self):
+        return f"{self.inventory.product.product_name} x{self.quantity_requested}"
+
+    @property
+    def default_supply_quantity(self):
+        if self.quoted_quantity is not None and self.quoted_quantity > 0:
+            return self.quoted_quantity
+        return self.quantity_requested
+
 
