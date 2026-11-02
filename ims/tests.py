@@ -549,3 +549,448 @@ class ProductImageWebPOptimizerTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json().get('qty'), 1)
 
+
+class InvoiceInstallmentAndPermissionsTests(TestCase):
+    def setUp(self):
+        from account.models import OrganizationMembership
+        self.org = Organization.objects.create(name="Invoice Org", slug="invoice-org", is_active=True)
+        self.branch = Branch.objects.create(name="Main Branch", organization=self.org)
+        self.org.default_branch = self.branch
+        self.org.save()
+
+        plan, _ = Plan.objects.get_or_create(
+            tier='business',
+            size='starter',
+            billing_frequency='monthly',
+            defaults={'price': Decimal('199.00'), 'has_online_store': True}
+        )
+        plan.has_online_store = True
+        plan.save()
+        Subscription.objects.create(
+            organization=self.org,
+            plan=plan,
+            is_active=True,
+            end_date=timezone.now() + timedelta(days=30)
+        )
+
+        # Create Owner, Manager, and Sales users
+        self.owner = User.objects.create_user(
+            email="owner@invoiceorg.com", password="password123",
+            first_name="Alice", last_name="Owner", role="owner",
+            organization=self.org, branch=self.branch, is_active=True
+        )
+        self.org.owned_by = self.owner
+        self.org.save()
+        OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org, branch=self.branch, role="owner"
+        )
+
+        self.manager = User.objects.create_user(
+            email="manager@invoiceorg.com", password="password123",
+            first_name="Bob", last_name="Manager", role="manager",
+            organization=self.org, branch=self.branch, is_active=True
+        )
+        OrganizationMembership.objects.create(
+            user=self.manager, organization=self.org, branch=self.branch, role="manager"
+        )
+
+        self.sales_user = User.objects.create_user(
+            email="sales@invoiceorg.com", password="password123",
+            first_name="Charlie", last_name="Sales", role="sales",
+            organization=self.org, branch=self.branch, is_active=True
+        )
+        OrganizationMembership.objects.create(
+            user=self.sales_user, organization=self.org, branch=self.branch, role="sales"
+        )
+
+        self.category = Category.objects.create(
+            organization=self.org, branch=self.branch, category_name="Appliances"
+        )
+        self.product = Product.objects.create(
+            organization=self.org, branch=self.branch,
+            product_name="Generator", category=self.category, product_code="GEN-01"
+        )
+        self.inventory = Inventory.objects.create(
+            organization=self.org, branch=self.branch, product=self.product,
+            quantity=10, quantity_available=10, cost_price=100.0, sale_price=200.0, status="Available"
+        )
+
+    def test_installment_flow_and_first_payment_inventory_deduction(self):
+        from ims.models import Invoice, InvoicePayment, InvoiceEditLog
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+
+        # 1. Manager creates an installment invoice for 3 units @ 200 = 600
+        resp = self.client.post(reverse('create_invoice', kwargs={'pk': self.branch.id}), {
+            'customer_name': 'John Installment',
+            'customer_phone': '08011122233',
+            'payment_plan': 'installment',
+            'payment_method': 'Transfer',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['3'],
+        })
+        self.assertEqual(resp.status_code, 302)
+        invoice = Invoice.objects.get(customer_name='John Installment')
+        self.assertEqual(invoice.payment_plan, 'installment')
+        self.assertEqual(invoice.status, 'pending')
+        self.assertEqual(invoice.total_amount, 600.0)
+        self.assertEqual(invoice.balance_due, 600.0)
+        self.assertFalse(invoice.inventory_deducted)
+
+        # Inventory is still 10 before first installment
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.quantity, 10)
+
+        # 2. First installment payment of 250 -> deducts inventory, status becomes partially_paid
+        resp = self.client.post(reverse('confirm_payment', kwargs={'pk': invoice.id}), {
+            'amount_paid': '250',
+            'payment_method': 'Transfer',
+            'payment_notes': 'First installment',
+        })
+        self.assertEqual(resp.status_code, 302)
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, 'partially_paid')
+        self.assertEqual(invoice.amount_paid, 250.0)
+        self.assertEqual(invoice.balance_due, 350.0)
+        self.assertTrue(invoice.inventory_deducted)
+
+        # Inventory deducted on first installment (10 - 3 = 7)
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.quantity, 7)
+        # Sale record is not created until payment is complete
+        self.assertEqual(Sale.objects.filter(branch=self.branch).count(), 0)
+
+        # 3. Second installment payment of 150 -> inventory NOT deducted again, status still partially_paid
+        resp = self.client.post(reverse('confirm_payment', kwargs={'pk': invoice.id}), {
+            'amount_paid': '150',
+            'payment_method': 'Cash',
+            'payment_notes': 'Second installment',
+        })
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, 'partially_paid')
+        self.assertEqual(invoice.amount_paid, 400.0)
+        self.assertEqual(invoice.balance_due, 200.0)
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.quantity, 7)
+
+        # 4. Final installment payment of 200 -> status becomes paid, Sale record created
+        resp = self.client.post(reverse('confirm_payment', kwargs={'pk': invoice.id}), {
+            'amount_paid': '200',
+            'payment_method': 'POS',
+            'payment_notes': 'Final installment',
+        })
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, 'paid')
+        self.assertEqual(invoice.amount_paid, 600.0)
+        self.assertEqual(invoice.balance_due, 0.0)
+        self.inventory.refresh_from_db()
+        self.assertEqual(self.inventory.quantity, 7)
+        self.assertEqual(InvoicePayment.objects.filter(invoice=invoice).count(), 3)
+        self.assertEqual(Sale.objects.filter(branch=self.branch, completed=True).count(), 1)
+
+    def test_role_permissions_and_owner_edit_log(self):
+        from ims.models import Invoice, InvoiceEditLog
+        # Sales user cannot create invoices
+        self.client.login(email="sales@invoiceorg.com", password="password123")
+        resp = self.client.get(reverse('create_invoice', kwargs={'pk': self.branch.id}))
+        self.assertEqual(resp.status_code, 302)
+
+        # Manager can create and edit invoices
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        self.client.post(reverse('create_invoice', kwargs={'pk': self.branch.id}), {
+            'customer_name': 'Mary Client',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['2'],
+        })
+        invoice = Invoice.objects.get(customer_name='Mary Client')
+
+        # Manager edits the invoice
+        self.client.post(reverse('edit_invoice', kwargs={'pk': invoice.id}), {
+            'customer_name': 'Mary Updated',
+            'customer_phone': '09099988877',
+            'payment_plan': 'installment',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['4'],
+        })
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.customer_name, 'Mary Updated')
+        self.assertEqual(invoice.payment_plan, 'installment')
+        self.assertEqual(invoice.total_amount, 800.0)
+
+        # Edit log recorded with manager's info
+        logs = InvoiceEditLog.objects.filter(invoice=invoice, action='edited')
+        self.assertEqual(logs.count(), 1)
+        self.assertIn("Bob Manager", logs.first().summary)
+        self.assertIn("Mary Updated", logs.first().summary)
+
+        # Manager CANNOT delete the invoice
+        del_resp = self.client.post(reverse('delete_invoice', kwargs={'pk': invoice.id}))
+        self.assertTrue(Invoice.objects.filter(id=invoice.id).exists())
+
+        # Owner CAN see the edit log on invoice_detail and CAN delete the invoice
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        detail_resp = self.client.get(reverse('invoice_detail', kwargs={'pk': invoice.id}))
+        self.assertEqual(detail_resp.status_code, 200)
+        self.assertContains(detail_resp, "Owner Audit Log")
+        self.assertContains(detail_resp, "Bob Manager")
+
+        del_owner_resp = self.client.post(reverse('delete_invoice', kwargs={'pk': invoice.id}))
+        self.assertEqual(del_owner_resp.status_code, 302)
+        self.assertFalse(Invoice.objects.filter(id=invoice.id).exists())
+
+    def test_storefront_hides_inventory_quantities(self):
+        from store.models import StoreListing, ProductListing
+        store, _ = StoreListing.objects.get_or_create(organization=self.org, defaults={'is_active': True})
+        listing, _ = ProductListing.objects.get_or_create(store=store, inventory=self.inventory, defaults={'is_visible': True})
+
+        sf_resp = self.client.get(reverse('storefront', kwargs={'org_slug': self.org.slug}))
+        self.assertEqual(sf_resp.status_code, 200)
+        self.assertContains(sf_resp, "In Stock")
+        self.assertNotContains(sf_resp, f"In Stock ({self.inventory.quantity})")
+
+        pd_resp = self.client.get(reverse('product_detail', kwargs={'org_slug': self.org.slug, 'listing_id': listing.id}))
+        self.assertEqual(pd_resp.status_code, 200)
+        self.assertContains(pd_resp, "In Stock")
+        self.assertNotContains(pd_resp, f"{self.inventory.quantity} in stock")
+
+    def test_closed_invoice_cannot_be_edited_until_owner_reopens(self):
+        from ims.models import Invoice, InvoiceEditLog
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        self.client.post(reverse('create_invoice', kwargs={'pk': self.branch.id}), {
+            'customer_name': 'Closed Test Customer',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['1'],
+        })
+        invoice = Invoice.objects.get(customer_name='Closed Test Customer')
+
+        # Close the invoice
+        self.client.post(reverse('close_invoice', kwargs={'pk': invoice.id}))
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, 'closed')
+
+        # Attempt to edit while closed -> blocked
+        self.client.post(reverse('edit_invoice', kwargs={'pk': invoice.id}), {
+            'customer_name': 'Should Not Update',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['2'],
+        })
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.customer_name, 'Closed Test Customer')
+
+        # Manager cannot reopen the invoice
+        self.client.post(reverse('reopen_invoice', kwargs={'pk': invoice.id}))
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, 'closed')
+
+        # Owner can reopen the invoice
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        self.client.post(reverse('reopen_invoice', kwargs={'pk': invoice.id}))
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, 'pending')
+        self.assertTrue(InvoiceEditLog.objects.filter(invoice=invoice, action='reopened').exists())
+
+        # Now editing succeeds
+        self.client.post(reverse('edit_invoice', kwargs={'pk': invoice.id}), {
+            'customer_name': 'Reopened And Edited',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['2'],
+        })
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.customer_name, 'Reopened And Edited')
+
+    def test_supplier_restock_request_with_three_pocs_optional_pocs_and_direct_restock(self):
+        from django.core import mail
+        from ims.models import RestockRequest, Product, Inventory
+        import json
+
+        # Create a second product & inventory in the branch
+        product2 = Product.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            product_name="USB-C Dock",
+            category=self.category,
+            product_code="DOCK-002",
+            unit="pcs"
+        )
+        inventory2 = Inventory.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            product=product2,
+            quantity=5,
+            cost_price=200.0,
+            sale_price=350.0,
+            status="Available"
+        )
+
+        # 1. Manager requests restock with 3 POC emails
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        mail.outbox = []
+        resp = self.client.post(reverse('create_restock_request', kwargs={'pk': self.branch.id}), {
+            'supplier_name': 'Global Tech Vendors',
+            'vendor_email': ['poc1@vendor.com', 'poc2@vendor.com', 'poc3@vendor.com'],
+            'items_json': json.dumps([
+                {'inventory_id': str(self.inventory.id), 'quantity': 15},
+                {'inventory_id': str(inventory2.id), 'quantity': 8},
+            ]),
+            'notes': 'Urgent branch restock',
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        req = RestockRequest.objects.get(supplier_name='Global Tech Vendors')
+        self.assertEqual(req.email_list, ['poc1@vendor.com', 'poc2@vendor.com', 'poc3@vendor.com'])
+        self.assertTrue(req.email_sent)
+        self.assertEqual(len(mail.outbox), 1)
+        sent_email = mail.outbox[0]
+        self.assertEqual(sent_email.to, ['poc1@vendor.com', 'poc2@vendor.com', 'poc3@vendor.com'])
+        # PDF attachment + download link included
+        self.assertEqual(len(sent_email.attachments), 1)
+        self.assertTrue(sent_email.attachments[0][0].endswith('.pdf'))
+        self.assertIn(reverse('restock_request_pdf', kwargs={'pk': req.id}), sent_email.body)
+
+        # Saved POC emails on product
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.supplier_email_list, ['poc1@vendor.com', 'poc2@vendor.com', 'poc3@vendor.com'])
+
+        # 2. External supplier can download the PDF without login
+        self.client.logout()
+        pdf_resp = self.client.get(reverse('restock_request_pdf', kwargs={'pk': req.id}))
+        self.assertEqual(pdf_resp.status_code, 200)
+        self.assertEqual(pdf_resp['Content-Type'], 'application/pdf')
+
+        # 3. Manager ticks the first item supplied and clicks Restock Directly
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        items = list(req.items.order_by('quantity_requested'))
+        item_dock = [i for i in items if i.inventory_id == inventory2.id][0]
+        item_laptop = [i for i in items if i.inventory_id == self.inventory.id][0]
+
+        self.client.post(reverse('fulfill_restock_request', kwargs={'pk': req.id}), {
+            'item_ids': [str(item_dock.id)],
+            f'quantity_supplied_{item_dock.id}': '8',
+        })
+        req.refresh_from_db()
+        inventory2.refresh_from_db()
+        item_dock.refresh_from_db()
+        self.assertEqual(req.status, 'partially_supplied')
+        self.assertTrue(item_dock.is_restocked)
+        self.assertEqual(inventory2.quantity, 5 + 8)
+
+        # 4. Owner ticks the remaining item supplied -> status becomes 'completed'
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        self.client.post(reverse('fulfill_restock_request', kwargs={'pk': req.id}), {
+            'item_ids': [str(item_laptop.id)],
+            f'quantity_supplied_{item_laptop.id}': '15',
+        })
+        req.refresh_from_db()
+        self.inventory.refresh_from_db()
+        self.assertEqual(req.status, 'completed')
+        self.assertEqual(self.inventory.quantity, 10 + 15)
+
+        # 5. Requesting restock with 0 POC emails (optional) and 1 POC email
+        mail.outbox = []
+        self.client.post(reverse('create_restock_request', kwargs={'pk': self.branch.id}), {
+            'supplier_name': 'Local Walk-In Vendor',
+            'vendor_email': [''],
+            'inventory_id': [str(self.inventory.id)],
+            'quantity_requested': ['5'],
+        })
+        req_no_email = RestockRequest.objects.get(supplier_name='Local Walk-In Vendor')
+        self.assertEqual(req_no_email.email_list, [])
+        self.assertFalse(req_no_email.email_sent)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_supplier_quote_link_owner_price_approval_and_apply_on_restock(self):
+        from django.core import mail
+        from ims.models import RestockRequest
+
+        # Ensure initial inventory prices
+        self.inventory.cost_price = 400.0
+        self.inventory.sale_price = 500.0
+        self.inventory.quantity = 10
+        self.inventory.save()
+
+        # 1. Manager creates restock request with 2 POC emails
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        mail.outbox = []
+        self.client.post(reverse('create_restock_request', kwargs={'pk': self.branch.id}), {
+            'supplier_name': 'Price Quote Vendor',
+            'vendor_email': ['poc1@quotevendor.com', 'poc2@quotevendor.com'],
+            'inventory_id': [str(self.inventory.id)],
+            'quantity_requested': ['15'],
+        })
+        req = RestockRequest.objects.get(supplier_name='Price Quote Vendor')
+        item = req.items.first()
+
+        # Email contains supplier quote link
+        quote_path = reverse('supplier_restock_quote', kwargs={'pk': req.id})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(quote_path, mail.outbox[0].body)
+
+        # 2. Supplier visits public quote page (unauthenticated) and submits cost price & available qty
+        self.client.logout()
+        get_quote_resp = self.client.get(quote_path)
+        self.assertEqual(get_quote_resp.status_code, 200)
+        self.assertContains(get_quote_resp, self.product.product_name)
+
+        post_quote_resp = self.client.post(quote_path, {
+            'quote_submitted_by_name': 'Jane POC',
+            'quote_submitted_by_email': 'poc2@quotevendor.com',
+            'supplier_quote_notes': 'Can supply 12 units at new price',
+            f'quoted_quantity_{item.id}': '12',
+            f'quoted_cost_price_{item.id}': '550.00',
+        })
+        self.assertEqual(post_quote_resp.status_code, 302)
+
+        req.refresh_from_db()
+        item.refresh_from_db()
+        self.assertTrue(req.quote_submitted)
+        self.assertEqual(req.quote_submitted_by_email, 'poc2@quotevendor.com')
+        self.assertEqual(req.quote_submitted_by_name, 'Jane POC')
+        self.assertEqual(item.quoted_cost_price, 550.0)
+        self.assertEqual(item.quoted_quantity, 12)
+        self.assertEqual(item.price_status, 'quoted')
+
+        # 3. Manager cannot approve prices (Owner only)
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        self.client.post(reverse('approve_restock_item_prices', kwargs={'pk': req.id}), {
+            f'approved_cost_price_{item.id}': '550.00',
+            f'new_sale_price_{item.id}': '750.00',
+        })
+        item.refresh_from_db()
+        self.assertEqual(item.price_status, 'quoted')
+
+        # 4. Owner accepts the new cost price (550) and sets new sale price (750)
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        self.client.post(reverse('approve_restock_item_prices', kwargs={'pk': req.id}), {
+            f'approved_cost_price_{item.id}': '550.00',
+            f'new_sale_price_{item.id}': '750.00',
+        })
+        item.refresh_from_db()
+        self.inventory.refresh_from_db()
+        self.assertEqual(item.price_status, 'accepted')
+        self.assertEqual(item.approved_cost_price, 550.0)
+        self.assertEqual(item.new_sale_price, 750.0)
+        # Before delivery/restock, live Inventory still holds the old cost & sale price!
+        self.assertEqual(self.inventory.cost_price, 400.0)
+        self.assertEqual(self.inventory.sale_price, 500.0)
+
+        # 5. Manager (or Owner) ticks item and clicks Restock Directly -> Inventory quantity, cost_price, sale_price, and profit all update!
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        self.client.post(reverse('fulfill_restock_request', kwargs={'pk': req.id}), {
+            'item_ids': [str(item.id)],
+            f'quantity_supplied_{item.id}': '12',
+        })
+        self.inventory.refresh_from_db()
+        self.product.refresh_from_db()
+        req.refresh_from_db()
+        self.assertEqual(req.status, 'completed')
+        self.assertEqual(self.inventory.quantity, 10 + 12)
+        self.assertEqual(self.inventory.cost_price, 550.0)
+        self.assertEqual(self.inventory.sale_price, 750.0)
+        self.assertEqual(self.product.profit, 200.0)
+
+
+
+

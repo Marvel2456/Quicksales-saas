@@ -1,0 +1,219 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Restock Request {{ restock_request.request_number }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 13px;
+            color: #333;
+            padding: 30px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #222;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        .org-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #111;
+        }
+
+        .doc-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1e40af;
+            text-align: right;
+        }
+
+        .doc-meta {
+            text-align: right;
+            font-size: 12px;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #777;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .info-table {
+            width: 100%;
+        }
+
+        .info-table td {
+            padding: 4px 0;
+            vertical-align: top;
+        }
+
+        .info-table td.label {
+            color: #666;
+            width: 160px;
+            font-weight: bold;
+        }
+
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 24px;
+        }
+
+        table.items th {
+            background: #f3f4f6;
+            padding: 9px 10px;
+            text-align: left;
+            font-size: 12px;
+            border-bottom: 2px solid #ccc;
+        }
+
+        table.items td {
+            padding: 9px 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .notes-box {
+            background: #f9fafb;
+            border-left: 3px solid #1e40af;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #444;
+            margin-bottom: 24px;
+        }
+
+        .footer {
+            margin-top: 36px;
+            text-align: center;
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <table class="header-table">
+        <tr>
+            <td>
+                <div class="org-name">{{ organization.name }}</div>
+                <div style="font-size: 13px; color: #555; margin-top: 4px;">
+                    Branch: <strong>{{ branch.name }}</strong>
+                    {% if branch.address %}<br>{{ branch.address }}{% endif %}
+                </div>
+            </td>
+            <td>
+                <div class="doc-title">PURCHASE / RESTOCK REQUEST</div>
+                <div class="doc-meta">
+                    <div><strong>Request #:</strong> {{ restock_request.request_number }}</div>
+                    <div><strong>Date:</strong> {{ restock_request.date_created|date:"M d, Y" }}</div>
+                    {% if restock_request.expected_date %}
+                    <div><strong>Expected Delivery:</strong> {{ restock_request.expected_date|date:"M d, Y" }}</div>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="section">
+        <div class="section-title">Supplier &amp; Request Information</div>
+        <table class="info-table">
+            {% if restock_request.supplier_name %}
+            <tr>
+                <td class="label">Supplier / Vendor:</td>
+                <td>{{ restock_request.supplier_name }}</td>
+            </tr>
+            {% endif %}
+            {% if restock_request.vendor_emails %}
+            <tr>
+                <td class="label">Vendor Contact(s):</td>
+                <td>{{ restock_request.vendor_emails }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td class="label">Delivery Branch:</td>
+                <td>{{ branch.name }}{% if branch.address %} — {{ branch.address }}{% endif %}</td>
+            </tr>
+            {% if restock_request.requested_by %}
+            <tr>
+                <td class="label">Requested By:</td>
+                <td>
+                    {{ restock_request.requested_by.get_full_name|default:restock_request.requested_by.email }}
+                    ({{ restock_request.requested_by.email }})
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Products Requested for Supply</div>
+        <table class="items">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">#</th>
+                    <th style="width: 44%;">Product Name</th>
+                    <th style="width: 24%;">Category / Brand</th>
+                    <th style="width: 24%; text-align: right;">Quantity Needed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ item.inventory.product.product_name }}</strong>
+                        {% if item.inventory.product.product_code %}
+                        <div style="font-size: 11px; color: #666;">Code: {{ item.inventory.product.product_code }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ item.inventory.product.category }}
+                        {% if item.inventory.product.brand %} / {{ item.inventory.product.brand }}{% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: bold;">
+                        {{ item.quantity_requested }} {{ item.inventory.product.unit|default:"units" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if restock_request.notes %}
+    <div class="notes-box">
+        <strong>Delivery Instructions / Notes:</strong><br>
+        {{ restock_request.notes }}
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Generated by {{ organization.name }} ({{ branch.name }}) — Powered by QuickSales
+    </div>
+
+</body>
+
+</html>
+

@@ -28,6 +28,19 @@
                             </form>
                             
                         </div><!--col-->
+                        <div class="col-auto">
+                            <a href="{% url 'restock_requests' branch.id %}" class="btn app-btn-secondary">
+                                <i class="fas fa-truck-loading me-1"></i> Restock Requests
+                                {% if pending_restock_count %}
+                                <span class="badge bg-warning text-dark ms-1">{{ pending_restock_count }}</span>
+                                {% endif %}
+                            </a>
+                        </div>
+                        <div class="col-auto">
+                            <a href="{% url 'create_restock_request' branch.id %}" class="btn app-btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i> Request Supplier Restock
+                            </a>
+                        </div>
                     </div><!--row-->
                 </div><!--table-utilities-->
             </div><!--col-auto-->
@@ -69,13 +82,14 @@
                                         <td class="cell">{{inventory.store_quantity}}</span></td>
                                         <td class="cell">{{inventory.last_updated}}</td>
                                         <td class="cell">
-                                            {% if org_role == 'manager' %}
-                                            <span class="badge bg-secondary" title="Managers cannot restock">restock</span>
-                                            {% elif inventory.store_quantity > inventory.reorder_level %}
+                                            {% if inventory.store_quantity > inventory.reorder_level %}
                                             <span class="badge bg-success"><a href="#" role="button" class="btn-sm app-btn-success" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#addRestockModal{{inventory.pk}}">restock</a></span>
-                                            {% elif inventory.store_quantity <= inventory.reorder_level %}
+                                            {% else %}
                                             <span class="badge bg-danger"><a href="#" role="button" class="btn-sm app-btn-success" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#addRestockModal{{inventory.pk}}">restock</a></span>
                                             {% endif %}
+                                            <a href="#" role="button" class="badge bg-primary text-white text-decoration-none ms-1" style="cursor:pointer;" data-bs-toggle="modal" data-bs-target="#requestRestockModal{{inventory.pk}}" title="Request supplier restock">
+                                                <i class="fas fa-paper-plane me-1"></i>request supplier
+                                            </a>
                                         </td>
                                         <td class="cell">
                                             {% if org_role == 'manager' %}
@@ -88,6 +102,7 @@
                                     {% include 'modals/delete_inventory.html' %}
                                     {% include 'modals/set_reorder.html' %}
                                     {% include 'modals/restock.html' with inventory=inventory %}
+                                    {% include 'modals/request_restock.html' with inventory=inventory branch=branch %}
                                     {% endfor %}
                                     
                                 </tbody>
@@ -122,5 +137,19 @@
         
     </div><!--//container-fluid-->
 </div><!--//app-content-->
+
+<script>
+function addModalPocEmail(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2 poc-email-row';
+    div.innerHTML = `
+        <input type="email" name="vendor_email" class="form-control" placeholder="vendor@example.com (optional)">
+        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()" title="Remove email">&times;</button>
+    `;
+    container.appendChild(div);
+}
+</script>
 
 {% endblock content %}

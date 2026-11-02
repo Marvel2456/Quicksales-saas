@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Supplier Restock Requests — {{ branch.name }}{% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <a href="{% url 'inventorys' branch.id %}" class="text-muted text-decoration-none small d-block mb-1">
+                    &larr; Back to {{ branch.name }} Inventory
+                </a>
+                <h1 class="app-page-title mb-0">Supplier Restock Requests — {{ branch.name }}</h1>
+            </div>
+            <div class="col-auto">
+                <a href="{% url 'create_restock_request' branch.id %}" class="btn app-btn-primary">
+                    <i class="fas fa-plus me-1"></i> New Restock Request
+                </a>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <form method="GET" class="row gx-2 gy-2 mb-4 align-items-end">
+            <div class="col-auto">
+                <input type="text" name="q" class="form-control" placeholder="Search request #, supplier, email..."
+                    value="{{ search_query }}">
+            </div>
+            <div class="col-auto">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Supply</option>
+                    <option value="partially_supplied" {% if status_filter == 'partially_supplied' %}selected{% endif %}>Partially Supplied</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed & Restocked</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn app-btn-secondary">Filter</button>
+                <a href="{% url 'restock_requests' branch.id %}" class="btn btn-outline-secondary ms-1">Clear</a>
+            </div>
+        </form>
+
+        <!-- Table -->
+        <div class="app-card app-card-orders-table shadow-sm mb-5">
+            <div class="app-card-body">
+                <div class="table-responsive">
+                    <table class="table app-table-hover mb-0 text-left">
+                        <thead>
+                            <tr>
+                                <th>Request #</th>
+                                <th>Products Requested</th>
+                                <th>Supplier / POC Email(s)</th>
+                                <th>Requested By</th>
+                                <th>Date</th>
+                                <th>Expected Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in restock_page %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'restock_request_detail' req.id %}" class="fw-semibold text-decoration-none">
+                                        {{ req.request_number }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% for item in req.items.all %}
+                                    <div class="small">
+                                        {% if item.is_restocked %}
+                                        <span class="text-success" title="Supplied & Restocked">✓</span>
+                                        {% else %}
+                                        <span class="text-muted">•</span>
+                                        {% endif %}
+                                        {{ item.inventory.product.product_name }}
+                                        <span class="text-muted">(x{{ item.quantity_requested }})</span>
+                                    </div>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% if req.supplier_name %}
+                                    <div class="fw-semibold">{{ req.supplier_name }}</div>
+                                    {% endif %}
+                                    {% if req.email_list %}
+                                        {% for email in req.email_list %}
+                                        <span class="badge bg-light text-dark border me-1 mb-1">{{ email }}</span>
+                                        {% endfor %}
+                                        {% if req.email_sent %}
+                                        <div class="small text-success"><i class="fas fa-check-circle"></i> Email Sent</div>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted small">No POC email specified</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.requested_by %}
+                                    {{ req.requested_by.first_name|default:req.requested_by.email }}
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                                <td>{{ req.date_created|date:"M d, Y" }}</td>
+                                <td>{{ req.expected_date|date:"M d, Y"|default:"—" }}</td>
+                                <td>
+                                    {% if req.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending Supply</span>
+                                    {% elif req.status == 'partially_supplied' %}
+                                    <span class="badge bg-info text-dark">Partially Supplied</span>
+                                    {% elif req.status == 'completed' %}
+                                    <span class="badge bg-success">Completed & Restocked</span>
+                                    {% elif req.status == 'cancelled' %}
+                                    <span class="badge bg-secondary">Cancelled</span>
+                                    {% endif %}
+                                    {% if req.quote_submitted %}
+                                    <div class="mt-1">
+                                        <span class="badge bg-primary">Quote Received</span>
+                                        {% if req.quote_submitted_by_email or req.quote_submitted_by_name %}
+                                        <div class="small text-muted">by {{ req.quote_submitted_by_email|default:req.quote_submitted_by_name }}</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'restock_request_detail' req.id %}" class="btn btn-sm btn-outline-primary me-1" title="View & Tick Supplied Items">
+                                        View / Restock
+                                    </a>
+                                    <a href="{% url 'restock_request_pdf' req.id %}" class="btn btn-sm btn-outline-secondary" title="Download PDF">
+                                        PDF
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    No supplier restock requests found for {{ branch.name }}.
+                                    <a href="{% url 'create_restock_request' branch.id %}">Create your first restock request</a>.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock content %}
+
