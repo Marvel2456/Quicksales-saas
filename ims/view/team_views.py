@@ -96,7 +96,7 @@ def staffs(request, pk):
                 messages.error(request, "Email is required to add staff.")
                 return redirect('staff', pk=branch.id)
             
-            email = form.cleaned_data['email'].strip()
+            email = form.cleaned_data['email'].strip().lower()
             role = form.cleaned_data['role']
             raw_permissions = request.POST.getlist('permissions')
             selected_permissions = [p for p in raw_permissions if p in VALID_STAFF_PERMISSION_KEYS]
@@ -105,7 +105,7 @@ def staffs(request, pk):
             # Check if user already exists in this org
             from account.models import OrganizationMembership
             existing_membership = OrganizationMembership.objects.filter(
-                user__email=email,
+                user__email__iexact=email,
                 organization=organization,
                 is_active=True
             ).first()
@@ -118,17 +118,19 @@ def staffs(request, pk):
                 )
                 return redirect('staff', pk=branch.id)
             
-            # Try to get existing user (from another organization)
-            staff_user, created = CustomUser.objects.get_or_create(
-                email=email,
-                defaults={
-                    'first_name': form.cleaned_data['first_name'],
-                    'last_name': form.cleaned_data['last_name'],
-                    'phone_number': form.cleaned_data['phone_number'],
-                    'role': form.cleaned_data['role'],
-                    'permissions': selected_permissions,
-                }
-            )
+            # Try to get existing user (case-insensitively)
+            staff_user = CustomUser.objects.filter(email__iexact=email).first()
+            created = False
+            if not staff_user:
+                staff_user = CustomUser.objects.create(
+                    email=email,
+                    first_name=form.cleaned_data['first_name'],
+                    last_name=form.cleaned_data['last_name'],
+                    phone_number=form.cleaned_data['phone_number'],
+                    role=form.cleaned_data['role'],
+                    permissions=selected_permissions,
+                )
+                created = True
             
             # If user was newly created, set password and force change
             if created:

@@ -29,12 +29,14 @@ class StaffCreateForm(forms.ModelForm):
         }
 
     def clean_email(self):
-        email = self.cleaned_data.get('email')
+        email = self.cleaned_data.get('email', '')
+        if email:
+            email = email.strip().lower()
         # Only check if email exists within the same organization
         if self.organization:
             from account.models import OrganizationMembership
             if OrganizationMembership.objects.filter(
-                user__email=email,
+                user__email__iexact=email,
                 organization=self.organization,
                 is_active=True
             ).exists():
@@ -78,6 +80,10 @@ class UserForm(ModelForm):
             'branch': forms.Select(attrs={'class': 'form-select'}),
             'role': forms.Select(attrs={'class': 'form-select'}),
         }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '')
+        return email.strip().lower() if email else ''
 
 class ProductForm(ModelForm):
     def __init__(self, *args, **kwargs):

@@ -7,6 +7,18 @@ from django.urls import reverse
 
 
 class CustomUserManager(BaseUserManager):
+    @classmethod
+    def normalize_email(cls, email):
+        """Normalize the email address by lowercasing both local and domain parts."""
+        if not email:
+            return ""
+        return str(email).strip().lower()
+
+    def get_by_natural_key(self, username):
+        """Case-insensitive natural key lookup for authentication."""
+        email_clean = str(username).strip().lower() if username else ""
+        return self.get(email__iexact=email_clean)
+
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("The Email field must be set.")
@@ -213,6 +225,11 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return self.email
     
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = str(self.email).strip().lower()
+        super().save(*args, **kwargs)
+
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
     

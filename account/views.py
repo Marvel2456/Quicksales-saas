@@ -63,19 +63,15 @@ class OwnerRegisterView(View):
             return render(request, 'account/register.html', {'form': form})
 
         # Extract cleaned data
-        email = form.cleaned_data['email']
+        email = form.cleaned_data['email'].strip().lower()
         first_name = form.cleaned_data['first_name']
         last_name = form.cleaned_data['last_name']
         phone_number = form.cleaned_data.get('phone_number', '')
         password = form.cleaned_data.get('password1')
         
         # Check if user already exists
-        try:
-            existing_user = CustomUser.objects.get(email=email)
-            user_exists = True
-        except CustomUser.DoesNotExist:
-            user_exists = False
-            existing_user = None
+        existing_user = CustomUser.objects.filter(email__iexact=email).first()
+        user_exists = existing_user is not None
         
         # Block duplicate organization names for the same owner
         organization_name = form.cleaned_data['organization_name']
@@ -256,7 +252,7 @@ def verifyEmail(request, uidb64, token):
         return HttpResponse("Invalid or expired verification link.", status=400)
 
 def check_email(request):
-    email = request.GET.get('email', '').strip()
+    email = request.GET.get('email', '').strip().lower()
     if email:
         exists = CustomUser.objects.filter(email__iexact=email).exists()
         return JsonResponse({'exists': exists})
@@ -267,7 +263,7 @@ def resend_verification_email(request):
     if request.method != 'POST':
         return redirect('login')
 
-    email = request.POST.get('email', '').strip()
+    email = request.POST.get('email', '').strip().lower()
 
     if not email:
         messages.error(request, 'Enter your email address to resend verification.')
@@ -291,7 +287,7 @@ def loginUser(request):
     
     # Step 2: Organization selection (check this BEFORE step 1)
     if request.method == 'POST' and 'organization_id' in request.POST:
-        email = request.session.get('login_email')
+        email = (request.session.get('login_email') or '').strip().lower()
         org_id = request.POST.get('organization_id')
         
         if not email or not org_id:
@@ -300,6 +296,7 @@ def loginUser(request):
         
         try:
             user = CustomUser.objects.get(email__iexact=email)
+            canonical_email = user.email.lower()
             # Verify user has access to this organization
             membership = user.memberships.filter(
                 organization_id=org_id,
@@ -308,12 +305,13 @@ def loginUser(request):
             if not membership:
                 raise OrganizationMembership.DoesNotExist
             
+            request.session['login_email'] = canonical_email
             request.session['selected_org_id'] = org_id
             request.session.modified = True
             
             # Redirect to password page
             return render(request, 'account/login_password.html', {
-                'email': email,
+                'email': canonical_email,
                 'organization': membership.organization
             })
         except (CustomUser.DoesNotExist, OrganizationMembership.DoesNotExist):
@@ -322,7 +320,7 @@ def loginUser(request):
     
     # Step 3: Password submission
     if request.method == 'POST' and 'password' in request.POST:
-        email = request.session.get('login_email')
+        email = (request.session.get('login_email') or '').strip().lower()
         org_id = request.session.get('selected_org_id')
         is_legacy = request.session.get('is_legacy_user', False)
         password = request.POST.get('password')
@@ -488,14 +486,14 @@ def loginUser(request):
         else:
             # Invalid password
             try:
-                failed_user = CustomUser.objects.get(email__iexact=email)
+                failed_user = CustomUser.objects.filter(email__iexact=email).first()
                 if is_legacy:
-                    org_obj = failed_user.organization
+                    org_obj = failed_user.organization if failed_user else None
                 else:
                     try:
                         org_obj = failed_user.memberships.get(
                             organization_id=org_id, is_active=True
-                        ).organization
+                        ).organization if failed_user else None
                     except:
                         org_obj = None
             except CustomUser.DoesNotExist:
@@ -509,10 +507,11 @@ def loginUser(request):
     
     # Step 1: Email submission
     if request.method == 'POST' and 'email' in request.POST:
-        email = request.POST.get('email', '').strip()
+        email = request.POST.get('email', '').strip().lower()
         
         try:
             user = CustomUser.objects.get(email__iexact=email)
+            canonical_email = user.email.lower()
             if not user.is_active:
                 return render(request, 'account/login.html', {
                     'error': 'Your account is not verified yet. Resend the verification email below.',
@@ -527,11 +526,11 @@ def loginUser(request):
                 # No memberships - check if user has legacy single-org setup
                 if user.organization:
                     # Legacy single-organization user - go straight to password
-                    request.session['login_email'] = email
+                    request.session['login_email'] = canonical_email
                     request.session['is_legacy_user'] = True
                     request.session.modified = True
                     return render(request, 'account/login_password.html', {
-                        'email': email,
+                        'email': canonical_email,
                         'organization': user.organization
                     })
                 else:
@@ -542,17 +541,17 @@ def loginUser(request):
                     })
             elif orgs.count() == 1:
                 # Only one organization - skip selector
-                request.session['login_email'] = email
+                request.session['login_email'] = canonical_email
                 request.session['selected_org_id'] = str(orgs.first().organization.id)
                 request.session['is_legacy_user'] = False
                 request.session.modified = True
                 return render(request, 'account/login_password.html', {
-                    'email': email,
+                    'email': canonical_email,
                     'organization': orgs.first().organization
                 })
             else:
                 # Multiple organizations - show selector
-                request.session['login_email'] = email
+                request.session['login_email'] = canonical_email
                 request.session['is_legacy_user'] = False
                 request.session.modified = True
                 
@@ -566,7 +565,7 @@ def loginUser(request):
                     })
                 
                 return render(request, 'account/login_org_select.html', {
-                    'email': email,
+                    'email': canonical_email,
                     'organizations': org_list,
                     'user': user
                 })

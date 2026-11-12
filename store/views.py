@@ -849,8 +849,11 @@ def buyer_login_view(request):
         password = request.POST.get('password', '')
 
         try:
-            buyer = Buyer.objects.get(email=email, is_active=True)
+            buyer = Buyer.objects.get(email__iexact=email, is_active=True)
             if buyer.check_password(password):
+                if buyer.email != buyer.email.lower():
+                    buyer.email = buyer.email.lower()
+                    buyer.save(update_fields=['email'])
                 buyer_login(request, buyer)
                 messages.success(request, f"Welcome back, {buyer.first_name or buyer.email}!")
                 next_url = request.GET.get('next') or reverse('buyer_dashboard')
