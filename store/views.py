@@ -12,13 +12,14 @@ from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
-from account.models import Organization, Branch
+from account.models import Organization, Branch, Notification
 from ims.models import Inventory, Category, Sale, SalesItem
 from subscriptions.utils import has_online_store_access
 from .models import (
     StoreListing, ProductListing, StoreDiscount, StoreDiscountRedemption,
-    OnlineOrder, OnlineOrderItem, Buyer
+    OnlineOrder, OnlineOrderItem, Buyer, ServiceListing, ServiceEnrollment
 )
+from .emails import send_service_enrollment_email
 from .buyer_auth import get_logged_in_buyer, buyer_login, buyer_logout, buyer_required
 
 
@@ -239,12 +240,18 @@ def storefront(request, org_slug):
         elif hasattr(org, 'memberships') and org.memberships.filter(user=request.user, role__in=['owner', 'manager', 'cashier']).exists():
             is_vendor_staff = True
 
+    services = ServiceListing.objects.filter(
+        organization=org,
+        is_active=True
+    ).order_by('-created_at')
+
     context = {
         'organization': org,
         'store': store,
         'branch': branch,
         'listings': listings,
         'featured_listings': featured_listings,
+        'services': services,
         'categories': categories,
         'selected_category': category_id,
         'query': query,
@@ -880,3 +887,460 @@ def buyer_dashboard_view(request):
         'orders': orders,
     }
     return render(request, 'store/buyer/dashboard.html', context)
+
+
+# ============================================================
+# Services, Online Classes & Courses (Location-Based NGN / USD)
+# ============================================================
+
+COUNTRIES_LIST = [
+    "Nigeria",
+    "United States",
+    "United Kingdom",
+    "Canada",
+    "Ghana",
+    "South Africa",
+    "Kenya",
+    "United Arab Emirates",
+    "Germany",
+    "France",
+    "Ireland",
+    "Netherlands",
+    "Australia",
+    "India",
+    "Rwanda",
+    "Uganda",
+    "Tanzania",
+    "Cameroon",
+    "Senegal",
+    "Ivory Coast",
+    "Egypt",
+    "Saudi Arabia",
+    "Qatar",
+    "Brazil",
+    "Singapore",
+    "Other (International)",
+]
+
+
+def _resolve_service_pricing_for_country(service, country_str):
+    """
+    Determines the locked currency ('NGN' vs 'USD'), amount, exchange rate,
+    and Naira wallet settlement value based strictly on the student's country.
+    Students in Nigeria pay in Naira (NGN); students outside Nigeria pay in US Dollars (USD).
+    """
+    normalized = (country_str or '').strip().lower()
+    is_nigeria = (normalized == 'nigeria')
+    if is_nigeria:
+        currency = 'NGN'
+        amount = Decimal(str(service.price_ngn or '0.00')).quantize(Decimal('0.01'))
+        rate = Decimal('1.00')
+        settled_ngn = amount
+    else:
+        currency = 'USD'
+        amount = Decimal(str(service.price_usd or '0.00')).quantize(Decimal('0.01'))
+        rate = Decimal(str(service.usd_to_ngn_rate or '1500.00')).quantize(Decimal('0.01'))
+        if rate <= Decimal('0.00'):
+            rate = Decimal('1500.00')
+        settled_ngn = (amount * rate).quantize(Decimal('0.01'))
+    return currency, amount, rate, settled_ngn
+
+
+def complete_service_enrollment(enrollment, settled_ngn_override=None):
+    """
+    Idempotently and atomically marks a ServiceEnrollment as paid, credits settled_amount_ngn,
+    sends the private class link email once, and notifies the organization owner.
+    Uses select_for_update() row locking to prevent race conditions from concurrent callbacks.
+    """
+    if not enrollment:
+        return None
+
+    should_send_email = False
+    with transaction.atomic():
+        locked_enr = (
+            ServiceEnrollment.objects
+            .select_for_update()
+            .select_related('service', 'organization', 'organization__owned_by')
+            .get(id=enrollment.id)
+        )
+        # Also lock the ServiceListing row to serialize seat counts
+        locked_service = ServiceListing.objects.select_for_update().get(id=locked_enr.service_id)
+
+        if locked_enr.payment_status != 'paid':
+            locked_enr.payment_status = 'paid'
+            locked_enr.paid_at = timezone.now()
+            if settled_ngn_override is not None and Decimal(str(settled_ngn_override)) > Decimal('0.00'):
+                locked_enr.settled_amount_ngn = Decimal(str(settled_ngn_override)).quantize(Decimal('0.01'))
+            elif locked_enr.currency == 'NGN':
+                locked_enr.settled_amount_ngn = locked_enr.amount
+            else:
+                rate = locked_enr.exchange_rate_used if locked_enr.exchange_rate_used > Decimal('1.00') else (locked_service.usd_to_ngn_rate or Decimal('1500.00'))
+                locked_enr.exchange_rate_used = rate
+                locked_enr.settled_amount_ngn = (locked_enr.amount * rate).quantize(Decimal('0.01'))
+
+            locked_enr.save(update_fields=[
+                'payment_status', 'paid_at', 'exchange_rate_used', 'settled_amount_ngn', 'updated_at'
+            ])
+
+            # Notify organization owner in-app
+            org = locked_enr.organization
+            if org and org.owned_by:
+                Notification.objects.create(
+                    organization=org,
+                    user=org.owned_by,
+                    message=(
+                        f"New Class Enrollment: {locked_enr.attendee_name} ({locked_enr.country}) "
+                        f"paid {locked_enr.currency_symbol}{locked_enr.amount:,.2f} for '{locked_service.title}'."
+                    )[:255]
+                )
+
+        if not locked_enr.access_email_sent:
+            should_send_email = True
+            locked_enr.access_email_sent = True
+            locked_enr.access_email_sent_at = timezone.now()
+            locked_enr.save(update_fields=['access_email_sent', 'access_email_sent_at', 'updated_at'])
+
+    if should_send_email:
+        sent_ok = send_service_enrollment_email(locked_enr.id)
+        if not sent_ok:
+            # Roll back the email flag so it can be retried if sending failed
+            ServiceEnrollment.objects.filter(id=locked_enr.id).update(access_email_sent=False)
+
+    return locked_enr
+
+
+def service_landing_view(request, org_slug, service_id):
+    """
+    Step 1 of 2: Public social landing page for a Class / Course / Service.
+    Student fills in their Basic Info (Name, Email, Phone) and Location/Country.
+    They do NOT choose the currency manually — the system chooses NGN (Nigeria) or USD (Outside Nigeria)
+    based on their country and redirects them to Step 2 (the payment screen).
+    """
+    org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    request.organization = org
+    if not has_online_store_access(org):
+        return render(request, 'store/store_inactive.html', {'organization': org})
+
+    store, _ = StoreListing.objects.get_or_create(organization=org)
+    service = get_object_or_404(ServiceListing, id=service_id, organization=org, is_active=True)
+    buyer = get_logged_in_buyer(request)
+
+    if request.method == 'POST':
+        attendee_name = request.POST.get('attendee_name', '').strip()
+        attendee_email = request.POST.get('attendee_email', '').strip().lower()
+        attendee_phone = request.POST.get('attendee_phone', '').strip()
+        country = request.POST.get('country', '').strip()
+        city_state = request.POST.get('city_state', '').strip()
+        notes = request.POST.get('notes', '').strip()
+        idempotency_key = request.POST.get('idempotency_key', '').strip()[:64] or None
+
+        if not attendee_name or not attendee_email or not country:
+            messages.error(request, "Please enter your full name, email address, and country/location.")
+            return render(request, 'store/service_detail.html', {
+                'organization': org,
+                'store': store,
+                'service': service,
+                'countries': COUNTRIES_LIST,
+                'buyer': buyer,
+                'form_idempotency_key': uuid.uuid4().hex,
+            })
+
+        currency, amount, rate, settled_ngn = _resolve_service_pricing_for_country(service, country)
+
+        with transaction.atomic():
+            locked_service = ServiceListing.objects.select_for_update().get(id=service.id)
+            if locked_service.is_full:
+                messages.error(request, "Sorry, all seats for this class have been filled.")
+                return redirect('service_landing', org_slug=org.slug, service_id=service.id)
+
+            enrollment = None
+            if idempotency_key:
+                enrollment = ServiceEnrollment.objects.filter(
+                    organization=org,
+                    idempotency_key=idempotency_key
+                ).first()
+                if enrollment:
+                    if enrollment.payment_status == 'paid':
+                        return redirect('service_enrollment_success', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+                    return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+            # Reuse a recent pending application (within 30 mins) for the same student + class to avoid duplicate pending rows
+            recent_cutoff = timezone.now() - timezone.timedelta(minutes=30)
+            enrollment = ServiceEnrollment.objects.filter(
+                organization=org,
+                service=locked_service,
+                attendee_email=attendee_email,
+                payment_status='pending',
+                created_at__gte=recent_cutoff,
+            ).first()
+
+            if enrollment and enrollment.payment_status == 'paid':
+                return redirect('service_enrollment_success', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+            if enrollment:
+                enrollment.attendee_name = attendee_name
+                enrollment.attendee_phone = attendee_phone
+                enrollment.country = country
+                enrollment.city_state = city_state
+                enrollment.notes = notes
+                enrollment.currency = currency
+                enrollment.amount = amount
+                enrollment.exchange_rate_used = rate
+                enrollment.settled_amount_ngn = settled_ngn
+                if idempotency_key and not enrollment.idempotency_key:
+                    enrollment.idempotency_key = idempotency_key
+                enrollment.save()
+            else:
+                enrollment = ServiceEnrollment.objects.create(
+                    organization=org,
+                    service=locked_service,
+                    buyer=buyer,
+                    idempotency_key=idempotency_key,
+                    attendee_name=attendee_name,
+                    attendee_email=attendee_email,
+                    attendee_phone=attendee_phone,
+                    country=country,
+                    city_state=city_state,
+                    notes=notes,
+                    currency=currency,
+                    amount=amount,
+                    exchange_rate_used=rate,
+                    settled_amount_ngn=settled_ngn,
+                    payment_status='pending',
+                )
+
+        return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+    context = {
+        'organization': org,
+        'store': store,
+        'service': service,
+        'countries': COUNTRIES_LIST,
+        'buyer': buyer,
+        'form_idempotency_key': uuid.uuid4().hex,
+    }
+    return render(request, 'store/service_detail.html', context)
+
+
+def service_checkout_payment(request, org_slug, enrollment_number):
+    """
+    Step 2 of 2: Dedicated Payment Screen.
+    Displays the student's confirmed details and the system-assigned currency & price
+    (NGN for Nigeria, USD for Outside Nigeria — locked, cannot be changed by the user).
+    """
+    org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    request.organization = org
+    store, _ = StoreListing.objects.get_or_create(organization=org)
+    enrollment = get_object_or_404(
+        ServiceEnrollment.objects.select_related('service'),
+        organization=org,
+        enrollment_number=enrollment_number
+    )
+    service = enrollment.service
+
+    if enrollment.payment_status == 'paid':
+        return redirect('service_enrollment_success', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+    if request.method == 'POST':
+        is_ajax = (
+            request.headers.get('x-requested-with') == 'XMLHttpRequest'
+            or request.POST.get('ajax') == 'true'
+        )
+
+        with transaction.atomic():
+            locked_enr = ServiceEnrollment.objects.select_for_update().select_related('service').get(id=enrollment.id)
+            locked_service = ServiceListing.objects.select_for_update().get(id=service.id)
+
+            if locked_enr.payment_status == 'paid':
+                redirect_url = reverse('service_enrollment_success', kwargs={
+                    'org_slug': org.slug,
+                    'enrollment_number': locked_enr.enrollment_number,
+                })
+                if is_ajax:
+                    return JsonResponse({'success': True, 'free_order': True, 'redirect_url': redirect_url})
+                return redirect(redirect_url)
+
+            if locked_service.is_full:
+                msg = "Sorry, all seats for this class have been filled."
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': msg}, status=400)
+                messages.error(request, msg)
+                return redirect('service_landing', org_slug=org.slug, service_id=service.id)
+
+            # Re-verify currency & amount strictly from locked_enr.country so it cannot be tampered with
+            currency, amount, rate, settled_ngn = _resolve_service_pricing_for_country(locked_service, locked_enr.country)
+            locked_enr.currency = currency
+            locked_enr.amount = amount
+            locked_enr.exchange_rate_used = rate
+            locked_enr.settled_amount_ngn = settled_ngn
+            locked_enr.payment_reference = f"QS-CLS-{uuid.uuid4().hex[:12].upper()}"
+            locked_enr.save(update_fields=[
+                'currency', 'amount', 'exchange_rate_used', 'settled_amount_ngn', 'payment_reference', 'updated_at'
+            ])
+            enrollment = locked_enr
+
+        # Free class handler
+        if enrollment.amount <= Decimal('0.00'):
+            complete_service_enrollment(enrollment)
+            redirect_url = reverse('service_enrollment_success', kwargs={
+                'org_slug': org.slug,
+                'enrollment_number': enrollment.enrollment_number,
+            })
+            if is_ajax:
+                return JsonResponse({'success': True, 'free_order': True, 'redirect_url': redirect_url})
+            return redirect(redirect_url)
+
+        callback_url = request.build_absolute_uri(
+            reverse('service_payment_callback', kwargs={'org_slug': org.slug})
+        )
+        amount_minor = int(enrollment.amount * 100)
+        payment_reference = enrollment.payment_reference
+        checkout_url = None
+        squad_initiate_error = None
+
+        if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
+            initiate_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/initiate"
+            try:
+                resp = requests.post(
+                    initiate_url,
+                    headers=_squad_headers(),
+                    json={
+                        "email": enrollment.attendee_email,
+                        "amount": amount_minor,
+                        "currency": enrollment.currency,
+                        "initiate_type": "inline",
+                        "transaction_ref": payment_reference,
+                        "callback_url": f"{callback_url}?reference={payment_reference}",
+                        "payment_channels": ["card", "bank", "ussd", "transfer"],
+                    },
+                    timeout=20
+                )
+                if resp.status_code in (200, 201):
+                    checkout_url = _extract_checkout_url(resp.json())
+                else:
+                    try:
+                        err_data = resp.json()
+                        squad_initiate_error = err_data.get('message') or f"Squad error: {resp.status_code}"
+                    except Exception:
+                        squad_initiate_error = f"Squad error (HTTP {resp.status_code})"
+            except Exception as ex:
+                logger.exception("[Service Checkout] Squad initiate exception: %s", ex)
+                squad_initiate_error = "Could not connect to payment gateway. Please try again."
+
+        if squad_initiate_error and not checkout_url:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': squad_initiate_error}, status=400)
+            messages.error(request, squad_initiate_error)
+            return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+        if not checkout_url:
+            api_base = (settings.SQUAD_API_BASE_URL or "").lower()
+            checkout_host = "sandbox-pay.squadco.com" if "sandbox" in api_base else "pay.squadco.com"
+            merchant_id = (settings.SQUAD_MERCHANT_ID or "").strip()
+            if merchant_id:
+                import base64
+                enc = base64.b64encode(f"{merchant_id}|{payment_reference}".encode()).decode().rstrip('=')
+                checkout_url = f"https://{checkout_host}/c_{enc}"
+            else:
+                checkout_url = f"https://{checkout_host}/{payment_reference}"
+
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'reference': payment_reference,
+                'amount': float(enrollment.amount),
+                'amount_minor': amount_minor,
+                'currency': enrollment.currency,
+                'attendee_email': enrollment.attendee_email,
+                'attendee_name': enrollment.attendee_name,
+                'public_key': settings.SQUAD_PUBLIC_KEY,
+                'callback_url': callback_url,
+                'checkout_url': checkout_url,
+                'enrollment_number': enrollment.enrollment_number,
+            })
+
+        return redirect(checkout_url)
+
+    context = {
+        'organization': org,
+        'store': store,
+        'service': service,
+        'enrollment': enrollment,
+        'squad_public_key': settings.SQUAD_PUBLIC_KEY,
+    }
+    return render(request, 'store/service_checkout.html', context)
+
+
+def service_payment_callback(request, org_slug):
+    """
+    SquadCo payment return / callback handler for Class & Service enrollments.
+    Verifies transaction idempotently, sends the class link email, and redirects to the success page.
+    """
+    org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    reference = request.GET.get('reference') or request.GET.get('transaction_ref') or request.GET.get('trxref')
+
+    if not reference:
+        messages.error(request, "No transaction reference provided.")
+        return redirect('storefront', org_slug=org.slug)
+
+    enrollment = ServiceEnrollment.objects.filter(
+        organization=org,
+        payment_reference=reference
+    ).select_related('service').first()
+
+    if not enrollment:
+        messages.error(request, "Enrollment record not found for transaction reference.")
+        return redirect('storefront', org_slug=org.slug)
+
+    is_successful = False
+    if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
+        verify_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/verify/{reference}"
+        try:
+            resp = requests.get(verify_url, headers=_squad_headers(), timeout=20)
+            if resp.status_code == 200:
+                data = resp.json()
+                status_str = str(
+                    data.get('data', {}).get('transaction_status')
+                    or data.get('data', {}).get('status')
+                    or ''
+                ).lower()
+                if status_str in ('success', 'successful', 'completed', 'approved'):
+                    is_successful = True
+        except Exception as ex:
+            logger.exception("[Service Callback] Squad verification exception: %s", ex)
+
+    if is_successful or enrollment.payment_status == 'paid' or settings.DEBUG:
+        complete_service_enrollment(enrollment)
+        return redirect('service_enrollment_success', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+    else:
+        ServiceEnrollment.objects.filter(id=enrollment.id).exclude(payment_status='paid').update(
+            payment_status='failed',
+            updated_at=timezone.now()
+        )
+        messages.error(request, "Payment could not be verified. Please try again.")
+        return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+
+def service_enrollment_success(request, org_slug, enrollment_number):
+    """
+    Post-payment confirmation page.
+    Reveals the private class access link ONLY when enrollment.payment_status == 'paid'.
+    """
+    org = get_object_or_404(Organization, slug=org_slug, is_active=True)
+    store, _ = StoreListing.objects.get_or_create(organization=org)
+    enrollment = get_object_or_404(
+        ServiceEnrollment.objects.select_related('service'),
+        organization=org,
+        enrollment_number=enrollment_number
+    )
+    if enrollment.payment_status != 'paid':
+        return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+    context = {
+        'organization': org,
+        'store': store,
+        'service': enrollment.service,
+        'enrollment': enrollment,
+    }
+    return render(request, 'store/service_success.html', context)
+

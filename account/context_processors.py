@@ -1,4 +1,4 @@
-from account.models import Notification, OrganizationMembership
+from account.models import Notification, OrganizationMembership, STAFF_PERMISSION_CHOICES
 from ims.models import Sale
 from django.core.exceptions import ValidationError
 import logging
@@ -8,11 +8,15 @@ logger = logging.getLogger(__name__)
 
 
 def organization_role(request):
-    """Provide user's role in the current active organization."""
+    """Provide user's role and assigned feature permissions in the current active organization."""
     try:
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
-            return {"org_role": None}
+            return {
+                "org_role": None,
+                "staff_permissions": [],
+                "staff_permission_choices": STAFF_PERMISSION_CHOICES,
+            }
         
         # Get the active organization from middleware context
         organization = getattr(request, "organization", None)
@@ -22,7 +26,11 @@ def organization_role(request):
             organization = getattr(user, "organization", None)
         
         if not organization:
-            return {"org_role": None}
+            return {
+                "org_role": None,
+                "staff_permissions": [],
+                "staff_permission_choices": STAFF_PERMISSION_CHOICES,
+            }
         
         # Try to get membership-based role first
         membership = OrganizationMembership.objects.filter(
@@ -31,13 +39,25 @@ def organization_role(request):
             is_active=True,
         ).first()
         if membership:
-            return {"org_role": membership.role}
+            return {
+                "org_role": membership.role,
+                "staff_permissions": membership.permissions or [],
+                "staff_permission_choices": STAFF_PERMISSION_CHOICES,
+            }
 
         # Fallback to global user role for legacy users
-        return {"org_role": getattr(user, "role", None)}
+        return {
+            "org_role": getattr(user, "role", None),
+            "staff_permissions": getattr(user, "permissions", None) or [],
+            "staff_permission_choices": STAFF_PERMISSION_CHOICES,
+        }
     except Exception:
         logger.exception("organization_role context processor failed")
-        return {"org_role": None}
+        return {
+            "org_role": None,
+            "staff_permissions": [],
+            "staff_permission_choices": STAFF_PERMISSION_CHOICES,
+        }
 
 
 def active_branch(request):

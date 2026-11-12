@@ -15,10 +15,11 @@ from ims.models import (
     Invoice, InvoiceItem, InvoicePayment, InvoiceEditLog,
     Inventory, Sale, SalesItem
 )
-from account.models import Branch, CustomUser, Notification, ActivityLog
+from account.models import Branch, CustomUser, Notification, ActivityLog, OrganizationMembership
 from account.decorators import role_required
 from account.utils import (
-    get_request_organization, get_request_org_role, get_request_branch
+    get_request_organization, get_request_org_role, get_request_branch,
+    has_request_permission,
 )
 
 
@@ -64,18 +65,33 @@ def _record_invoice_log(invoice, user, action, summary):
 
 def _check_branch_access(request, organization, branch):
     """
-    Ensure that a manager can only access invoices for their assigned branch.
+    Ensure that a manager or authorized sales rep can only access invoices for their assigned branch.
     Owners have access to all branches in their organization.
     """
     role = get_request_org_role(request, organization)
     if role == 'owner':
         return True
-    if role == 'manager':
+    if role == 'manager' or (role == 'sales' and has_request_permission(request, 'invoices', organization=organization, branch=branch)):
         assigned_branch = request.user.get_branch_in_organization(organization) or getattr(request.user, 'branch', None)
         if assigned_branch and str(assigned_branch.id) != str(branch.id):
             messages.error(request, 'You only have permission to access invoices for your assigned branch.')
             return False
         return True
+    messages.error(request, 'You do not have permission to access invoices for this branch.')
+    return False
+
+
+def _check_invoice_ownership(request, organization, invoice):
+    """
+    Ensure that non-owners (managers and sales reps) can only view or manage invoices they created.
+    Owners have full access to all invoices across their organization.
+    """
+    role = get_request_org_role(request, organization)
+    if role == 'owner':
+        return True
+    if invoice.created_by_id and str(invoice.created_by_id) == str(request.user.id):
+        return True
+    messages.error(request, 'You can only view or manage invoices that you created.')
     return False
 
 
@@ -142,16 +158,16 @@ def branch_invoices(request):
     return render(request, 'ims/branchinvoices.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def invoices(request, pk):
-    """List all invoices for a branch with filtering (Owner & Manager)"""
+    """List invoices for a branch with filtering (Owner sees all; Manager/Sales see only their own)"""
     organization = get_request_organization(request)
     branch = get_object_or_404(Branch, organization=organization, id=pk)
 
     if not _check_branch_access(request, organization, branch):
         user_branch = get_request_branch(request, organization)
-        if user_branch:
+        if user_branch and str(user_branch.id) != str(branch.id):
             return redirect('invoices', pk=user_branch.id)
         return redirect('dashboard')
 
@@ -165,16 +181,21 @@ def invoices(request, pk):
         inventory_deducted=True
     )
 
+    org_role = get_request_org_role(request, organization)
     invoice_qs = Invoice.objects.filter(
         branch=branch,
         organization=organization
     ).select_related('created_by').order_by('-date_created')
+
+    if org_role != 'owner':
+        invoice_qs = invoice_qs.filter(created_by=request.user)
 
     # Filters
     status_filter = request.GET.get('status')
     customer_query = request.GET.get('customer')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
+    staff_filter = request.GET.get('staff') if org_role == 'owner' else None
 
     if status_filter:
         invoice_qs = invoice_qs.filter(status=status_filter)
@@ -184,6 +205,17 @@ def invoices(request, pk):
         invoice_qs = invoice_qs.filter(date_created__date__gte=start_date)
     if end_date:
         invoice_qs = invoice_qs.filter(date_created__date__lte=end_date)
+    if staff_filter:
+        invoice_qs = invoice_qs.filter(created_by_id=staff_filter)
+
+    branch_staff = []
+    if org_role == 'owner':
+        creator_ids = Invoice.objects.filter(
+            branch=branch,
+            organization=organization,
+            created_by__isnull=False,
+        ).values_list('created_by_id', flat=True).distinct()
+        branch_staff = CustomUser.objects.filter(id__in=creator_ids).order_by('first_name', 'email')
 
     paginator = Paginator(invoice_qs, 15)
     page = request.GET.get('page')
@@ -198,20 +230,22 @@ def invoices(request, pk):
         'customer_query': customer_query,
         'start_date': start_date,
         'end_date': end_date,
+        'staff_filter': staff_filter,
+        'branch_staff': branch_staff,
     }
     return render(request, 'ims/invoices.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def create_invoice(request, pk):
-    """Create a new invoice for a branch (Owner & Manager)"""
+    """Create a new invoice for a branch (Owner, Manager, or Sales with invoice permission)"""
     organization = get_request_organization(request)
     branch = get_object_or_404(Branch, organization=organization, id=pk)
 
     if not _check_branch_access(request, organization, branch):
         user_branch = get_request_branch(request, organization)
-        if user_branch:
+        if user_branch and str(user_branch.id) != str(branch.id):
             return redirect('invoices', pk=user_branch.id)
         return redirect('dashboard')
 
@@ -338,7 +372,7 @@ def create_invoice(request, pk):
     return render(request, 'ims/create_invoice.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def invoice_detail(request, pk):
     """View a single invoice with all its items, payment history, and owner edit logs"""
@@ -347,9 +381,12 @@ def invoice_detail(request, pk):
 
     if not _check_branch_access(request, organization, invoice.branch):
         user_branch = get_request_branch(request, organization)
-        if user_branch:
+        if user_branch and str(user_branch.id) != str(invoice.branch.id):
             return redirect('invoices', pk=user_branch.id)
         return redirect('dashboard')
+
+    if not _check_invoice_ownership(request, organization, invoice):
+        return redirect('invoices', pk=invoice.branch.id)
 
     items = invoice.items.select_related('inventory__product').all()
     payments = invoice.payments.select_related('recorded_by').order_by('date_paid')
@@ -366,7 +403,7 @@ def invoice_detail(request, pk):
     return render(request, 'ims/invoice_detail.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def invoice_pdf(request, pk):
     """Download invoice as PDF"""
@@ -375,9 +412,12 @@ def invoice_pdf(request, pk):
 
     if not _check_branch_access(request, organization, invoice.branch):
         user_branch = get_request_branch(request, organization)
-        if user_branch:
+        if user_branch and str(user_branch.id) != str(invoice.branch.id):
             return redirect('invoices', pk=user_branch.id)
         return redirect('dashboard')
+
+    if not _check_invoice_ownership(request, organization, invoice):
+        return redirect('invoices', pk=invoice.branch.id)
 
     items = invoice.items.select_related('inventory__product').all()
     payments = invoice.payments.select_related('recorded_by').order_by('date_paid')
@@ -400,7 +440,7 @@ def invoice_pdf(request, pk):
     return response
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def confirm_payment(request, pk):
     """
@@ -414,6 +454,9 @@ def confirm_payment(request, pk):
 
     if not _check_branch_access(request, organization, invoice.branch):
         return redirect('invoice_detail', pk=invoice.id)
+
+    if not _check_invoice_ownership(request, organization, invoice):
+        return redirect('invoices', pk=invoice.branch.id)
 
     if invoice.status not in ('pending', 'partially_paid'):
         messages.error(request, 'Only pending or partially paid invoices can receive payments.')
@@ -572,7 +615,7 @@ def confirm_payment(request, pk):
     return redirect('invoice_detail', pk=invoice.id)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def close_invoice(request, pk):
     """Close an unpaid pending invoice without confirming payment (no inventory change)"""
@@ -581,6 +624,9 @@ def close_invoice(request, pk):
 
     if not _check_branch_access(request, organization, invoice.branch):
         return redirect('invoice_detail', pk=invoice.id)
+
+    if not _check_invoice_ownership(request, organization, invoice):
+        return redirect('invoices', pk=invoice.branch.id)
 
     if invoice.status != 'pending' or (invoice.amount_paid or 0) > 0:
         messages.error(request, 'Only unpaid pending invoices can be closed.')
@@ -666,15 +712,18 @@ def delete_invoice(request, pk):
     return redirect('invoice_detail', pk=invoice.id)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='invoices')
 @login_required
 def edit_invoice(request, pk):
-    """Edit a non-paid invoice (Owner & Manager) and log all changes for the Owner."""
+    """Edit a non-paid invoice (Owner, Manager, or Sales with invoice permission) and log all changes for the Owner."""
     organization = get_request_organization(request)
     invoice = get_object_or_404(Invoice, id=pk, organization=organization)
 
     if not _check_branch_access(request, organization, invoice.branch):
         return redirect('invoice_detail', pk=invoice.id)
+
+    if not _check_invoice_ownership(request, organization, invoice):
+        return redirect('invoices', pk=invoice.branch.id)
 
     if invoice.status in ('paid', 'closed'):
         if invoice.status == 'closed':

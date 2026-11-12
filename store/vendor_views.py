@@ -1,3 +1,4 @@
+import csv
 import secrets
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
@@ -5,8 +6,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction, models
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
+from django.urls import reverse
 
 from account.decorators import role_required
 from account.utils import get_request_organization
@@ -14,8 +16,10 @@ from account.models import Branch, Organization
 from ims.models import Inventory, Sale, SalesItem, Product
 from .models import (
     StoreListing, ProductListing, OnlineOrder, OnlineOrderItem,
-    StoreDiscount, StoreDiscountRedemption, StoreBankAccount, StorePayout
+    StoreDiscount, StoreDiscountRedemption, StoreBankAccount, StorePayout,
+    ServiceListing, ServiceEnrollment
 )
+from .emails import send_service_enrollment_email
 from .decorators import require_online_store_access
 
 
@@ -549,8 +553,8 @@ def vendor_discounts(request):
 
 def calculate_organization_balances(org):
     """
-    Computes total gross online revenue, completed payouts, pending/processing payouts,
-    and available balance for withdrawal.
+    Computes total gross online revenue (product orders + service/class enrollments),
+    completed payouts, pending/processing payouts, and available balance for withdrawal.
     """
     paid_orders = OnlineOrder.objects.filter(
         organization=org,
@@ -562,8 +566,19 @@ def calculate_organization_balances(org):
         organization=org,
         status__in=['confirmed', 'dispatched', 'delivered']
     )
-    total_gross_revenue = confirmed_orders.aggregate(total=models.Sum('total_amount'))['total'] or total_sales_revenue
-    total_gross_revenue = max(total_gross_revenue, total_sales_revenue)
+    order_gross_revenue = confirmed_orders.aggregate(total=models.Sum('total_amount'))['total'] or total_sales_revenue
+    order_gross_revenue = max(order_gross_revenue, total_sales_revenue)
+
+    # Paid service/class enrollments
+    paid_enrollments = ServiceEnrollment.objects.filter(
+        organization=org,
+        payment_status='paid'
+    )
+    service_settled_ngn = paid_enrollments.aggregate(total=models.Sum('settled_amount_ngn'))['total'] or Decimal('0.00')
+    service_revenue_ngn = paid_enrollments.filter(currency='NGN').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+    service_revenue_usd = paid_enrollments.filter(currency='USD').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+
+    total_gross_revenue = order_gross_revenue + service_settled_ngn
 
     completed_payouts = StorePayout.objects.filter(
         organization=org,
@@ -579,13 +594,17 @@ def calculate_organization_balances(org):
 
     return {
         'total_gross_revenue': total_gross_revenue,
+        'order_gross_revenue': order_gross_revenue,
+        'service_settled_ngn': service_settled_ngn,
+        'service_revenue_ngn': service_revenue_ngn,
+        'service_revenue_usd': service_revenue_usd,
         'completed_payouts': completed_payouts,
         'pending_payouts': pending_payouts,
         'available_balance': available_balance,
     }
 
 
-def request_organization_payout(org, user, amount, notes=''):
+def request_organization_payout(org, user, amount, notes='', idempotency_key=None):
     """
     Atomically and safely creates a withdrawal request.
     Uses select_for_update() row locking on the Organization model to serialize concurrent
@@ -595,23 +614,27 @@ def request_organization_payout(org, user, amount, notes=''):
     if amount < min_withdrawal:
         return False, f"Minimum withdrawal amount is ₦{min_withdrawal:,.2f}.", None
 
+    cleaned_key = (str(idempotency_key).strip()[:64] if idempotency_key else None) or None
+
     with transaction.atomic():
         # Lock organization row to serialize all withdrawal transactions for this tenant
         locked_org = Organization.objects.select_for_update().get(id=org.id)
+
+        # Idempotency check by explicit key
+        if cleaned_key:
+            existing_by_key = StorePayout.objects.filter(
+                organization=locked_org,
+                idempotency_key=cleaned_key
+            ).first()
+            if existing_by_key:
+                return True, f"Withdrawal request #{existing_by_key.reference} is already being processed.", existing_by_key
 
         bank_account = StoreBankAccount.objects.filter(organization=locked_org).first()
         if not bank_account or not bank_account.account_number or not bank_account.bank_name:
             return False, "Please add your settlement bank account details before requesting a withdrawal.", None
 
-        # Re-verify available balance inside the atomic lock
-        balances = calculate_organization_balances(locked_org)
-        avail = balances['available_balance']
-
-        if amount > avail:
-            return False, f"Requested amount (₦{amount:,.2f}) exceeds your available balance (₦{avail:,.2f}).", None
-
-        # Check for rapid duplicate submissions (within 5 seconds for exact same amount)
-        recent_cutoff = timezone.now() - timezone.timedelta(seconds=5)
+        # Check for rapid duplicate submissions (within 10 seconds for exact same amount)
+        recent_cutoff = timezone.now() - timezone.timedelta(seconds=10)
         recent_dup = StorePayout.objects.filter(
             organization=locked_org,
             amount=amount,
@@ -621,8 +644,16 @@ def request_organization_payout(org, user, amount, notes=''):
         if recent_dup:
             return True, f"Withdrawal request #{recent_dup.reference} is already being processed.", recent_dup
 
+        # Re-verify available balance inside the atomic lock
+        balances = calculate_organization_balances(locked_org)
+        avail = balances['available_balance']
+
+        if amount > avail:
+            return False, f"Requested amount (₦{amount:,.2f}) exceeds your available balance (₦{avail:,.2f}).", None
+
         payout = StorePayout.objects.create(
             organization=locked_org,
+            idempotency_key=cleaned_key,
             amount=amount,
             currency='NGN',
             bank_name=bank_account.bank_name,
@@ -678,7 +709,10 @@ def vendor_payouts(request):
                 amount_val = Decimal('0.00')
 
             notes = request.POST.get('notes', '').strip()
-            success, msg, _ = request_organization_payout(org, request.user, amount_val, notes=notes)
+            idempotency_key = request.POST.get('idempotency_key', '').strip() or None
+            success, msg, _ = request_organization_payout(
+                org, request.user, amount_val, notes=notes, idempotency_key=idempotency_key
+            )
             if success:
                 messages.success(request, msg)
             else:
@@ -820,4 +854,269 @@ def vendor_customers(request):
         'tier_filter': tier_filter,
     }
     return render(request, 'store/vendor/customers.html', context)
+
+
+@login_required
+@role_required(['owner', 'manager'])
+@require_online_store_access
+def manage_services(request):
+    """
+    Create, edit, toggle, and share Online Classes, Courses, and Services.
+    Supports dual pricing: NGN (for Nigeria) and USD (for outside Nigeria),
+    and stores the private class/access link sent automatically after payment.
+    """
+    org = get_request_organization(request)
+    store, _ = StoreListing.objects.get_or_create(organization=org)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'create').strip()
+
+        if action in ('create', 'edit'):
+            service_id = request.POST.get('service_id', '').strip()
+            title = request.POST.get('title', '').strip()
+            description = request.POST.get('description', '').strip()
+            access_link = request.POST.get('access_link', '').strip()
+            access_instructions = request.POST.get('access_instructions', '').strip()
+            event_date_str = request.POST.get('event_date', '').strip()
+            image_file = request.FILES.get('image')
+
+            try:
+                price_ngn = Decimal(str(request.POST.get('price_ngn', '0') or '0').strip())
+            except Exception:
+                price_ngn = Decimal('0.00')
+
+            try:
+                price_usd = Decimal(str(request.POST.get('price_usd', '0') or '0').strip())
+            except Exception:
+                price_usd = Decimal('0.00')
+
+            try:
+                usd_to_ngn_rate = Decimal(str(request.POST.get('usd_to_ngn_rate', '0') or '0').strip())
+            except Exception:
+                usd_to_ngn_rate = Decimal('0.00')
+
+            try:
+                max_participants = max(0, int(request.POST.get('max_participants', '0') or 0))
+            except Exception:
+                max_participants = 0
+
+            if not title or not access_link:
+                messages.error(request, "Please provide both the Class/Course Name and the Class Access Link.")
+                return redirect('manage_services')
+
+            event_date_val = None
+            if event_date_str:
+                for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                    try:
+                        naive_dt = timezone.datetime.strptime(event_date_str, fmt)
+                        event_date_val = timezone.make_aware(naive_dt, timezone.get_current_timezone())
+                        break
+                    except ValueError:
+                        continue
+
+            if usd_to_ngn_rate <= Decimal('0.00'):
+                if price_ngn > Decimal('0.00') and price_usd > Decimal('0.00'):
+                    usd_to_ngn_rate = (price_ngn / price_usd).quantize(Decimal('0.01'))
+                else:
+                    usd_to_ngn_rate = Decimal('1500.00')
+
+            if action == 'edit' and service_id:
+                service = get_object_or_404(ServiceListing, id=service_id, organization=org)
+                service.title = title
+                service.description = description
+                service.price_ngn = price_ngn
+                service.price_usd = price_usd
+                service.usd_to_ngn_rate = usd_to_ngn_rate
+                service.access_link = access_link
+                service.access_instructions = access_instructions
+                service.event_date = event_date_val
+                service.max_participants = max_participants
+                if image_file:
+                    service.image = image_file
+                service.save()
+                messages.success(request, f"Class/Service '{service.title}' updated successfully!")
+            else:
+                service = ServiceListing.objects.create(
+                    organization=org,
+                    store=store,
+                    title=title,
+                    description=description,
+                    price_ngn=price_ngn,
+                    price_usd=price_usd,
+                    usd_to_ngn_rate=usd_to_ngn_rate,
+                    access_link=access_link,
+                    access_instructions=access_instructions,
+                    event_date=event_date_val,
+                    max_participants=max_participants,
+                    image=image_file,
+                    is_active=True,
+                )
+                messages.success(request, f"Class/Service '{service.title}' created! Copy its shareable link below.")
+
+            return redirect('manage_services')
+
+        elif action == 'toggle_active':
+            service_id = request.POST.get('service_id')
+            service = get_object_or_404(ServiceListing, id=service_id, organization=org)
+            service.is_active = not service.is_active
+            service.save(update_fields=['is_active', 'updated_at'])
+            messages.success(request, f"'{service.title}' is now {'Active' if service.is_active else 'Closed'}.")
+            return redirect('manage_services')
+
+        elif action == 'delete':
+            service_id = request.POST.get('service_id')
+            service = get_object_or_404(ServiceListing, id=service_id, organization=org)
+            title_copy = service.title
+            service.delete()
+            messages.success(request, f"Deleted '{title_copy}'.")
+            return redirect('manage_services')
+
+    services = list(
+        ServiceListing.objects.filter(organization=org)
+        .prefetch_related('enrollments')
+        .order_by('-created_at')
+    )
+
+    for srv in services:
+        all_enr = list(srv.enrollments.all())
+        paid_enr = [e for e in all_enr if e.payment_status == 'paid']
+        srv.applicants_total = len(all_enr)
+        srv.paid_total = len(paid_enr)
+        srv.revenue_ngn = sum((e.amount for e in paid_enr if e.currency == 'NGN'), Decimal('0.00'))
+        srv.revenue_usd = sum((e.amount for e in paid_enr if e.currency == 'USD'), Decimal('0.00'))
+        srv.settled_ngn_total = sum((e.settled_amount_ngn for e in paid_enr), Decimal('0.00'))
+        srv.share_url = request.build_absolute_uri(
+            reverse('service_landing', kwargs={'org_slug': org.slug, 'service_id': srv.id})
+        )
+
+    context = {
+        'organization': org,
+        'store': store,
+        'services': services,
+    }
+    return render(request, 'store/vendor/services.html', context)
+
+
+@login_required
+@role_required(['owner', 'manager'])
+@require_online_store_access
+def service_enrollments_list(request, service_id=None):
+    """
+    Full history of all applicants (pending/applied) and paid students for a specific class
+    or across all classes in the organization.
+    Supports filtering, CSV export, and resending the class access link email.
+    """
+    org = get_request_organization(request)
+    store, _ = StoreListing.objects.get_or_create(organization=org)
+
+    selected_service = None
+    if service_id:
+        selected_service = get_object_or_404(ServiceListing, id=service_id, organization=org)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        enrollment_id = request.POST.get('enrollment_id')
+        if action == 'resend_email' and enrollment_id:
+            enr = get_object_or_404(ServiceEnrollment, id=enrollment_id, organization=org)
+            if enr.payment_status != 'paid':
+                messages.warning(request, "Can only send the class access link to paid enrollments.")
+            else:
+                sent = send_service_enrollment_email(enr.id)
+                if sent:
+                    enr.access_email_sent = True
+                    enr.access_email_sent_at = timezone.now()
+                    enr.save(update_fields=['access_email_sent', 'access_email_sent_at', 'updated_at'])
+                    messages.success(request, f"Class access link email resent to {enr.attendee_email}!")
+                else:
+                    messages.error(request, f"Could not send email to {enr.attendee_email}.")
+            return redirect(request.get_full_path())
+
+    qs = ServiceEnrollment.objects.filter(organization=org).select_related('service').order_by('-created_at')
+    if selected_service:
+        qs = qs.filter(service=selected_service)
+
+    status_filter = request.GET.get('status', '').strip()
+    currency_filter = request.GET.get('currency', '').strip().upper()
+    search_query = request.GET.get('q', '').strip()
+
+    if status_filter in ('pending', 'paid', 'failed'):
+        qs = qs.filter(payment_status=status_filter)
+    if currency_filter in ('NGN', 'USD'):
+        qs = qs.filter(currency=currency_filter)
+    if search_query:
+        qs = (
+            qs.filter(attendee_name__icontains=search_query)
+            | qs.filter(attendee_email__icontains=search_query)
+            | qs.filter(attendee_phone__icontains=search_query)
+            | qs.filter(country__icontains=search_query)
+            | qs.filter(enrollment_number__icontains=search_query)
+            | qs.filter(payment_reference__icontains=search_query)
+        )
+
+    # CSV Export
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        filename = f"class_enrollments_{selected_service.slug if selected_service else org.slug}.csv"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'Enrollment #', 'Class / Service', 'Attendee Name', 'Email', 'Phone',
+            'Country', 'City/State', 'Currency', 'Amount', 'Settled NGN (₦)',
+            'Payment Status', 'Payment Reference', 'Applied At', 'Paid At', 'Email Sent'
+        ])
+        for e in qs:
+            writer.writerow([
+                e.enrollment_number,
+                e.service.title,
+                e.attendee_name,
+                e.attendee_email,
+                e.attendee_phone,
+                e.country,
+                e.city_state,
+                e.currency,
+                f"{e.amount:.2f}",
+                f"{e.settled_amount_ngn:.2f}",
+                e.get_payment_status_display(),
+                e.payment_reference or '',
+                e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '',
+                e.paid_at.strftime('%Y-%m-%d %H:%M') if e.paid_at else '',
+                'Yes' if e.access_email_sent else 'No',
+            ])
+        return response
+
+    # Summary stats across the filtered class (or all classes)
+    base_stats_qs = ServiceEnrollment.objects.filter(organization=org)
+    if selected_service:
+        base_stats_qs = base_stats_qs.filter(service=selected_service)
+
+    total_applicants = base_stats_qs.count()
+    total_paid = base_stats_qs.filter(payment_status='paid').count()
+    total_pending = base_stats_qs.filter(payment_status='pending').count()
+    revenue_ngn = base_stats_qs.filter(payment_status='paid', currency='NGN').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+    revenue_usd = base_stats_qs.filter(payment_status='paid', currency='USD').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+    settled_ngn_total = base_stats_qs.filter(payment_status='paid').aggregate(total=models.Sum('settled_amount_ngn'))['total'] or Decimal('0.00')
+
+    paginator = Paginator(qs, 25)
+    enrollments_page = paginator.get_page(request.GET.get('page'))
+
+    all_services = ServiceListing.objects.filter(organization=org).order_by('title')
+
+    context = {
+        'organization': org,
+        'store': store,
+        'selected_service': selected_service,
+        'all_services': all_services,
+        'enrollments_page': enrollments_page,
+        'status_filter': status_filter,
+        'currency_filter': currency_filter,
+        'search_query': search_query,
+        'total_applicants': total_applicants,
+        'total_paid': total_paid,
+        'total_pending': total_pending,
+        'revenue_ngn': revenue_ngn,
+        'revenue_usd': revenue_usd,
+        'settled_ngn_total': settled_ngn_total,
+    }
+    return render(request, 'store/vendor/service_enrollments.html', context)
+
 

@@ -18,7 +18,7 @@ from xhtml2pdf import pisa
 
 from account.decorators import role_required
 from account.models import ActivityLog, Branch, Notification
-from account.utils import get_request_org_role, get_request_organization
+from account.utils import get_request_org_role, get_request_organization, has_request_permission
 from ims.models import Inventory, Product, RestockRequest, RestockRequestItem
 
 logger = logging.getLogger(__name__)
@@ -36,13 +36,13 @@ def _generate_restock_number(organization):
 
 def _check_branch_access(request, organization, branch):
     """
-    Ensure that a manager can only access restock requests for their assigned branch.
+    Ensure that a manager or authorized sales rep can only access restock requests for their assigned branch.
     Owners have access to all branches in their organization.
     """
     role = get_request_org_role(request, organization)
     if role == 'owner':
         return True
-    if role == 'manager':
+    if role == 'manager' or (role == 'sales' and has_request_permission(request, 'inventory', organization=organization, branch=branch)):
         assigned_branch = request.user.get_branch_in_organization(organization) or getattr(request.user, 'branch', None)
         if assigned_branch and str(assigned_branch.id) != str(branch.id):
             messages.error(request, 'You only have permission to manage restock requests for your assigned branch.')

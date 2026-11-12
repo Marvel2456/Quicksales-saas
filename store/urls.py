@@ -17,6 +17,9 @@ urlpatterns = [
     path('dashboard/store/payouts/', vendor_views.vendor_payouts, name='vendor_payouts'),
     path('dashboard/store/bank/verify/', vendor_views.verify_bank_account_api, name='vendor_verify_bank_account'),
     path('dashboard/store/customers/', vendor_views.vendor_customers, name='vendor_customers'),
+    path('dashboard/store/services/', vendor_views.manage_services, name='manage_services'),
+    path('dashboard/store/services/enrollments/', vendor_views.service_enrollments_list, name='service_enrollments_all'),
+    path('dashboard/store/services/<uuid:service_id>/enrollments/', vendor_views.service_enrollments_list, name='service_enrollments_list'),
 
     # Public Storefront & Shopping Cart
     path('store/<slug:org_slug>/', views.storefront, name='storefront'),
@@ -26,4 +29,10 @@ urlpatterns = [
     path('store/<slug:org_slug>/checkout/', views.store_checkout, name='store_checkout'),
     path('store/<slug:org_slug>/payment/callback/', views.store_payment_callback, name='store_payment_callback'),
     path('store/<slug:org_slug>/order/<str:order_number>/', views.order_success, name='order_success'),
+
+    # Public Classes & Services (2-Step Location-Routed Registration & Payment)
+    path('store/<slug:org_slug>/class/<uuid:service_id>/', views.service_landing_view, name='service_landing'),
+    path('store/<slug:org_slug>/class/checkout/<str:enrollment_number>/', views.service_checkout_payment, name='service_checkout_payment'),
+    path('store/<slug:org_slug>/class/payment/callback/', views.service_payment_callback, name='service_payment_callback'),
+    path('store/<slug:org_slug>/class/enrolled/<str:enrollment_number>/', views.service_enrollment_success, name='service_enrollment_success'),
 ]

@@ -1,0 +1,25 @@
+Hi {{ attendee_name }},
+
+Your enrollment in "{{ service.title }}" hosted by {{ store_name }} is confirmed!
+
+==================================================
+YOUR PRIVATE CLASS / ACCESS LINK:
+{{ access_link }}
+==================================================
+{% if event_date %}
+Scheduled Date & Time: {{ event_date|date:"F d, Y \a\t g:i A" }}
+{% endif %}{% if access_instructions %}
+Access Instructions / Passcode:
+{{ access_instructions }}
+{% endif %}
+Enrollment Details:
+- Enrollment #: {{ enrollment_number }}
+- Attendee: {{ attendee_name }} ({{ attendee_email }})
+- Country: {{ country }}
+- Amount Paid: {{ currency_symbol }}{{ amount|floatformat:2 }} ({{ currency }})
+
+View your enrollment receipt online: {{ receipt_url }}
+
+Warm regards,
+{{ store_name }}
+

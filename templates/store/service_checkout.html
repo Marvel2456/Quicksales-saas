@@ -1,0 +1,123 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Payment — {{ service.title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            color: #0f172a;
+        }
+        .checkout-card {
+            max-width: 580px;
+            margin: 48px auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+        .checkout-header {
+            background: linear-gradient(135deg, {{ store.get_brand_color|default:'#2563eb' }} 0%, #1e293b 100%);
+            color: #ffffff;
+            padding: 24px 28px;
+        }
+        .price-banner {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="checkout-card">
+            <div class="checkout-header d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="small text-uppercase opacity-75 fw-semibold">Step 2 of 2 &bull; Payment Summary</div>
+                    <h4 class="mb-0 fw-bold">{{ service.title }}</h4>
+                </div>
+                <span class="badge bg-light text-dark">#{{ enrollment.enrollment_number }}</span>
+            </div>
+
+            <div class="p-4 p-md-5">
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} mb-3">{{ message }}</div>
+                {% endfor %}
+                {% endif %}
+
+                <!-- System-Assigned Fee Based on Student's Country -->
+                <div class="price-banner mb-4">
+                    <div class="small text-muted text-uppercase fw-semibold mb-1">
+                        Assigned Registration Fee ({{ enrollment.country }})
+                    </div>
+                    <div class="display-6 fw-bold text-primary">
+                        {{ enrollment.currency_symbol }}{{ enrollment.amount|floatformat:2 }}
+                        <span class="fs-6 text-secondary">{{ enrollment.currency }}</span>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        {% if enrollment.currency == 'NGN' %}
+                        Local Nigeria Rate (Naira)
+                        {% else %}
+                        International Rate (US Dollars)
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Student Details Summary -->
+                <h6 class="text-uppercase text-muted small fw-bold mb-2">Registrant Details</h6>
+                <table class="table table-sm mb-4">
+                    <tr>
+                        <td class="text-muted">Full Name</td>
+                        <td class="text-end fw-semibold">{{ enrollment.attendee_name }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Email (Class Link Delivery)</td>
+                        <td class="text-end fw-semibold">{{ enrollment.attendee_email }}</td>
+                    </tr>
+                    {% if enrollment.attendee_phone %}
+                    <tr>
+                        <td class="text-muted">Phone</td>
+                        <td class="text-end">{{ enrollment.attendee_phone }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="text-muted">Country / Location</td>
+                        <td class="text-end">
+                            {{ enrollment.country }}{% if enrollment.city_state %} ({{ enrollment.city_state }}){% endif %}
+                        </td>
+                    </tr>
+                </table>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold fs-6"
+                        style="background-color: {{ store.get_brand_color|default:'#2563eb' }}; border-color: {{ store.get_brand_color|default:'#2563eb' }};">
+                        {% if enrollment.amount <= 0 %}
+                        Confirm Free Registration &amp; Get Class Link
+                        {% else %}
+                        Pay {{ enrollment.currency_symbol }}{{ enrollment.amount|floatformat:2 }} ({{ enrollment.currency }}) Now &rarr;
+                        {% endif %}
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'service_landing' organization.slug service.id %}" class="small text-muted text-decoration-none">
+                        &larr; Edit registration details or country
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+

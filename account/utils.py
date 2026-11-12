@@ -92,3 +92,34 @@ def get_request_branch(request, organization=None):
         return branch
 
     return getattr(user, "branch", None)
+
+
+def get_request_permissions(request, organization=None, branch=None):
+    """Return list of extra feature permission keys granted to request.user in the current organization/branch."""
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return []
+
+    if organization is None:
+        organization = get_request_organization(request)
+
+    if hasattr(user, "get_permissions_in_organization"):
+        return user.get_permissions_in_organization(organization=organization, branch=branch)
+    return []
+
+
+def has_request_permission(request, permission_key, organization=None, branch=None):
+    """Return True if request.user has been granted permission_key (or is owner) in the active organization/branch."""
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return False
+
+    if organization is None:
+        organization = get_request_organization(request)
+
+    role = get_request_org_role(request, organization)
+    if role == "owner":
+        return True
+
+    return permission_key in get_request_permissions(request, organization=organization, branch=branch)
+

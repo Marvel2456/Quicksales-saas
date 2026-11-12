@@ -991,6 +991,260 @@ class InvoiceInstallmentAndPermissionsTests(TestCase):
         self.assertEqual(self.inventory.sale_price, 750.0)
         self.assertEqual(self.product.profit, 200.0)
 
+    def test_online_class_location_pricing_email_delivery_history_and_idempotency(self):
+        from decimal import Decimal
+        from django.core import mail
+        from store.models import ServiceListing, ServiceEnrollment, StoreBankAccount, StorePayout
+        from store.vendor_views import calculate_organization_balances, request_organization_payout
+
+        # 1. Owner creates an online class with NGN (30,000) and USD (20) pricing and a private Zoom link
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        create_resp = self.client.post(reverse('manage_services'), {
+            'action': 'create',
+            'title': 'Full-Stack AI Bootcamp',
+            'description': 'Learn to build AI SaaS apps.',
+            'price_ngn': '30000.00',
+            'price_usd': '20.00',
+            'access_link': 'https://zoom.us/j/999888777',
+            'access_instructions': 'Passcode: AI2026',
+            'max_participants': '50',
+        })
+        self.assertEqual(create_resp.status_code, 302)
+        service = ServiceListing.objects.get(organization=self.org, title='Full-Stack AI Bootcamp')
+        self.assertEqual(service.price_ngn, Decimal('30000.00'))
+        self.assertEqual(service.price_usd, Decimal('20.00'))
+
+        # 2. Public Step 1 landing page does NOT leak the private class link
+        self.client.logout()
+        landing_url = reverse('service_landing', kwargs={'org_slug': self.org.slug, 'service_id': service.id})
+        get_landing = self.client.get(landing_url)
+        self.assertEqual(get_landing.status_code, 200)
+        self.assertNotContains(get_landing, 'https://zoom.us/j/999888777')
+
+        # 3. Student in Nigeria applies in Step 1 -> automatically assigned NGN (30,000.00)
+        step1_ng = self.client.post(landing_url, {
+            'attendee_name': 'Chidi Okonkwo',
+            'attendee_email': 'chidi@nigeria.com',
+            'attendee_phone': '+2348011112222',
+            'country': 'Nigeria',
+            'city_state': 'Lagos',
+            'idempotency_key': 'idem-ng-001',
+        })
+        self.assertEqual(step1_ng.status_code, 302)
+        enr_ng = ServiceEnrollment.objects.get(attendee_email='chidi@nigeria.com')
+        self.assertEqual(enr_ng.currency, 'NGN')
+        self.assertEqual(enr_ng.amount, Decimal('30000.00'))
+        self.assertEqual(enr_ng.payment_status, 'pending')
+
+        # Duplicate Step 1 submission with same idempotency_key reuses the same enrollment
+        self.client.post(landing_url, {
+            'attendee_name': 'Chidi Okonkwo',
+            'attendee_email': 'chidi@nigeria.com',
+            'attendee_phone': '+2348011112222',
+            'country': 'Nigeria',
+            'idempotency_key': 'idem-ng-001',
+        })
+        self.assertEqual(ServiceEnrollment.objects.filter(attendee_email='chidi@nigeria.com').count(), 1)
+
+        # Complete payment for Nigeria student via callback
+        from unittest.mock import patch, MagicMock
+        mock_verify_resp = MagicMock()
+        mock_verify_resp.status_code = 200
+        mock_verify_resp.json.return_value = {'data': {'transaction_status': 'success'}}
+
+        mail.outbox = []
+        cb_url = reverse('service_payment_callback', kwargs={'org_slug': self.org.slug})
+        with patch('store.views.requests.get', return_value=mock_verify_resp):
+            cb_resp = self.client.get(f"{cb_url}?reference={enr_ng.payment_reference}")
+            self.assertEqual(cb_resp.status_code, 302)
+            enr_ng.refresh_from_db()
+            self.assertEqual(enr_ng.payment_status, 'paid')
+            self.assertTrue(enr_ng.access_email_sent)
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertIn('https://zoom.us/j/999888777', mail.outbox[0].body)
+
+            # Idempotent callback retry -> does NOT send a second email
+            self.client.get(f"{cb_url}?reference={enr_ng.payment_reference}")
+            self.assertEqual(len(mail.outbox), 1)
+
+        # 4. Student outside Nigeria (United States) applies in Step 1 -> automatically assigned USD ($20.00)
+        step1_us = self.client.post(landing_url, {
+            'attendee_name': 'Sarah Miller',
+            'attendee_email': 'sarah@usa.com',
+            'attendee_phone': '+14155550199',
+            'country': 'United States',
+            'city_state': 'California',
+            'idempotency_key': 'idem-us-001',
+        })
+        self.assertEqual(step1_us.status_code, 302)
+        enr_us = ServiceEnrollment.objects.get(attendee_email='sarah@usa.com')
+        self.assertEqual(enr_us.currency, 'USD')
+        self.assertEqual(enr_us.amount, Decimal('20.00'))
+        self.assertEqual(enr_us.settled_amount_ngn, Decimal('30000.00'))
+
+        # Complete payment for US student
+        mail.outbox = []
+        with patch('store.views.requests.get', return_value=mock_verify_resp):
+            self.client.get(f"{cb_url}?reference={enr_us.payment_reference}")
+        enr_us.refresh_from_db()
+        self.assertEqual(enr_us.payment_status, 'paid')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('https://zoom.us/j/999888777', mail.outbox[0].body)
+
+        # 5. Check organization balance & idempotent payout withdrawal
+        balances = calculate_organization_balances(self.org)
+        self.assertEqual(balances['service_revenue_ngn'], Decimal('30000.00'))
+        self.assertEqual(balances['service_revenue_usd'], Decimal('20.00'))
+        self.assertEqual(balances['available_balance'], Decimal('60000.00'))
+
+        StoreBankAccount.objects.create(
+            organization=self.org,
+            bank_name='GTBank',
+            account_number='0123456789',
+            account_name='Invoice Org Ltd'
+        )
+        ok1, _, p1 = request_organization_payout(
+            self.org, self.owner, Decimal('25000.00'), idempotency_key='withdraw-key-1'
+        )
+        ok2, _, p2 = request_organization_payout(
+            self.org, self.owner, Decimal('25000.00'), idempotency_key='withdraw-key-1'
+        )
+        self.assertTrue(ok1 and ok2)
+        self.assertEqual(p1.id, p2.id)
+        self.assertEqual(StorePayout.objects.filter(organization=self.org).count(), 1)
+
+        # 6. Owner views applicant & payment history page and exports CSV
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        hist_resp = self.client.get(reverse('service_enrollments_list', kwargs={'service_id': service.id}))
+        self.assertEqual(hist_resp.status_code, 200)
+        self.assertContains(hist_resp, 'Chidi Okonkwo')
+        self.assertContains(hist_resp, 'Sarah Miller')
+
+    def test_staff_feature_permissions_branch_isolation_and_user_scoped_invoices(self):
+        from ims.models import Invoice
+        from account.models import OrganizationMembership
+
+        # 1. Sales Rep without 'invoices' permission cannot access Invoices page
+        self.client.login(email="sales@invoiceorg.com", password="password123")
+        denied_resp = self.client.get(reverse('invoices', kwargs={'pk': self.branch.id}))
+        self.assertEqual(denied_resp.status_code, 302)
+        self.assertIn('login', denied_resp.url)
+
+        # 2. Owner grants 'invoices' permission to Sales Rep in Branch A (self.branch)
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        edit_staff_resp = self.client.post(reverse('edit_staff'), {
+            'id': str(self.sales_user.id),
+            'branch_id': str(self.branch.id),
+            'first_name': self.sales_user.first_name,
+            'last_name': self.sales_user.last_name,
+            'phone_number': '08011122233',
+            'email': self.sales_user.email,
+            'branch': str(self.branch.id),
+            'role': 'sales',
+            'permissions': ['invoices'],
+        })
+        self.assertEqual(edit_staff_resp.status_code, 302)
+        membership = OrganizationMembership.objects.get(user=self.sales_user, organization=self.org)
+        self.assertIn('invoices', membership.permissions)
+
+        # 3. Create a second branch (Branch B) and a Sales Rep in Branch B without invoice permission
+        branch_b = Branch.objects.create(name="Branch B", organization=self.org)
+        sales_b = User.objects.create_user(
+            email="sales_b@invoiceorg.com", password="password123",
+            first_name="Dave", last_name="BranchBSales", role="sales",
+            organization=self.org, branch=branch_b, is_active=True
+        )
+        OrganizationMembership.objects.create(
+            user=sales_b, organization=self.org, branch=branch_b, role="sales", permissions=[]
+        )
+
+        # Branch B's sales rep still has NO access to invoices
+        self.client.login(email="sales_b@invoiceorg.com", password="password123")
+        b_denied = self.client.get(reverse('invoices', kwargs={'pk': branch_b.id}))
+        self.assertEqual(b_denied.status_code, 302)
+        self.assertIn('login', b_denied.url)
+
+        # 4. Sales Rep in Branch A can now access Invoices in Branch A and create an invoice,
+        #    but is blocked from accessing Branch B's invoices!
+        self.client.login(email="sales@invoiceorg.com", password="password123")
+        cross_branch_resp = self.client.get(reverse('invoices', kwargs={'pk': branch_b.id}))
+        self.assertEqual(cross_branch_resp.status_code, 302)
+
+        create_sales_resp = self.client.post(reverse('create_invoice', kwargs={'pk': self.branch.id}), {
+            'customer_name': 'Sales Rep Customer',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['1'],
+        })
+        self.assertEqual(create_sales_resp.status_code, 302)
+        sales_invoice = Invoice.objects.get(customer_name='Sales Rep Customer')
+        self.assertEqual(sales_invoice.created_by, self.sales_user)
+
+        # 5. Manager creates their own invoice in Branch A
+        self.client.login(email="manager@invoiceorg.com", password="password123")
+        create_mgr_resp = self.client.post(reverse('create_invoice', kwargs={'pk': self.branch.id}), {
+            'customer_name': 'Manager Customer',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['2'],
+        })
+        self.assertEqual(create_mgr_resp.status_code, 302)
+        mgr_invoice = Invoice.objects.get(customer_name='Manager Customer')
+        self.assertEqual(mgr_invoice.created_by, self.manager)
+
+        # 6. User-Scoped Invoice Visibility:
+        #    - Manager ONLY sees Manager Customer, NOT Sales Rep Customer, and cannot view/edit Sales Rep's invoice
+        mgr_list = self.client.get(reverse('invoices', kwargs={'pk': self.branch.id}))
+        self.assertEqual(mgr_list.status_code, 200)
+        self.assertContains(mgr_list, 'Manager Customer')
+        self.assertNotContains(mgr_list, 'Sales Rep Customer')
+
+        mgr_steal_detail = self.client.get(reverse('invoice_detail', kwargs={'pk': sales_invoice.id}))
+        self.assertEqual(mgr_steal_detail.status_code, 302)
+
+        #    - Sales Rep ONLY sees Sales Rep Customer, NOT Manager Customer, and cannot view/edit Manager's invoice
+        self.client.login(email="sales@invoiceorg.com", password="password123")
+        sales_list = self.client.get(reverse('invoices', kwargs={'pk': self.branch.id}))
+        self.assertEqual(sales_list.status_code, 200)
+        self.assertContains(sales_list, 'Sales Rep Customer')
+        self.assertNotContains(sales_list, 'Manager Customer')
+
+        sales_steal_edit = self.client.post(reverse('edit_invoice', kwargs={'pk': mgr_invoice.id}), {
+            'customer_name': 'Hacked Name',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['1'],
+        })
+        self.assertEqual(sales_steal_edit.status_code, 302)
+        mgr_invoice.refresh_from_db()
+        self.assertEqual(mgr_invoice.customer_name, 'Manager Customer')
+
+        # 7. Owner sees ALL invoices in Branch A and can edit and close any staff member's invoice!
+        self.client.login(email="owner@invoiceorg.com", password="password123")
+        owner_list = self.client.get(reverse('invoices', kwargs={'pk': self.branch.id}))
+        self.assertEqual(owner_list.status_code, 200)
+        self.assertContains(owner_list, 'Sales Rep Customer')
+        self.assertContains(owner_list, 'Manager Customer')
+
+        # Owner edits Sales Rep's invoice
+        owner_edit = self.client.post(reverse('edit_invoice', kwargs={'pk': sales_invoice.id}), {
+            'customer_name': 'Sales Rep Customer (Owner Edited)',
+            'payment_plan': 'one_time',
+            'inventory_id[]': [str(self.inventory.id)],
+            'quantity[]': ['3'],
+        })
+        self.assertEqual(owner_edit.status_code, 302)
+        sales_invoice.refresh_from_db()
+        self.assertEqual(sales_invoice.customer_name, 'Sales Rep Customer (Owner Edited)')
+        self.assertEqual(sales_invoice.total_amount, 600.0)
+
+        # Owner closes Sales Rep's invoice
+        owner_close = self.client.post(reverse('close_invoice', kwargs={'pk': sales_invoice.id}))
+        self.assertEqual(owner_close.status_code, 302)
+        sales_invoice.refresh_from_db()
+        self.assertEqual(sales_invoice.status, 'closed')
+
+
+
 
 
 

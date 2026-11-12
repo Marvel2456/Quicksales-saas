@@ -45,7 +45,7 @@ def branch_category(request):
 
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='categories')
 @login_required
 # @is_unsubscribed
 def category_list(request, pk):

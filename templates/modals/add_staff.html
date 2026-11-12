@@ -53,6 +53,21 @@
             </select>
           </div>
 
+          <div class="mb-3 border rounded p-3 bg-light">
+            <label class="form-label fw-semibold mb-1">Feature Permissions (Optional Extra Access)</label>
+            <div class="small text-muted mb-2">
+              Assign additional features to this staff member for this branch (e.g., allow a Sales Rep to create &amp; view their own invoices).
+            </div>
+            {% for perm_key, perm_label in staff_permission_choices %}
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" name="permissions" value="{{ perm_key }}" id="add_perm_{{ perm_key }}">
+              <label class="form-check-label" for="add_perm_{{ perm_key }}">
+                {{ perm_label }}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+
           <div class="mt-4 text-center" style="width:100%;">
             <button type="submit" class="btn btn-secondary">
               <i class="fas fa-plus"></i>&nbsp;&nbsp; Add Staff
