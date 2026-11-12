@@ -42,6 +42,11 @@ class Buyer(models.Model):
     def check_password(self, raw_password):
         return check_password(raw_password, self.password)
 
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = str(self.email).strip().lower()
+        super().save(*args, **kwargs)
+
 
 class StoreListing(models.Model):
     """

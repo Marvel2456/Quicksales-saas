@@ -114,6 +114,12 @@ class OwnerRegisterForm(forms.Form):
             raise forms.ValidationError("First name is required.")
         return val
 
+    def clean_email(self):
+        val = self.cleaned_data.get('email', '').strip().lower()
+        if not val:
+            raise forms.ValidationError("Business email is required.")
+        return val
+
     def clean_last_name(self):
         val = self.cleaned_data.get('last_name', '').strip()
         if not val:
@@ -184,11 +190,17 @@ class CustomUserCreationForm(UserCreationForm):
         model = CustomUser
         fields = ('email', 'first_name', 'last_name', 'phone_number', 'organization', 'branch', 'role')
 
+    def clean_email(self):
+        return self.cleaned_data.get('email', '').strip().lower()
+
 
 class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = CustomUser
         fields = ('email', 'first_name', 'last_name', 'phone_number', 'organization', 'branch', 'role')
+
+    def clean_email(self):
+        return self.cleaned_data.get('email', '').strip().lower()
 
 class OrganizationForm(ModelForm):
     class Meta:
@@ -218,6 +230,9 @@ class PasswordResetRequestForm(forms.Form):
             }
         ),
     )
+
+    def clean_email(self):
+        return self.cleaned_data.get('email', '').strip().lower()
 
 
 class PasswordResetConfirmForm(SetPasswordForm):
