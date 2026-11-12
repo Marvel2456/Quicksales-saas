@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Class Applicants & Payment History — {{ organization.name }}{% endblock title %}
+
+{% block content %}
+<div class="app-content pt-3 p-md-3 p-lg-4">
+    <div class="container-xl">
+
+        <div class="row g-3 mb-4 align-items-center justify-content-between">
+            <div class="col-auto">
+                <a href="{% url 'manage_services' %}" class="text-muted text-decoration-none small d-block mb-1">
+                    &larr; Back to Classes &amp; Services
+                </a>
+                <h1 class="app-page-title mb-0">
+                    {% if selected_service %}
+                    Applicants &amp; Payments — {{ selected_service.title }}
+                    {% else %}
+                    All Class Applicants &amp; Payment History
+                    {% endif %}
+                </h1>
+            </div>
+            <div class="col-auto">
+                <a href="?export=csv{% if status_filter %}&status={{ status_filter }}{% endif %}{% if currency_filter %}&currency={{ currency_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}"
+                    class="btn app-btn-secondary">
+                    <i class="fas fa-download me-1"></i> Export CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- Summary Metric Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="app-card shadow-sm p-3 text-center">
+                    <div class="small text-muted">Total Applied</div>
+                    <div class="fs-4 fw-bold">{{ total_applicants }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="app-card shadow-sm p-3 text-center">
+                    <div class="small text-muted">Paid &amp; Enrolled</div>
+                    <div class="fs-4 fw-bold text-success">{{ total_paid }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="app-card shadow-sm p-3 text-center">
+                    <div class="small text-muted">NGN Revenue (Nigeria)</div>
+                    <div class="fs-5 fw-bold">₦{{ revenue_ngn|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="app-card shadow-sm p-3 text-center">
+                    <div class="small text-muted">USD Revenue (Intl)</div>
+                    <div class="fs-5 fw-bold text-primary">${{ revenue_usd|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <form method="GET" class="row gx-2 gy-2 mb-4 align-items-end">
+            <div class="col-auto">
+                <input type="text" name="q" class="form-control" placeholder="Search name, email, country, ref..." value="{{ search_query }}">
+            </div>
+            <div class="col-auto">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid &amp; Enrolled</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Applied — Pending Payment</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Payment Failed</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="currency" class="form-select">
+                    <option value="">All Currencies</option>
+                    <option value="NGN" {% if currency_filter == 'NGN' %}selected{% endif %}>NGN (₦ — Nigeria)</option>
+                    <option value="USD" {% if currency_filter == 'USD' %}selected{% endif %}>USD ($ — Outside Nigeria)</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn app-btn-secondary">Filter</button>
+                <a href="?" class="btn btn-outline-secondary ms-1">Clear</a>
+            </div>
+        </form>
+
+        <!-- Applicants & Payments Table -->
+        <div class="app-card app-card-orders-table shadow-sm mb-5">
+            <div class="app-card-body">
+                <div class="table-responsive">
+                    <table class="table app-table-hover mb-0 text-left align-middle">
+                        <thead>
+                            <tr>
+                                <th>Enrollment #</th>
+                                {% if not selected_service %}
+                                <th>Class / Course</th>
+                                {% endif %}
+                                <th>Applicant / Student</th>
+                                <th>Country / Location</th>
+                                <th>Assigned Fee</th>
+                                <th>Payment Status</th>
+                                <th>Class Link Email</th>
+                                <th>Date Applied / Paid</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enr in enrollments_page %}
+                            <tr>
+                                <td class="fw-semibold">{{ enr.enrollment_number }}</td>
+                                {% if not selected_service %}
+                                <td>{{ enr.service.title }}</td>
+                                {% endif %}
+                                <td>
+                                    <div class="fw-semibold">{{ enr.attendee_name }}</div>
+                                    <div class="small text-muted">{{ enr.attendee_email }}</div>
+                                    {% if enr.attendee_phone %}
+                                    <div class="small text-muted">{{ enr.attendee_phone }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ enr.country }}</span>
+                                    {% if enr.city_state %}
+                                    <div class="small text-muted">{{ enr.city_state }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-bold">
+                                        {{ enr.currency_symbol }}{{ enr.amount|floatformat:2 }}
+                                        <span class="badge bg-light text-secondary border">{{ enr.currency }}</span>
+                                    </div>
+                                    {% if enr.currency == 'USD' %}
+                                    <div class="small text-muted">Wallet: ₦{{ enr.settled_amount_ngn|floatformat:2 }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if enr.payment_status == 'paid' %}
+                                    <span class="badge bg-success">Paid &amp; Enrolled</span>
+                                    {% elif enr.payment_status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Applied — Pending Payment</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Payment Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if enr.access_email_sent %}
+                                    <span class="text-success small fw-semibold"><i class="fas fa-check-circle"></i> Sent</span>
+                                    {% if enr.access_email_sent_at %}
+                                    <div class="small text-muted">{{ enr.access_email_sent_at|date:"M d, H:i" }}</div>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted small">Not sent yet</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">
+                                    <div>Applied: {{ enr.created_at|date:"M d, Y H:i" }}</div>
+                                    {% if enr.paid_at %}
+                                    <div class="text-success">Paid: {{ enr.paid_at|date:"M d, Y H:i" }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if enr.payment_status == 'paid' %}
+                                    <form method="POST" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="resend_email">
+                                        <input type="hidden" name="enrollment_id" value="{{ enr.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Resend class link email">
+                                            Resend Class Link
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    No applicants or enrollments found matching your filters.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock content %}
+

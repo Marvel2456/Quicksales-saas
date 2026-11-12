@@ -62,6 +62,23 @@
                         </select>
                     </div>
 
+                    <div class="mb-3 border rounded p-3 bg-light">
+                        <label class="form-label fw-semibold mb-1">Feature Permissions (Optional Extra Access)</label>
+                        <div class="small text-muted mb-2">
+                            Grant or revoke access to specific features for this staff member in this branch.
+                        </div>
+                        {% for perm_key, perm_label in staff_permission_choices %}
+                        <div class="form-check mb-1">
+                            <input class="form-check-input" type="checkbox" name="permissions" value="{{ perm_key }}"
+                                id="edit_perm_{{ staff.user.pk }}_{{ perm_key }}"
+                                {% if perm_key in staff.permissions %}checked{% endif %}>
+                            <label class="form-check-label" for="edit_perm_{{ staff.user.pk }}_{{ perm_key }}">
+                                {{ perm_label }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
                     {% comment %} {% block Value-is_admin %} 
                     <div class="form-check form-check-inline mb-3">
                         <input name="is_admin" class="form-check-input" type="checkbox" id="inlineCheckbox1" value="{{staff.is_admin}}">

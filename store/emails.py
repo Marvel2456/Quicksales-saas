@@ -178,3 +178,90 @@ def send_merchant_order_notification_email(order_id):
         logger.exception("[Store Merchant Email] Error sending order notification for #%s to %s: %s", order.order_number, recipients, ex)
         return False
 
+
+def send_service_enrollment_email(enrollment_id):
+    """
+    Sends the private class/course access link, onboarding instructions, and receipt
+    to the student after their payment is confirmed.
+    """
+    from .models import ServiceEnrollment, StoreListing
+
+    try:
+        enrollment = ServiceEnrollment.objects.select_related(
+            'organization', 'organization__owned_by', 'service'
+        ).get(id=enrollment_id)
+    except ServiceEnrollment.DoesNotExist:
+        logger.error("[Service Email] ServiceEnrollment with ID %s does not exist.", enrollment_id)
+        return False
+
+    if not enrollment.attendee_email:
+        logger.warning("[Service Email] Enrollment %s has no attendee email.", enrollment.enrollment_number)
+        return False
+
+    org = enrollment.organization
+    service = enrollment.service
+    store = StoreListing.objects.filter(organization=org).first()
+    store_name = (org.name if org else "Online Academy") or "Online Academy"
+    brand_color = store.get_brand_color if store else (getattr(org, 'brand_color', None) or "#2563eb")
+
+    protocol = "https" if (getattr(settings, 'ENV', '') == "production" or not getattr(settings, 'DEBUG', True)) else "http"
+    domain = getattr(settings, 'DOMAIN', '') or "localhost:8000"
+    receipt_path = reverse('service_enrollment_success', kwargs={
+        'org_slug': org.slug,
+        'enrollment_number': enrollment.enrollment_number,
+    })
+    receipt_url = f"{protocol}://{domain}{receipt_path}"
+
+    context = {
+        'enrollment': enrollment,
+        'enrollment_number': enrollment.enrollment_number,
+        'service': service,
+        'store_name': store_name,
+        'brand_color': brand_color,
+        'attendee_name': enrollment.attendee_name or "Student",
+        'attendee_email': enrollment.attendee_email,
+        'attendee_phone': enrollment.attendee_phone,
+        'country': enrollment.country,
+        'currency': enrollment.currency,
+        'currency_symbol': enrollment.currency_symbol,
+        'amount': enrollment.amount,
+        'access_link': service.access_link,
+        'access_instructions': service.access_instructions,
+        'event_date': service.event_date,
+        'receipt_url': receipt_url,
+        'organization': org,
+    }
+
+    subject = f"You're In! Access Link for {service.title} (#{enrollment.enrollment_number})"
+    html_content = render_to_string('store/emails/service_enrollment_confirmation.html', context)
+    text_content = render_to_string('store/emails/service_enrollment_confirmation.txt', context)
+
+    from_email = f"{store_name} <{settings.DEFAULT_FROM_EMAIL}>"
+    reply_email = (
+        store.contact_email if (store and store.contact_email)
+        else (getattr(org.owned_by, 'email', None) if (org and getattr(org, 'owned_by', None)) else None)
+    )
+
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[enrollment.attendee_email],
+            reply_to=[reply_email] if reply_email else None,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=False)
+        logger.info(
+            "[Service Email] Successfully sent class access link email for #%s to %s",
+            enrollment.enrollment_number, enrollment.attendee_email
+        )
+        return True
+    except Exception as ex:
+        logger.exception(
+            "[Service Email] Error sending class access link email for #%s to %s: %s",
+            enrollment.enrollment_number, enrollment.attendee_email, ex
+        )
+        return False
+
+

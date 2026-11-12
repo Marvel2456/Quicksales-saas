@@ -131,6 +131,17 @@ class Branch(models.Model):
         return self.name
 
 
+STAFF_PERMISSION_CHOICES = [
+    ('invoices', 'Invoices (Create & manage own invoices)'),
+    ('inventory', 'Inventory & Restock'),
+    ('products', 'Products'),
+    ('categories', 'Categories'),
+    ('count', 'Inventory Count'),
+]
+VALID_STAFF_PERMISSION_KEYS = {key for key, _ in STAFF_PERMISSION_CHOICES}
+STAFF_PERMISSION_LABELS = dict(STAFF_PERMISSION_CHOICES)
+
+
 class OrganizationMembership(models.Model):
     """Junction table for many-to-many relationship between users and organizations"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
@@ -143,6 +154,11 @@ class OrganizationMembership(models.Model):
         ('sales', 'Sales')
     ]
     role = models.CharField(max_length=100, choices=role_choice, default='sales', db_index=True)
+    permissions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Extra feature permissions granted by the organization owner for this branch membership.',
+    )
     is_active = models.BooleanField(default=True, db_index=True, help_text='Is this membership active?')
     date_joined = models.DateTimeField(auto_now_add=True, db_index=True)
     date_removed = models.DateTimeField(blank=True, null=True)
@@ -170,6 +186,11 @@ class CustomUser(AbstractUser):
         ('sales', 'Sales')
     ]
     role = models.CharField(max_length=100, choices=role_choice, default='owner', db_index=True)
+    permissions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Fallback extra feature permissions granted to this user.',
+    )
     username = None
     email = models.EmailField(unique=True, db_index=True)
     first_name = models.CharField(max_length=100, blank=True, null=True)
@@ -227,6 +248,31 @@ class CustomUser(AbstractUser):
         """Get user's branch in a specific organization"""
         membership = self.get_membership_for_organization(organization)
         return membership.branch if membership else None
+
+    def get_permissions_in_organization(self, organization=None, branch=None):
+        """Return list of extra feature permission keys granted to this user in the organization/branch."""
+        if organization:
+            membership = self.get_membership_for_organization(organization)
+            if membership:
+                if branch and membership.branch_id and str(membership.branch_id) != str(branch.id if hasattr(branch, 'id') else branch):
+                    return []
+                perms = membership.permissions or []
+                return [p for p in perms if p in VALID_STAFF_PERMISSION_KEYS]
+            if self.organization_id and str(self.organization_id) != str(organization.id):
+                return []
+        if branch and self.branch_id and str(self.branch_id) != str(branch.id if hasattr(branch, 'id') else branch):
+            return []
+        perms = self.permissions or []
+        return [p for p in perms if p in VALID_STAFF_PERMISSION_KEYS]
+
+    def has_feature_permission(self, organization, permission_key, branch=None):
+        """Check whether user has a specific feature permission (or is owner) in the organization/branch."""
+        role = self.get_role_in_organization(organization) if organization else self.role
+        if not role and (not organization or self.organization_id == organization.id):
+            role = self.role
+        if role == 'owner':
+            return True
+        return permission_key in self.get_permissions_in_organization(organization=organization, branch=branch)
     
 
 class ActivityLog(models.Model):

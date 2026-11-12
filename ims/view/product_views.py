@@ -56,7 +56,7 @@ def branch_product(request):
     return render(request, 'ims/branch_product.html', context)
 
 # @cached_view(timeout=300, key_prefix='product_list')
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='products')
 @login_required
 @check_product_limit
 def product_category(request, pk):

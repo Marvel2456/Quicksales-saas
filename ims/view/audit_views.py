@@ -134,7 +134,7 @@ def adminCountView(request, pk):
     return render(request, 'ims/admin_count.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='count')
 @login_required
 def countView(request):
     organization = get_request_organization(request)
@@ -159,7 +159,7 @@ def countView(request):
     return render(request, 'ims/count.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='count')
 def addCount(request):
     if request.method == 'POST':
         organization = get_request_organization(request)
@@ -186,7 +186,7 @@ def addCount(request):
     return HttpResponse(context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='count')
 @login_required
 def uploadCountBulk(request):
     """Handle bulk count upload via CSV/Excel"""

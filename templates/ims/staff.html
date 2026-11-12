@@ -81,6 +81,7 @@
                                         <th class="cell">Name</th>
                                         <th class="cell">Phone Number</th>
                                         <th class="cell">Role</th>
+                                        <th class="cell">Extra Permissions</th>
                                         <th class="cell">Invitation Status</th>
                                         <th class="cell"></th>
                                         <th class="cell"></th>
@@ -105,7 +106,20 @@
                                         </td>
                                         <td class="cell">{{staff.user.first_name}} {{staff.user.last_name}}</td>
                                         <td class="cell"><span class="note">{{staff.user.phone_number}}</span></td>
-                                        <td class="cell"><span class="note">{{staff.org_role}}</span></td>
+                                        <td class="cell"><span class="note text-capitalize">{{staff.org_role}}</span></td>
+                                        <td class="cell">
+                                            {% if staff.org_role == 'owner' %}
+                                            <span class="badge bg-primary">Full Owner Access</span>
+                                            {% elif staff.permission_labels %}
+                                            <div class="d-flex flex-wrap gap-1">
+                                                {% for label in staff.permission_labels %}
+                                                <span class="badge bg-info text-dark">{{ label }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted small">Default Role Access</span>
+                                            {% endif %}
+                                        </td>
                                         <td class="cell">
                                             {% if staff.user.must_change_password %}
                                             <span class="badge bg-warning text-dark">Pending reset</span>

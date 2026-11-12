@@ -5,7 +5,11 @@ from django.core.mail import send_mail
 from django.db import models
 from datetime import datetime, date
 from ims.models import Category, Product, Sale, SalesItem, Inventory, ErrorTicket
-from account.models import CustomUser, Branch, ActivityLog, Notification
+from account.models import (
+    CustomUser, Branch, ActivityLog, Notification,
+    OrganizationMembership, STAFF_PERMISSION_CHOICES,
+    VALID_STAFF_PERMISSION_KEYS, STAFF_PERMISSION_LABELS,
+)
 from django.contrib.auth.decorators import login_required
 from ims.forms import *
 from django.core.paginator import Paginator
@@ -94,6 +98,8 @@ def staffs(request, pk):
             
             email = form.cleaned_data['email'].strip()
             role = form.cleaned_data['role']
+            raw_permissions = request.POST.getlist('permissions')
+            selected_permissions = [p for p in raw_permissions if p in VALID_STAFF_PERMISSION_KEYS]
             raw_password = None  # Only set for new users
             
             # Check if user already exists in this org
@@ -120,6 +126,7 @@ def staffs(request, pk):
                     'last_name': form.cleaned_data['last_name'],
                     'phone_number': form.cleaned_data['phone_number'],
                     'role': form.cleaned_data['role'],
+                    'permissions': selected_permissions,
                 }
             )
             
@@ -130,6 +137,7 @@ def staffs(request, pk):
                 staff_user.must_change_password = True
                 staff_user.organization = organization  # For backward compatibility
                 staff_user.branch = branch
+                staff_user.permissions = selected_permissions
                 staff_user.save()
             else:
                 # For existing users from other orgs, update legacy FK fields for backward compatibility
@@ -137,15 +145,20 @@ def staffs(request, pk):
                 staff_user.organization = organization
                 staff_user.branch = branch
                 staff_user.role = role
+                staff_user.permissions = selected_permissions
                 staff_user.save()
             
-            # Create membership for this organization
-            OrganizationMembership.objects.create(
+            # Create or update membership for this organization
+            OrganizationMembership.objects.update_or_create(
                 user=staff_user,
                 organization=organization,
-                branch=branch,
-                role=role,
-                is_active=True
+                defaults={
+                    'branch': branch,
+                    'role': role,
+                    'permissions': selected_permissions,
+                    'is_active': True,
+                    'date_removed': None,
+                },
             )
             
             # Build login URL
@@ -202,10 +215,10 @@ def staffs(request, pk):
     if staff_contains:
         staff_page = staff.filter(email__icontains=staff_contains)
 
-    # Enrich staff_page with organization-specific roles and active status
+    # Enrich staff_page with organization-specific roles, permissions, and active status
     staff_page_with_roles = []
     for staff_member in staff_page:
-        # Try to get org-specific role from membership
+        # Try to get org-specific role and permissions from membership
         try:
             membership = OrganizationMembership.objects.get(
                 user=staff_member,
@@ -213,15 +226,20 @@ def staffs(request, pk):
             )
             org_role = membership.role
             is_active = membership.is_active
+            perms = membership.permissions or []
         except OrganizationMembership.DoesNotExist:
-            # Fall back to user's global role and active status
+            # Fall back to user's global role, permissions, and active status
             org_role = staff_member.role
             is_active = staff_member.is_active
+            perms = getattr(staff_member, 'permissions', None) or []
         
+        clean_perms = [p for p in perms if p in VALID_STAFF_PERMISSION_KEYS]
         staff_page_with_roles.append({
             'user': staff_member,
             'org_role': org_role,
-            'is_active': is_active
+            'is_active': is_active,
+            'permissions': clean_perms,
+            'permission_labels': [STAFF_PERMISSION_LABELS[p] for p in clean_perms],
         })
 
     context = {
@@ -229,7 +247,8 @@ def staffs(request, pk):
         'staff_page': staff_page_with_roles,
         'nums': nums,
         'form': form,
-        'branch': branch
+        'branch': branch,
+        'staff_permission_choices': STAFF_PERMISSION_CHOICES,
     }
     return render(request, 'ims/staff.html', context)
 
@@ -256,19 +275,45 @@ def edit_staff(request):
         branch_id = request.POST.get('branch_id')  # Get the branch from hidden input
         try:
             organization = get_request_organization(request)
-            staff = CustomUser.objects.get(id=staff_id, organization=organization)
-            original_branch = staff.branch  # Save original branch for redirect
+            membership = OrganizationMembership.objects.filter(
+                user_id=staff_id,
+                organization=organization,
+            ).select_related('user', 'branch').first()
+            if membership:
+                staff = membership.user
+                original_branch = membership.branch or staff.branch
+            else:
+                staff = CustomUser.objects.get(id=staff_id, organization=organization)
+                original_branch = staff.branch  # Save original branch for redirect
+
+            raw_permissions = request.POST.getlist('permissions')
+            selected_permissions = [p for p in raw_permissions if p in VALID_STAFF_PERMISSION_KEYS]
+
             form = UserForm(request.POST, instance=staff)
             if form.is_valid():
                 # Don't let the form clear the branch
                 staff = form.save(commit=False)
                 if not staff.branch:  # If form clears branch, restore it
-                    staff.branch_id = branch_id or original_branch.id if original_branch else None
+                    staff.branch_id = branch_id or (original_branch.id if original_branch else None)
+                staff.permissions = selected_permissions
                 staff.save()
+
+                target_branch = staff.branch or original_branch
+                if organization and target_branch:
+                    OrganizationMembership.objects.update_or_create(
+                        user=staff,
+                        organization=organization,
+                        defaults={
+                            'branch': target_branch,
+                            'role': staff.role,
+                            'permissions': selected_permissions,
+                        },
+                    )
+
                 messages.success(request, 'Staff member updated successfully')
                 # Redirect back to the branch staff list
-                if staff.branch:
-                    return redirect('staff', pk=staff.branch.id)
+                if target_branch:
+                    return redirect('staff', pk=target_branch.id)
                 return redirect('branchteam')
             else:
                 # Log form errors for debugging

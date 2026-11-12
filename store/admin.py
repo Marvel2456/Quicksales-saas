@@ -3,7 +3,8 @@ from unfold.admin import ModelAdmin
 from .models import (
     Buyer, StoreListing, ProductListing,
     StoreDiscount, StoreDiscountRedemption,
-    OnlineOrder, OnlineOrderItem
+    OnlineOrder, OnlineOrderItem,
+    ServiceListing, ServiceEnrollment
 )
 
 
@@ -62,3 +63,20 @@ class StoreDiscountRedemptionAdmin(ModelAdmin):
     search_fields = ('discount__code', 'order__order_number')
     list_filter = ('redeemed_at',)
     raw_id_fields = ('discount', 'order', 'buyer')
+
+
+@admin.register(ServiceListing)
+class ServiceListingAdmin(ModelAdmin):
+    list_display = ('title', 'organization', 'price_ngn', 'price_usd', 'max_participants', 'is_active', 'created_at')
+    search_fields = ('title', 'slug', 'organization__name')
+    list_filter = ('is_active', 'created_at')
+    raw_id_fields = ('organization', 'store')
+
+
+@admin.register(ServiceEnrollment)
+class ServiceEnrollmentAdmin(ModelAdmin):
+    list_display = ('enrollment_number', 'service', 'attendee_name', 'attendee_email', 'country', 'currency', 'amount', 'settled_amount_ngn', 'payment_status', 'access_email_sent', 'created_at')
+    search_fields = ('enrollment_number', 'payment_reference', 'attendee_name', 'attendee_email', 'country', 'service__title')
+    list_filter = ('payment_status', 'currency', 'access_email_sent', 'created_at')
+    raw_id_fields = ('organization', 'service', 'buyer')
+

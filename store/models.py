@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from account.models import Organization, Branch
@@ -375,6 +376,7 @@ class StorePayout(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference = models.CharField(max_length=50, unique=True, db_index=True)
+    idempotency_key = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='payouts')
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     currency = models.CharField(max_length=10, default='NGN')
@@ -402,4 +404,160 @@ class StorePayout(models.Model):
         if not self.reference:
             self.reference = f"WD-{timezone.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         super().save(*args, **kwargs)
+
+
+class ServiceListing(models.Model):
+    """
+    An online class, course, webinar, training, or service offered by an organization.
+    Supports dual pricing: NGN (for Nigeria) and USD (for outside Nigeria),
+    and delivers the private access_link via email automatically upon payment.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='service_listings')
+    store = models.ForeignKey(StoreListing, on_delete=models.CASCADE, related_name='service_listings', null=True, blank=True)
+    title = models.CharField(max_length=255, help_text='Name of the course, class, or service')
+    slug = models.SlugField(max_length=255, blank=True, db_index=True)
+    description = models.TextField(blank=True, help_text='Course/class description, syllabus, or schedule')
+    image = models.ImageField(upload_to='service_banners/', blank=True, null=True, help_text='Optional flyer or cover image')
+
+    # Dual-Currency Pricing (NGN for Nigeria, USD for International)
+    price_ngn = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text='Price in Naira (₦) for Nigeria')
+    price_usd = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), help_text='Price in US Dollars ($) for outside Nigeria')
+    usd_to_ngn_rate = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('1500.00'),
+        help_text='Exchange rate used to compute NGN equivalent for USD enrollments'
+    )
+
+    # Protected Class / Access Details (Revealed Only After Payment)
+    access_link = models.URLField(max_length=500, help_text='Private link to the class (Zoom, Google Meet, Telegram, WhatsApp, Drive, etc.)')
+    access_instructions = models.TextField(blank=True, help_text='Optional meeting passcode, onboarding steps, or instructions sent after payment')
+
+    # Schedule & Capacity
+    event_date = models.DateTimeField(blank=True, null=True, help_text='Optional class start date and time')
+    max_participants = models.PositiveIntegerField(default=0, help_text='0 = unlimited seats')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.organization.name})"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.title)[:220] or 'class'
+            self.slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+        if self.price_ngn and self.price_usd and self.price_usd > Decimal('0.00'):
+            # Default usd_to_ngn_rate to the implied ratio of price_ngn / price_usd if not explicitly customized
+            if not self.usd_to_ngn_rate or self.usd_to_ngn_rate == Decimal('1500.00'):
+                self.usd_to_ngn_rate = (Decimal(str(self.price_ngn)) / Decimal(str(self.price_usd))).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
+
+    @property
+    def get_image_url(self):
+        if self.image:
+            try:
+                return self.image.url
+            except Exception:
+                pass
+        return None
+
+    @property
+    def paid_enrollments_count(self):
+        return self.enrollments.filter(payment_status='paid').count()
+
+    @property
+    def total_applicants_count(self):
+        return self.enrollments.count()
+
+    @property
+    def seats_remaining(self):
+        if not self.max_participants or self.max_participants <= 0:
+            return None
+        return max(0, self.max_participants - self.paid_enrollments_count)
+
+    @property
+    def is_full(self):
+        if not self.max_participants or self.max_participants <= 0:
+            return False
+        return self.paid_enrollments_count >= self.max_participants
+
+
+class ServiceEnrollment(models.Model):
+    """
+    Tracks every person who applies for a class/service (Step 1: Basic Info + Country)
+    and their payment & automatic class-link email delivery status (Step 2/3).
+    """
+    CURRENCY_CHOICES = [
+        ('NGN', 'Naira (₦)'),
+        ('USD', 'US Dollar ($)'),
+    ]
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Applied — Pending Payment'),
+        ('paid', 'Paid & Enrolled'),
+        ('failed', 'Payment Failed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    enrollment_number = models.CharField(max_length=50, unique=True, db_index=True)
+    idempotency_key = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='service_enrollments')
+    service = models.ForeignKey(ServiceListing, on_delete=models.CASCADE, related_name='enrollments')
+    buyer = models.ForeignKey(Buyer, on_delete=models.SET_NULL, null=True, blank=True, related_name='service_enrollments')
+
+    # Applicant Basic Info & Location (Collected in Step 1)
+    attendee_name = models.CharField(max_length=255)
+    attendee_email = models.EmailField(db_index=True)
+    attendee_phone = models.CharField(max_length=50, blank=True)
+    country = models.CharField(max_length=100, default='Nigeria')
+    city_state = models.CharField(max_length=150, blank=True)
+    notes = models.TextField(blank=True)
+
+    # System-Assigned Currency, Payment & Naira Wallet Equivalent
+    currency = models.CharField(max_length=10, choices=CURRENCY_CHOICES, default='NGN')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    exchange_rate_used = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
+    settled_amount_ngn = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', db_index=True)
+    payment_reference = models.CharField(max_length=100, unique=True, null=True, blank=True, db_index=True)
+    paid_at = models.DateTimeField(blank=True, null=True)
+    access_email_sent = models.BooleanField(default=False)
+    access_email_sent_at = models.DateTimeField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['organization', '-created_at']),
+            models.Index(fields=['service', 'payment_status']),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment_number} — {self.attendee_name} ({self.service.title})"
+
+    @property
+    def currency_symbol(self):
+        return '₦' if self.currency == 'NGN' else '$'
+
+    def save(self, *args, **kwargs):
+        if not self.enrollment_number:
+            self.enrollment_number = f"CLS-{timezone.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        if not self.payment_reference:
+            self.payment_reference = f"QS-CLS-{uuid.uuid4().hex[:12].upper()}"
+        if self.currency == 'NGN':
+            self.exchange_rate_used = Decimal('1.00')
+            self.settled_amount_ngn = Decimal(str(self.amount or '0.00'))
+        elif self.currency == 'USD' and (not self.settled_amount_ngn or self.settled_amount_ngn <= Decimal('0.00')):
+            rate = Decimal(str(self.exchange_rate_used or '1.00'))
+            if rate <= Decimal('1.00') and self.service_id and self.service:
+                rate = Decimal(str(self.service.usd_to_ngn_rate or '1500.00'))
+                self.exchange_rate_used = rate
+            self.settled_amount_ngn = (Decimal(str(self.amount or '0.00')) * rate).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
+
 

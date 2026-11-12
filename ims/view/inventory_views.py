@@ -46,7 +46,7 @@ def branch_inventory(request):
 
 
 # @cached_view(timeout=300, key_prefix='inventory_list')
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='inventory')
 @login_required
 # @is_unsubscribed
 def inventory_list(request, pk):
@@ -191,7 +191,7 @@ def edit_inventory(request, pk):
     return render(request, context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner', 'manager'], permission='inventory')
 def restock(request, pk):
     organization = get_request_organization(request)
     inventory = get_object_or_404(Inventory, id=pk, organization=organization)

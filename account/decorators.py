@@ -10,9 +10,10 @@ from django.urls import reverse
 from account.utils import get_request_organization
 
 
-def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login'):
+def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='login', permission=None):
     """
     Check organization-specific role from membership, fallback to global user role for legacy users.
+    Also allows access if `permission` is specified and granted to the user by the owner.
     """
     def decorator(function):
         @wraps(function)
@@ -21,21 +22,30 @@ def role_required(roles, redirect_field_name=REDIRECT_FIELD_NAME, login_url='log
             if not user.is_authenticated or not user.is_active:
                 return redirect_to_login(request.get_full_path(), login_url, redirect_field_name)
             
-            # Get the organization from middleware context
-            organization = getattr(request, 'organization', None)
+            # Get the organization from middleware context or fallback helper
+            organization = getattr(request, 'organization', None) or get_request_organization(request)
+            user_perms = []
             
             if organization:
-                # Multi-org mode: check membership role
+                # Multi-org mode: check membership role & permissions
                 membership = user.memberships.filter(
                     organization_id=organization.id,
                     is_active=True,
                 ).first()
-                user_role = membership.role if membership else None
+                if membership:
+                    user_role = membership.role
+                    user_perms = membership.permissions or []
+                elif getattr(user, 'organization_id', None) == organization.id:
+                    user_role = user.role
+                    user_perms = getattr(user, 'permissions', None) or []
+                else:
+                    user_role = None
             else:
                 # Legacy mode: use global user role
                 user_role = user.role
+                user_perms = getattr(user, 'permissions', None) or []
             
-            if user_role in roles:
+            if user_role in roles or (permission and permission in user_perms):
                 return function(request, *args, **kwargs)
             
             messages.error(request, f'You do not have permission to access this page. Required roles: {", ".join(roles)}')
