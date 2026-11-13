@@ -11,7 +11,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+    {% if ACTIVE_PAYMENT_GATEWAY == 'squadco' %}
     <script src="https://checkout.squadco.com/widget/squad.min.js"></script>
+    {% endif %}
 
     <style>
         :root {
@@ -136,7 +138,7 @@
 
                     <form method="post" action="{% url 'store_checkout' organization.slug %}" id="checkoutForm" onsubmit="return handleCheckoutSubmit(event)">
                         {% csrf_token %}
-                        <input type="hidden" name="payment_method" value="squadco">
+                        <input type="hidden" name="payment_method" value="{{ ACTIVE_PAYMENT_GATEWAY|default:'bachs' }}">
 
                         <div class="row g-3 mb-3">
                             <div class="col-12">
@@ -204,6 +206,7 @@
                             <textarea name="customer_notes" rows="2" class="form-control" placeholder="e.g. Call when outside, preferred delivery time"></textarea>
                         </div>
 
+                        {% if ACTIVE_PAYMENT_GATEWAY == 'squadco' %}
                         <hr class="my-4 text-muted opacity-25">
                         <h6 class="fw-bold mb-3 text-uppercase small text-muted"><i class="bi bi-shield-check text-success me-1"></i> Payment</h6>
 
@@ -224,9 +227,10 @@
                                 <i class="bi bi-shield-lock-fill text-success"></i> Squad
                             </span>
                         </div>
+                        {% endif %}
 
-                        <button type="submit" name="place_order" id="placeOrderBtn" class="btn btn-primary btn-lg w-100 rounded-pill fw-bold py-3 position-relative" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
-                            <span class="btn-text" id="placeOrderBtnText"><i class="bi bi-lock-fill me-2"></i> Pay with Squad & Place Order</span>
+                        <button type="submit" name="place_order" id="placeOrderBtn" class="btn btn-primary btn-lg w-100 rounded-pill fw-bold py-3 position-relative mt-3" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
+                            <span class="btn-text" id="placeOrderBtnText"><i class="bi bi-lock-fill me-2"></i> {% if ACTIVE_PAYMENT_GATEWAY == 'squadco' %}Pay with Squad & Place Order{% else %}Pay & Place Order{% endif %}</span>
                             <span class="spinner-border spinner-border-sm d-none ms-2" role="status" aria-hidden="true"></span>
                         </button>
                     </form>
@@ -606,9 +610,14 @@
         if (spinner) spinner.classList.add('d-none');
     }
 
-    function showPaymentRedirectLoader(checkoutUrl, orderNumber, reference) {
+    function showPaymentRedirectLoader(checkoutUrl, orderNumber, reference, gateway) {
         let existing = document.getElementById('squadRedirectOverlay');
         if (existing) existing.remove();
+
+        const isSquad = (gateway || '{{ ACTIVE_PAYMENT_GATEWAY|default:"bachs" }}') === 'squadco';
+        const headingText = isSquad ? 'Redirecting to Squad Payment...' : 'Redirecting to Secure Payment...';
+        const providerLabel = isSquad ? 'Squad by GTCO' : 'Bachs';
+        const buttonLabel = isSquad ? 'Open Squad Payment Page' : 'Open Payment Page';
 
         const overlayHtml = `
             <div id="squadRedirectOverlay" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 1.5rem;">
@@ -618,12 +627,12 @@
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
-                    <h4 class="fw-bold mb-1 text-dark">Redirecting to Squad Payment...</h4>
+                    <h4 class="fw-bold mb-1 text-dark">${headingText}</h4>
                     <p class="text-muted small mb-3">Order <strong>#${orderNumber || ''}</strong></p>
                     <div class="bg-light rounded-3 p-3 mb-3 text-start small">
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Payment Provider:</span>
-                            <span class="fw-bold text-dark">Squad by GTCO</span>
+                            <span class="fw-bold text-dark">${providerLabel}</span>
                         </div>
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Transaction Ref:</span>
@@ -636,7 +645,7 @@
                     </div>
                     <p class="text-secondary small mb-3">Opening secure checkout page. If you are not redirected in 3 seconds, click below:</p>
                     <a href="${checkoutUrl}" id="directSquadLink" class="btn btn-primary btn-lg rounded-pill fw-bold py-3 w-100" style="background-color: var(--brand-primary); border-color: var(--brand-primary);">
-                        <i class="bi bi-lock-fill me-2"></i> Open Squad Payment Page
+                        <i class="bi bi-lock-fill me-2"></i> ${buttonLabel}
                     </a>
                 </div>
             </div>
@@ -702,7 +711,7 @@
 
             if (data.checkout_url) {
                 console.log("%c[SquadCo Checkout] Redirecting to Squad payment page:", "color: #16a34a; font-weight: bold;", data.checkout_url);
-                showPaymentRedirectLoader(data.checkout_url, data.order_number, data.reference);
+                showPaymentRedirectLoader(data.checkout_url, data.order_number, data.reference, data.gateway);
                 setTimeout(() => {
                     window.location.href = data.checkout_url;
                 }, 400);
