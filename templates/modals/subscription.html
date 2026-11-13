@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('❌ XHR Error:', xhr.status, xhr.responseText);
               }
 
-              let errorMessage = 'Unable to start SquadCo payment. Please try again.';
+              let errorMessage = 'Unable to start payment. Please try again.';
               try {
                 const errData = JSON.parse(xhr.responseText || '{}');
                 if (errData.error) {

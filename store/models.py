@@ -1,6 +1,8 @@
 import uuid
 from decimal import Decimal
+from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q, CheckConstraint
 from django.utils import timezone
 from django.utils.text import slugify
 from django.conf import settings
@@ -280,9 +282,18 @@ class OnlineOrder(models.Model):
     sale = models.OneToOneField(Sale, on_delete=models.SET_NULL, null=True, blank=True, related_name='online_order')
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
-    payment_method = models.CharField(max_length=50, default='squadco', choices=[('squadco', 'SquadCo (Card / Transfer / USSD)'), ('cod', 'Pay on Delivery / Manual Confirmation')])
+    payment_method = models.CharField(
+        max_length=50,
+        default='bachs',
+        choices=[
+            ('bachs', 'Bachs (Card / Transfer / Mobile Money / Crypto)'),
+            ('squadco', 'SquadCo (Card / Transfer / USSD)'),
+            ('cod', 'Pay on Delivery / Manual Confirmation'),
+        ],
+    )
     payment_status = models.CharField(max_length=20, default='pending', choices=[('pending', 'Pending Payment'), ('paid', 'Paid'), ('failed', 'Payment Failed')], db_index=True)
     payment_reference = models.CharField(max_length=100, blank=True, db_index=True)
+    gateway_checkout_id = models.CharField(max_length=150, blank=True, null=True, db_index=True)
     paid_at = models.DateTimeField(blank=True, null=True)
 
     currency = models.CharField(max_length=10, default='NGN')
@@ -305,6 +316,11 @@ class OnlineOrder(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            CheckConstraint(check=Q(subtotal__gte=Decimal('0.00')), name='online_order_subtotal_non_negative'),
+            CheckConstraint(check=Q(discount_amount__gte=Decimal('0.00')), name='online_order_discount_non_negative'),
+            CheckConstraint(check=Q(total_amount__gte=Decimal('0.00')), name='online_order_total_non_negative'),
+        ]
 
     def __str__(self):
         return f"Order #{self.order_number} ({self.organization.name})"
@@ -361,6 +377,7 @@ class StoreBankAccount(models.Model):
     bank_code = models.CharField(max_length=20, blank=True)
     account_number = models.CharField(max_length=20)
     account_name = models.CharField(max_length=200)
+    bachs_destination_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -383,8 +400,10 @@ class StorePayout(models.Model):
     reference = models.CharField(max_length=50, unique=True, db_index=True)
     idempotency_key = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='payouts')
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     currency = models.CharField(max_length=10, default='NGN')
+    gateway = models.CharField(max_length=20, blank=True, null=True)
+    gateway_reference = models.CharField(max_length=150, blank=True, null=True, db_index=True)
     
     # Snapshot of bank details at time of request
     bank_name = models.CharField(max_length=100)
@@ -401,6 +420,9 @@ class StorePayout(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            CheckConstraint(check=Q(amount__gt=Decimal('0.00')), name='store_payout_amount_positive'),
+        ]
 
     def __str__(self):
         return f"Payout #{self.reference} — {self.organization.name} (₦{self.amount})"
@@ -528,6 +550,7 @@ class ServiceEnrollment(models.Model):
 
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', db_index=True)
     payment_reference = models.CharField(max_length=100, unique=True, null=True, blank=True, db_index=True)
+    gateway_checkout_id = models.CharField(max_length=150, blank=True, null=True, db_index=True)
     paid_at = models.DateTimeField(blank=True, null=True)
     access_email_sent = models.BooleanField(default=False)
     access_email_sent_at = models.DateTimeField(blank=True, null=True)
@@ -540,6 +563,9 @@ class ServiceEnrollment(models.Model):
         indexes = [
             models.Index(fields=['organization', '-created_at']),
             models.Index(fields=['service', 'payment_status']),
+        ]
+        constraints = [
+            CheckConstraint(check=Q(amount__gte=Decimal('0.00')), name='service_enrollment_amount_non_negative'),
         ]
 
     def __str__(self):

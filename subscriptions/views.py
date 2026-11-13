@@ -1,11 +1,13 @@
 from django.shortcuts import render, redirect, HttpResponse
 from account.models import Organization
-from .models import Subscription, Plan, Payment, Coupon, CouponRedemption, PaymentGatewayConfig
+from .models import Subscription, Plan, Payment, Coupon, CouponRedemption, PaymentGatewayConfig, WebhookEvent
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from account.decorators import role_required
 from account.utils import get_request_org_role, get_request_organization
 from django.shortcuts import get_object_or_404
+import hashlib
+import hmac
 import requests
 from django.conf import settings
 from django.urls import reverse
@@ -14,10 +16,20 @@ import uuid
 import json
 import time
 from django.utils import timezone
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 from account.tasks import deactivate_subscription, task_send_subscription_success_email
 from decimal import Decimal
+from .services.gateways import (
+    BachsGateway,
+    SquadGateway,
+    build_public_url,
+    get_active_gateway_name,
+    parse_decimal_amount,
+    validate_positive_amount,
+    verify_amount_and_currency,
+)
 
 
 def _squad_headers():
@@ -107,6 +119,27 @@ def _validate_squad_config():
     return True, "ok"
 
 
+def _dispatch_subscription_success_email(subscription):
+    """Queue subscription success email via Celery with synchronous fallback."""
+    owner = subscription.organization.owned_by
+    if not (owner and owner.email):
+        return
+    try:
+        task_send_subscription_success_email.delay(
+            str(owner.id), str(subscription.organization.id), str(subscription.id)
+        )
+    except Exception:
+        try:
+            from account.emails import send_subscription_success_email
+            send_subscription_success_email(owner, subscription.organization, subscription)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Failed sending subscription success email for subscription %s",
+                subscription.id,
+            )
+
+
 def _finalize_successful_payment(reference):
     """Idempotently finalize a successful payment by reference.
 
@@ -152,11 +185,7 @@ def _finalize_successful_payment(reference):
                     eta=subscription.end_date,
                 )
 
-            owner = subscription.organization.owned_by
-            if owner and owner.email:
-                task_send_subscription_success_email.delay(
-                    owner.id, subscription.organization.id, subscription.id
-                )
+            _dispatch_subscription_success_email(subscription)
 
         return "completed_now", payment
 
@@ -425,7 +454,12 @@ def cancel_plan(request, subscription_id):
 
 @login_required
 def init_payment(request, plan_id):
-    config_ok, config_message = _validate_squad_config()
+    active_gateway = get_active_gateway_name()
+    if active_gateway == "bachs":
+        bachs_client = BachsGateway()
+        config_ok, config_message = bachs_client.validate_config()
+    else:
+        config_ok, config_message = _validate_squad_config()
     if not config_ok:
         return JsonResponse({"error": config_message}, status=400)
 
@@ -441,14 +475,79 @@ def init_payment(request, plan_id):
     coupon = None
     final_amount = Decimal(str(plan_base_price))
     coupon_code = request.GET.get('coupon_code') or request.POST.get('coupon_code')
-    
+
     if coupon_code:
         success, final_amount, message, coupon = apply_coupon(coupon_code, organization, plan)
         if not success:
             return JsonResponse({"error": message}, status=400)
 
+    try:
+        final_amount = validate_positive_amount(final_amount, field_name="plan amount")
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
     amount_minor = int(final_amount * 100)
     reference = str(uuid.uuid4())
+
+    if active_gateway == "bachs":
+        with transaction.atomic():
+            subscription = Subscription.objects.create(
+                organization=organization,
+                plan=plan,
+                provider="bachs",
+                currency=currency,
+                start_date=timezone.now(),
+                end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
+                is_active=False,
+            )
+            payment = Payment.objects.create(
+                subscription=subscription,
+                amount=final_amount,
+                currency=currency,
+                payment_method="bachs",
+                transaction_id=reference,
+                payment_status="pending",
+                coupon=coupon,
+            )
+            if coupon:
+                CouponRedemption.objects.create(
+                    coupon=coupon,
+                    organization=organization,
+                    subscription=subscription,
+                )
+                coupon.uses += 1
+                coupon.save()
+
+        try:
+            callback_url = build_public_url(request, f"{reverse('verify_payment')}?reference={reference}")
+            cancel_url = build_public_url(request, reverse("settings"))
+            checkout = bachs_client.create_checkout(
+                amount=final_amount,
+                currency=currency,
+                customer_email=request.user.email,
+                customer_name=request.user.get_full_name() or request.user.email,
+                reference=reference,
+                metadata={
+                    "flow_type": "subscription",
+                    "payment_ref": reference,
+                    "organization_id": str(organization.id),
+                    "plan_id": str(plan.id),
+                },
+                success_url=callback_url,
+                cancel_url=cancel_url,
+            )
+            payment.gateway_reference = checkout["checkout_id"]
+            payment.save(update_fields=["gateway_reference", "updated_at"])
+            return JsonResponse({
+                "reference": reference,
+                "checkout_id": checkout["checkout_id"],
+                "checkout_url": checkout["checkout_url"],
+                "gateway": "bachs",
+            })
+        except Exception as exc:
+            payment.payment_status = "failed"
+            payment.save(update_fields=["payment_status", "updated_at"])
+            return JsonResponse({"error": str(exc)}, status=400)
 
     existing_pending_payment = (
         Payment.objects
@@ -537,7 +636,12 @@ def create_payment(request):
     if request.method != 'POST':
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    config_ok, config_message = _validate_squad_config()
+    active_gateway = get_active_gateway_name()
+    if active_gateway == "bachs":
+        bachs_client = BachsGateway()
+        config_ok, config_message = bachs_client.validate_config()
+    else:
+        config_ok, config_message = _validate_squad_config()
     if not config_ok:
         return JsonResponse({"error": config_message}, status=400)
     
@@ -582,7 +686,76 @@ def create_payment(request):
         else:
             print(f"No coupon. Plan amount: {currency} {final_amount}")
 
+        try:
+            final_amount = validate_positive_amount(final_amount, field_name="plan amount", allow_zero=True)
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+
         is_free = final_amount <= Decimal('0.00')
+
+        if active_gateway == "bachs" and not is_free:
+            transaction_reference = reference or uuid.uuid4().hex
+            with transaction.atomic():
+                subscription = Subscription.objects.create(
+                    organization=org,
+                    plan=plan,
+                    provider="bachs",
+                    currency=currency,
+                    start_date=timezone.now(),
+                    end_date=timezone.now() + timezone.timedelta(days=plan.duration_in_days),
+                    is_active=False,
+                )
+                payment = Payment.objects.create(
+                    subscription=subscription,
+                    amount=final_amount,
+                    currency=currency,
+                    payment_method="bachs",
+                    transaction_id=transaction_reference,
+                    payment_status="pending",
+                    coupon=coupon,
+                )
+                if coupon:
+                    CouponRedemption.objects.create(
+                        coupon=coupon,
+                        organization=org,
+                        subscription=subscription,
+                    )
+                    coupon.uses += 1
+                    coupon.save()
+
+            try:
+                callback_url = build_public_url(request, f"{reverse('verify_payment')}?reference={transaction_reference}")
+                cancel_url = build_public_url(request, reverse("settings"))
+                checkout = bachs_client.create_checkout(
+                    amount=final_amount,
+                    currency=currency,
+                    customer_email=request.user.email,
+                    customer_name=request.user.get_full_name() or request.user.email,
+                    reference=transaction_reference,
+                    metadata={
+                        "flow_type": "subscription",
+                        "payment_ref": transaction_reference,
+                        "organization_id": str(org.id),
+                        "plan_id": str(plan.id),
+                    },
+                    success_url=callback_url,
+                    cancel_url=cancel_url,
+                )
+                payment.gateway_reference = checkout["checkout_id"]
+                payment.save(update_fields=["gateway_reference", "updated_at"])
+                return JsonResponse({
+                    "status": "ok",
+                    "gateway": "bachs",
+                    "reference": transaction_reference,
+                    "checkout_id": checkout["checkout_id"],
+                    "amount": str(final_amount),
+                    "currency": currency,
+                    "checkout_url": checkout["checkout_url"],
+                })
+            except Exception as exc:
+                payment.payment_status = "failed"
+                payment.save(update_fields=["payment_status", "updated_at"])
+                return JsonResponse({"error": str(exc)}, status=400)
         
         # Check for an existing pending payment for this org + plan to avoid
         # creating duplicate Squad transactions (Squad rejects if one is already pending).
@@ -699,11 +872,7 @@ def create_payment(request):
                 )
             
             # Queue confirmation email — never blocks the request
-            owner = subscription.organization.owned_by
-            if owner and owner.email:
-                task_send_subscription_success_email.delay(
-                    owner.id, subscription.organization.id, subscription.id
-                )
+            _dispatch_subscription_success_email(subscription)
 
             # Surface success to UI via Django messages (shown as toast on next page)
             try:
@@ -869,6 +1038,7 @@ def verify_payment(request):
         or request.GET.get('transaction_ref')
         or request.GET.get('transaction_reference')
         or request.GET.get('trx_ref')
+        or request.GET.get('checkout_id')
     )
 
     def _safe_redirect():
@@ -879,11 +1049,58 @@ def verify_payment(request):
         return redirect(f"{_reverse('login')}?next={_reverse('settings')}")
 
     if not reference:
-        print(f" No reference provided")
         messages.error(request, 'Invalid payment reference')
         return _safe_redirect()
-    
+
     try:
+        payment_obj = (
+            Payment.objects.select_related("subscription")
+            .filter(Q(transaction_id=reference) | Q(gateway_reference=reference))
+            .first()
+        )
+        gateway_name = (
+            (payment_obj.payment_method if payment_obj else None)
+            or (payment_obj.subscription.provider if payment_obj and payment_obj.subscription else None)
+            or get_active_gateway_name()
+        )
+
+        if gateway_name == "bachs" or str(reference).startswith("chk_"):
+            checkout_id = (payment_obj.gateway_reference if payment_obj else None) or request.GET.get("checkout_id") or reference
+            try:
+                verified = BachsGateway().verify_checkout(checkout_id)
+            except Exception as exc:
+                messages.warning(
+                    request,
+                    f"Could not verify payment with Bachs right now. Please contact support with reference: {reference} ({exc})"
+                )
+                return _safe_redirect()
+
+            if not verified.get("is_paid"):
+                messages.error(request, 'Payment verification failed')
+                return _safe_redirect()
+
+            if payment_obj:
+                ok_amt, reason = verify_amount_and_currency(
+                    payment_obj.amount,
+                    payment_obj.currency,
+                    verified.get("amount"),
+                    verified.get("currency"),
+                )
+                if not ok_amt:
+                    messages.error(request, f"Payment verification rejected: {reason}")
+                    return _safe_redirect()
+
+            finalize_ref = payment_obj.transaction_id if payment_obj else reference
+            finalize_status, payment = _finalize_successful_payment(finalize_ref)
+            if finalize_status == 'not_found':
+                messages.error(request, 'Payment record not found')
+                return _safe_redirect()
+            if finalize_status == 'completed_now':
+                messages.success(request, 'Payment successful! Your subscription is now active.')
+            else:
+                messages.info(request, 'This payment has already been processed.')
+            return _safe_redirect()
+
         print(f"🔍 Verifying payment with reference: {reference}")
 
         # Verify payment with SquadCo
@@ -985,47 +1202,171 @@ def verify_payment(request):
 
 @csrf_exempt
 def squadco_webhook(request):
-    print("🔥 Webhook endpoint hit")
-    print("Headers:", request.headers)
-    print("Body:", request.body)
-    
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
     payload = request.body
-    print("🔔 Raw webhook payload:", payload)
     signature = (
         request.headers.get("X-Squad-Signature")
         or request.headers.get("X-Squadco-Signature")
         or request.headers.get("X-Paystack-Signature")
     )
 
-    import hmac, hashlib
-    expected = hmac.new(
-        settings.SQUAD_SECRET_KEY.encode("utf-8"),
-        payload,
-        hashlib.sha512
-    ).hexdigest()
-
-    if signature != expected:
+    if not SquadGateway().verify_webhook_signature(payload, signature):
         return HttpResponse(status=401)
 
-    event = json.loads(payload.decode("utf-8"))
-    print("✅ Parsed event:", event) 
+    try:
+        event = json.loads(payload.decode("utf-8"))
+    except Exception:
+        return HttpResponse(status=400)
 
     event_name = str(event.get("event") or event.get("type") or "").lower()
     status = _extract_status(event)
 
-    if event_name in {"charge.success", "transaction.success", "payment.success"} or status in {"success", "successful", "completed", "paid"}:
-        data = event.get("data", {}) if isinstance(event, dict) else {}
-        reference = (
-            data.get("reference")
-            or data.get("transaction_ref")
-            or data.get("transaction_reference")
-            or data.get("trx_ref")
-        )
-        if not reference:
-            return HttpResponse(status=200)
+    data = event.get("data", {}) if isinstance(event, dict) else {}
+    reference = (
+        data.get("reference")
+        or data.get("transaction_ref")
+        or data.get("transaction_reference")
+        or data.get("trx_ref")
+    )
+    event_id = str(event.get("id") or data.get("id") or reference or hashlib.sha256(payload).hexdigest())
 
+    try:
         with transaction.atomic():
-            _finalize_successful_payment(reference)
+            _, created = WebhookEvent.objects.get_or_create(
+                provider="squadco",
+                event_id=event_id,
+                defaults={
+                    "event_type": event_name[:100],
+                    "payload_hash": hashlib.sha256(payload).hexdigest(),
+                },
+            )
+            if not created:
+                return HttpResponse(status=200)
+
+            if event_name in {"charge.success", "transaction.success", "payment.success"} or status in {"success", "successful", "completed", "paid"}:
+                if reference:
+                    _finalize_successful_payment(reference)
+    except IntegrityError:
+        return HttpResponse(status=200)
+
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+def bachs_webhook(request):
+    """
+    Hardened, idempotent webhook handler for Bachs (bachs.io).
+    Verifies X-Bachs-Signature-V2 with 300s replay tolerance, deduplicates via WebhookEvent,
+    enforces amount & currency verification, and routes subscriptions, store orders,
+    service enrollments, and store payouts.
+    """
+    if request.method != "POST":
+        return HttpResponse(status=405)
+
+    raw_body = request.body
+    sig_header = (
+        request.headers.get("X-Bachs-Signature-V2")
+        or request.headers.get("Bachs-Signature")
+        or request.headers.get("X-Bachs-Signature")
+    )
+    ts_header = request.headers.get("X-Bachs-Timestamp")
+    ok_sig, reason = BachsGateway().verify_webhook_signature(raw_body, sig_header, timestamp_header=ts_header)
+    if not ok_sig:
+        return HttpResponse(status=401)
+
+    try:
+        event = json.loads(raw_body.decode("utf-8"))
+    except Exception:
+        return HttpResponse(status=400)
+
+    event_type = str(event.get("type") or event.get("event") or "").strip().lower()
+    data = event.get("data") if isinstance(event.get("data"), dict) else event
+    event_id = str(
+        event.get("id")
+        or event.get("event_id")
+        or data.get("id")
+        or hashlib.sha256(raw_body).hexdigest()
+    )
+
+    try:
+        with transaction.atomic():
+            _, created = WebhookEvent.objects.get_or_create(
+                provider="bachs",
+                event_id=event_id,
+                defaults={
+                    "event_type": event_type[:100],
+                    "payload_hash": hashlib.sha256(raw_body).hexdigest(),
+                },
+            )
+            if not created:
+                return HttpResponse(status=200)
+
+            metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
+            flow_type = str(metadata.get("flow_type") or "").strip().lower()
+            checkout_id = data.get("checkout_id") or data.get("id")
+            raw_amount = data.get("amount") or (data.get("pricing") or {}).get("amount")
+            raw_currency = data.get("currency") or (data.get("pricing") or {}).get("currency") or ""
+
+            if event_type in {"checkout.completed", "collection.succeeded", "payment.succeeded"}:
+                if flow_type == "store_order":
+                    from store.views import fulfill_online_order_from_webhook
+                    fulfill_online_order_from_webhook(
+                        order_number=metadata.get("order_number"),
+                        checkout_id=checkout_id,
+                        paid_amount=raw_amount,
+                        paid_currency=raw_currency,
+                    )
+                elif flow_type == "service_enrollment":
+                    from store.views import fulfill_service_enrollment_from_webhook
+                    fulfill_service_enrollment_from_webhook(
+                        enrollment_number=metadata.get("enrollment_number"),
+                        checkout_id=checkout_id,
+                        paid_amount=raw_amount,
+                        paid_currency=raw_currency,
+                    )
+                else:
+                    # Subscription payment (by metadata.payment_ref or checkout_id)
+                    payment_ref = metadata.get("payment_ref") or checkout_id
+                    payment_obj = (
+                        Payment.objects.select_for_update()
+                        .filter(Q(transaction_id=payment_ref) | Q(gateway_reference=checkout_id))
+                        .first()
+                    )
+                    if payment_obj:
+                        ok_amt, _ = verify_amount_and_currency(
+                            payment_obj.amount,
+                            payment_obj.currency,
+                            raw_amount,
+                            raw_currency,
+                        )
+                        if ok_amt:
+                            _finalize_successful_payment(payment_obj.transaction_id)
+
+            elif event_type in {"payout.completed", "payout.succeeded", "payout.paid", "payout.failed", "payout.rejected"}:
+                from store.models import StorePayout
+                payout_ref = data.get("reference") or data.get("id") or data.get("payout_id")
+                if payout_ref:
+                    payout = (
+                        StorePayout.objects.select_for_update()
+                        .filter(Q(reference=payout_ref) | Q(gateway_reference=payout_ref))
+                        .first()
+                    )
+                    if payout and payout.status in {"pending", "processing"}:
+                        if event_type in {"payout.completed", "payout.succeeded", "payout.paid"}:
+                            payout.status = "completed"
+                            payout.processed_at = timezone.now()
+                            payout.save(update_fields=["status", "processed_at"])
+                        else:
+                            payout.status = "rejected"
+                            payout.admin_notes = (
+                                (payout.admin_notes + "\n" if payout.admin_notes else "")
+                                + f"Bachs payout failed ({event_type})."
+                            )
+                            payout.save(update_fields=["status", "admin_notes"])
+    except IntegrityError:
+        return HttpResponse(status=200)
 
     return HttpResponse(status=200)
 

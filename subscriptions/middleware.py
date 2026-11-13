@@ -15,6 +15,9 @@ class SubscriptionMiddleware:
     # URLs that don't require active subscription
     EXEMPT_URLS = [
         '/account/login/',
+        '/api/v1/mobile/',
+        '/api/v1/schema/',
+        '/api/v1/docs/',
         '/account/logout/',
         '/account/register/',
         '/account/verify-email/',

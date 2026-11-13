@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.urls import reverse
 
@@ -15,6 +16,14 @@ logger = logging.getLogger(__name__)
 from account.models import Organization, Branch, Notification
 from ims.models import Inventory, Category, Sale, SalesItem
 from subscriptions.utils import has_online_store_access
+from subscriptions.services.gateways import (
+    BachsGateway,
+    build_public_url,
+    get_active_gateway_name,
+    parse_decimal_amount,
+    validate_positive_amount,
+    verify_amount_and_currency,
+)
 from .models import (
     StoreListing, ProductListing, StoreDiscount, StoreDiscountRedemption,
     OnlineOrder, OnlineOrderItem, Buyer, ServiceListing, ServiceEnrollment
@@ -76,7 +85,10 @@ def complete_order_sale(order, staff=None):
             transaction_id=f"ONL-{locked_order.order_number}",
             final_total_price=float(locked_order.total_amount),
             discount=float(locked_order.discount_amount),
-            method='SquadCo' if locked_order.payment_method == 'squadco' else 'Transfer',
+            method=(
+                'Bachs' if locked_order.payment_method == 'bachs'
+                else ('SquadCo' if locked_order.payment_method == 'squadco' else 'Transfer')
+            ),
             completed=True
         )
 
@@ -528,7 +540,8 @@ def store_checkout(request, org_slug):
             shipping_address = request.POST.get('shipping_address', '').strip()
 
         customer_notes = request.POST.get('customer_notes', '').strip()
-        payment_method = 'squadco'
+        active_gateway = get_active_gateway_name()
+        payment_method = active_gateway if active_gateway in ('bachs', 'squadco') else 'bachs'
         payment_reference = f"QS-ORD-{uuid.uuid4().hex[:12].upper()}"
 
         if not buyer_name or not buyer_email or not buyer_phone:
@@ -558,7 +571,17 @@ def store_checkout(request, org_slug):
                 messages.error(request, msg)
                 return redirect('store_checkout', org_slug=org_slug)
 
-        if currency == 'NGN' and 0 < total_amount < Decimal('100.00'):
+        try:
+            validate_positive_amount(total_amount, field_name="order total", allow_zero=True)
+            validate_positive_amount(subtotal, field_name="subtotal", allow_zero=True)
+            validate_positive_amount(discount_amount, field_name="discount", allow_zero=True)
+        except ValueError as exc:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+            messages.error(request, str(exc))
+            return redirect('store_checkout', org_slug=org_slug)
+
+        if active_gateway == 'squadco' and currency == 'NGN' and 0 < total_amount < Decimal('100.00'):
             msg = "The minimum online checkout amount with Squad is ₦100.00. Please increase your order quantity or add more items."
             if is_ajax:
                 return JsonResponse({'success': False, 'message': msg}, status=400)
@@ -631,9 +654,59 @@ def store_checkout(request, org_slug):
         squad_initiate_error = None
 
         logger.info(
-            "[Store Checkout] Processing checkout for org '%s': buyer='%s' <%s>, phone='%s', amount=%s %s, items=%d",
-            org_slug, buyer_name, buyer_email, buyer_phone, total_amount, currency, len(cart_items)
+            "[Store Checkout] Processing checkout (%s) for org '%s': buyer='%s' <%s>, phone='%s', amount=%s %s, items=%d",
+            active_gateway, org_slug, buyer_name, buyer_email, buyer_phone, total_amount, currency, len(cart_items)
         )
+
+        if active_gateway == 'bachs':
+            try:
+                bachs_client = BachsGateway()
+                checkout = bachs_client.create_checkout(
+                    amount=total_amount,
+                    currency=currency,
+                    customer_email=buyer_email,
+                    customer_name=buyer_name,
+                    reference=payment_reference,
+                    metadata={
+                        "flow_type": "store_order",
+                        "order_number": order.order_number,
+                        "payment_ref": payment_reference,
+                        "organization_id": str(org.id),
+                    },
+                    success_url=build_public_url(
+                        request,
+                        f"{reverse('store_payment_callback', kwargs={'org_slug': org_slug})}?reference={payment_reference}",
+                    ),
+                    cancel_url=build_public_url(
+                        request,
+                        reverse('store_checkout', kwargs={'org_slug': org_slug}),
+                    ),
+                )
+                order.gateway_checkout_id = checkout["checkout_id"]
+                order.save(update_fields=["gateway_checkout_id", "updated_at"])
+                checkout_url = checkout["checkout_url"]
+            except Exception as ex:
+                logger.exception("[Store Checkout] Bachs initiate exception: %s", ex)
+                squad_initiate_error = str(ex)
+
+            if squad_initiate_error and not checkout_url:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': squad_initiate_error}, status=400)
+                messages.error(request, squad_initiate_error)
+                return redirect('store_checkout', org_slug=org_slug)
+
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'gateway': 'bachs',
+                    'reference': payment_reference,
+                    'checkout_id': order.gateway_checkout_id,
+                    'amount': float(total_amount),
+                    'currency': currency,
+                    'checkout_url': checkout_url,
+                    'order_number': order.order_number,
+                })
+            return redirect(checkout_url)
 
         if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
             initiate_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/initiate"
@@ -720,11 +793,17 @@ def store_checkout(request, org_slug):
 
 def store_payment_callback(request, org_slug):
     """
-    SquadCo payment return / callback handler.
-    Verifies transaction, creates IMS Sale, updates stock, and redirects to receipt.
+    Payment return / callback handler (supports both Bachs and SquadCo).
+    Verifies transaction server-to-server (including amount & currency), creates IMS Sale,
+    updates stock, and redirects to receipt.
     """
     org = get_object_or_404(Organization, slug=org_slug, is_active=True)
-    reference = request.GET.get('reference') or request.GET.get('transaction_ref') or request.GET.get('trxref')
+    reference = (
+        request.GET.get('reference')
+        or request.GET.get('transaction_ref')
+        or request.GET.get('trxref')
+        or request.GET.get('checkout_id')
+    )
 
     logger.info("[Store Callback] Received return callback for org '%s', query params: %s", org_slug, dict(request.GET))
 
@@ -735,7 +814,8 @@ def store_payment_callback(request, org_slug):
 
     order = OnlineOrder.objects.filter(
         organization=org,
-        payment_reference=reference
+    ).filter(
+        Q(payment_reference=reference) | Q(gateway_checkout_id=reference)
     ).prefetch_related('items', 'items__inventory').first()
 
     if not order:
@@ -743,36 +823,58 @@ def store_payment_callback(request, org_slug):
         messages.error(request, "Order not found for transaction reference.")
         return redirect('storefront', org_slug=org_slug)
 
-    # Verify with Squad API if secret key configured
     is_successful = False
-    if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
-        verify_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/verify/{reference}"
+    if order.payment_method == 'bachs' or order.gateway_checkout_id:
+        checkout_id = order.gateway_checkout_id or request.GET.get('checkout_id') or reference
+        try:
+            verified = BachsGateway().verify_checkout(checkout_id)
+            if verified.get("is_paid"):
+                ok_amt, reason = verify_amount_and_currency(
+                    order.total_amount,
+                    order.currency,
+                    verified.get("amount"),
+                    verified.get("currency"),
+                )
+                if ok_amt:
+                    is_successful = True
+                else:
+                    logger.error("[Store Callback] Amount/currency mismatch for order %s: %s", order.order_number, reason)
+        except Exception as ex:
+            logger.exception("[Store Callback] Bachs verification exception: %s", ex)
+    elif settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
+        verify_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/verify/{order.payment_reference or reference}"
         logger.info("[Store Callback] Verifying ref '%s' with Squad at %s", reference, verify_url)
         try:
-            resp = requests.get(
-                verify_url,
-                headers=_squad_headers(),
-                timeout=20
-            )
+            resp = requests.get(verify_url, headers=_squad_headers(), timeout=20)
             logger.info("[Store Callback] Squad verify HTTP %s: %s", resp.status_code, resp.text)
             if resp.status_code == 200:
                 data = resp.json()
-                status_str = str(data.get('data', {}).get('transaction_status') or data.get('data', {}).get('status') or '').lower()
+                data_obj = data.get('data', {}) or {}
+                status_str = str(data_obj.get('transaction_status') or data_obj.get('status') or '').lower()
                 if status_str in ('success', 'successful', 'completed', 'approved'):
-                    is_successful = True
+                    raw_minor = data_obj.get('transaction_amount') or data_obj.get('amount')
+                    if raw_minor is not None:
+                        paid_amt = parse_decimal_amount(raw_minor) / Decimal('100')
+                        paid_curr = data_obj.get('transaction_currency_id') or data_obj.get('currency') or order.currency
+                        ok_amt, _ = verify_amount_and_currency(order.total_amount, order.currency, paid_amt, paid_curr)
+                        is_successful = ok_amt
+                    else:
+                        is_successful = True
         except Exception as ex:
             logger.exception("[Store Callback] Squad verification exception: %s", ex)
 
-    logger.info("[Store Callback] Verification result for ref '%s': is_successful=%s, DEBUG=%s", reference, is_successful, settings.DEBUG)
+    logger.info("[Store Callback] Verification result for ref '%s': is_successful=%s", reference, is_successful)
 
-    # Complete sale if verified or in test/sandbox
-    if is_successful or order.payment_status == 'paid' or settings.DEBUG:
+    if is_successful or order.payment_status == 'paid':
         complete_order_sale(order)
         _save_cart(request, org_slug, {})
         return redirect('order_success', org_slug=org_slug, order_number=order.order_number)
     else:
-        order.payment_status = 'failed'
-        order.save(update_fields=['payment_status', 'updated_at'])
+        OnlineOrder.objects.filter(id=order.id).exclude(payment_status='paid').update(
+            payment_status='failed',
+            updated_at=timezone.now(),
+        )
+        messages.error(request, "Payment could not be verified. Please try again.")
         return redirect('store_checkout', org_slug=org_slug)
 
 
@@ -1196,10 +1298,69 @@ def service_checkout_payment(request, org_slug, enrollment_number):
         callback_url = request.build_absolute_uri(
             reverse('service_payment_callback', kwargs={'org_slug': org.slug})
         )
+        try:
+            validate_positive_amount(enrollment.amount, field_name="enrollment amount")
+        except ValueError as exc:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+            messages.error(request, str(exc))
+            return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+        active_gateway = get_active_gateway_name()
         amount_minor = int(enrollment.amount * 100)
         payment_reference = enrollment.payment_reference
         checkout_url = None
         squad_initiate_error = None
+
+        if active_gateway == 'bachs':
+            try:
+                bachs_client = BachsGateway()
+                checkout = bachs_client.create_checkout(
+                    amount=enrollment.amount,
+                    currency=enrollment.currency,
+                    customer_email=enrollment.attendee_email,
+                    customer_name=enrollment.attendee_name,
+                    reference=payment_reference,
+                    metadata={
+                        "flow_type": "service_enrollment",
+                        "enrollment_number": enrollment.enrollment_number,
+                        "payment_ref": payment_reference,
+                        "organization_id": str(org.id),
+                    },
+                    success_url=build_public_url(
+                        request,
+                        f"{reverse('service_payment_callback', kwargs={'org_slug': org.slug})}?reference={payment_reference}",
+                    ),
+                    cancel_url=build_public_url(
+                        request,
+                        reverse('service_checkout_payment', kwargs={'org_slug': org.slug, 'enrollment_number': enrollment.enrollment_number}),
+                    ),
+                )
+                enrollment.gateway_checkout_id = checkout["checkout_id"]
+                enrollment.save(update_fields=["gateway_checkout_id", "updated_at"])
+                checkout_url = checkout["checkout_url"]
+            except Exception as ex:
+                logger.exception("[Service Checkout] Bachs initiate exception: %s", ex)
+                squad_initiate_error = str(ex)
+
+            if squad_initiate_error and not checkout_url:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': squad_initiate_error}, status=400)
+                messages.error(request, squad_initiate_error)
+                return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'gateway': 'bachs',
+                    'reference': payment_reference,
+                    'checkout_id': enrollment.gateway_checkout_id,
+                    'amount': float(enrollment.amount),
+                    'currency': enrollment.currency,
+                    'checkout_url': checkout_url,
+                    'enrollment_number': enrollment.enrollment_number,
+                })
+            return redirect(checkout_url)
 
         if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
             initiate_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/initiate"
@@ -1276,11 +1437,16 @@ def service_checkout_payment(request, org_slug, enrollment_number):
 
 def service_payment_callback(request, org_slug):
     """
-    SquadCo payment return / callback handler for Class & Service enrollments.
-    Verifies transaction idempotently, sends the class link email, and redirects to the success page.
+    Payment return / callback handler for Class & Service enrollments (Bachs & SquadCo).
+    Verifies transaction server-to-server, sends the class link email, and redirects to the success page.
     """
     org = get_object_or_404(Organization, slug=org_slug, is_active=True)
-    reference = request.GET.get('reference') or request.GET.get('transaction_ref') or request.GET.get('trxref')
+    reference = (
+        request.GET.get('reference')
+        or request.GET.get('transaction_ref')
+        or request.GET.get('trxref')
+        or request.GET.get('checkout_id')
+    )
 
     if not reference:
         messages.error(request, "No transaction reference provided.")
@@ -1288,7 +1454,8 @@ def service_payment_callback(request, org_slug):
 
     enrollment = ServiceEnrollment.objects.filter(
         organization=org,
-        payment_reference=reference
+    ).filter(
+        Q(payment_reference=reference) | Q(gateway_checkout_id=reference)
     ).select_related('service').first()
 
     if not enrollment:
@@ -1296,23 +1463,48 @@ def service_payment_callback(request, org_slug):
         return redirect('storefront', org_slug=org.slug)
 
     is_successful = False
-    if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
-        verify_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/verify/{reference}"
+    if enrollment.gateway_checkout_id or str(reference).startswith('chk_'):
+        checkout_id = enrollment.gateway_checkout_id or request.GET.get('checkout_id') or reference
+        try:
+            verified = BachsGateway().verify_checkout(checkout_id)
+            if verified.get("is_paid"):
+                ok_amt, reason = verify_amount_and_currency(
+                    enrollment.amount,
+                    enrollment.currency,
+                    verified.get("amount"),
+                    verified.get("currency"),
+                )
+                if ok_amt:
+                    is_successful = True
+                else:
+                    logger.error("[Service Callback] Amount/currency mismatch for %s: %s", enrollment.enrollment_number, reason)
+        except Exception as ex:
+            logger.exception("[Service Callback] Bachs verification exception: %s", ex)
+    elif settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL:
+        verify_url = f"{settings.SQUAD_API_BASE_URL.rstrip('/')}/transaction/verify/{enrollment.payment_reference or reference}"
         try:
             resp = requests.get(verify_url, headers=_squad_headers(), timeout=20)
             if resp.status_code == 200:
                 data = resp.json()
+                data_obj = data.get('data', {}) or {}
                 status_str = str(
-                    data.get('data', {}).get('transaction_status')
-                    or data.get('data', {}).get('status')
+                    data_obj.get('transaction_status')
+                    or data_obj.get('status')
                     or ''
                 ).lower()
                 if status_str in ('success', 'successful', 'completed', 'approved'):
-                    is_successful = True
+                    raw_minor = data_obj.get('transaction_amount') or data_obj.get('amount')
+                    if raw_minor is not None:
+                        paid_amt = parse_decimal_amount(raw_minor) / Decimal('100')
+                        paid_curr = data_obj.get('transaction_currency_id') or data_obj.get('currency') or enrollment.currency
+                        ok_amt, _ = verify_amount_and_currency(enrollment.amount, enrollment.currency, paid_amt, paid_curr)
+                        is_successful = ok_amt
+                    else:
+                        is_successful = True
         except Exception as ex:
             logger.exception("[Service Callback] Squad verification exception: %s", ex)
 
-    if is_successful or enrollment.payment_status == 'paid' or settings.DEBUG:
+    if is_successful or enrollment.payment_status == 'paid':
         complete_service_enrollment(enrollment)
         return redirect('service_enrollment_success', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
     else:
@@ -1322,6 +1514,52 @@ def service_payment_callback(request, org_slug):
         )
         messages.error(request, "Payment could not be verified. Please try again.")
         return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
+
+
+def fulfill_online_order_from_webhook(order_number=None, checkout_id=None, paid_amount=None, paid_currency=None):
+    """Idempotent webhook fulfillment helper for OnlineOrder with amount & currency verification."""
+    with transaction.atomic():
+        qs = OnlineOrder.objects.select_for_update()
+        if order_number:
+            order = qs.filter(order_number=order_number).first()
+        elif checkout_id:
+            order = qs.filter(gateway_checkout_id=checkout_id).first()
+        else:
+            return False
+
+        if not order or order.payment_status == 'paid':
+            return bool(order)
+
+        ok_amt, reason = verify_amount_and_currency(order.total_amount, order.currency, paid_amount, paid_currency)
+        if not ok_amt:
+            logger.error("[Store Webhook] Rejected order %s: %s", order.order_number, reason)
+            return False
+
+    complete_order_sale(order)
+    return True
+
+
+def fulfill_service_enrollment_from_webhook(enrollment_number=None, checkout_id=None, paid_amount=None, paid_currency=None):
+    """Idempotent webhook fulfillment helper for ServiceEnrollment with amount & currency verification."""
+    with transaction.atomic():
+        qs = ServiceEnrollment.objects.select_for_update()
+        if enrollment_number:
+            enrollment = qs.filter(enrollment_number=enrollment_number).first()
+        elif checkout_id:
+            enrollment = qs.filter(gateway_checkout_id=checkout_id).first()
+        else:
+            return False
+
+        if not enrollment or enrollment.payment_status == 'paid':
+            return bool(enrollment)
+
+        ok_amt, reason = verify_amount_and_currency(enrollment.amount, enrollment.currency, paid_amount, paid_currency)
+        if not ok_amt:
+            logger.error("[Service Webhook] Rejected enrollment %s: %s", enrollment.enrollment_number, reason)
+            return False
+
+    complete_service_enrollment(enrollment)
+    return True
 
 
 def service_enrollment_success(request, org_slug, enrollment_number):

@@ -1,7 +1,8 @@
 from django.db import models
 from account.models import Organization
 import uuid
-from django.db.models import Q, UniqueConstraint
+from django.core.validators import MinValueValidator
+from django.db.models import Q, UniqueConstraint, CheckConstraint
 from django.utils import timezone
 from decimal import Decimal
 
@@ -101,6 +102,7 @@ class CouponRedemption(models.Model):
 
 class Subscription(models.Model):
     PROVIDER_CHOICES = (
+        ("bachs", "Bachs"),
         ("stripe", "Stripe"),
         ("paystack", "Paystack"),
         ("squadco", "SquadCo"),
@@ -145,10 +147,11 @@ class Subscription(models.Model):
 class Payment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, blank=True, null=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.00'))])
     currency = models.CharField(max_length=10, default='NGN')
     payment_method = models.CharField(max_length=100)
     transaction_id = models.CharField(max_length=255, unique=True)
+    gateway_reference = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     STATUS_CHOICES = [
     ('pending', 'Pending'),
     ('completed', 'Completed'),
@@ -159,12 +162,18 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            CheckConstraint(check=Q(amount__gte=Decimal('0.00')), name='payment_amount_non_negative'),
+        ]
+
     def __str__(self):
         return f"{self.subscription.organization.name} - {self.currency} {self.amount}"
 
 
 class PaymentGatewayConfig(models.Model):
     GATEWAY_CHOICES = [
+        ('bachs',       'Bachs'),
         ('squadco',     'SquadCo'),
         ('paystack',    'Paystack'),
         ('monnify',     'Monnify'),
@@ -175,8 +184,8 @@ class PaymentGatewayConfig(models.Model):
     active_gateway = models.CharField(
         max_length=20,
         choices=GATEWAY_CHOICES,
-        default='squadco',
-        help_text='The payment gateway used for subscription payments. Currency is determined by the business country (Nigeria = NGN, other countries = USD).'
+        default='bachs',
+        help_text='The default payment gateway used across Subscriptions, Online Store checkouts, and Online Store withdrawals.'
     )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
@@ -199,3 +208,21 @@ class PaymentGatewayConfig(models.Model):
 
     def __str__(self):
         return f"Active Gateway: {self.get_active_gateway_display()}"
+
+
+class WebhookEvent(models.Model):
+    """Deduplication ledger for incoming payment/payout webhooks."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
+    provider = models.CharField(max_length=20, db_index=True)
+    event_id = models.CharField(max_length=255, db_index=True)
+    event_type = models.CharField(max_length=100, blank=True)
+    payload_hash = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(fields=['provider', 'event_id'], name='unique_webhook_event_per_provider'),
+        ]
+
+    def __str__(self):
+        return f"{self.provider}:{self.event_id}"

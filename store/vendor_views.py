@@ -21,6 +21,11 @@ from .models import (
 )
 from .emails import send_service_enrollment_email
 from .decorators import require_online_store_access
+from subscriptions.services.gateways import (
+    BachsGateway,
+    get_active_gateway_name,
+    validate_positive_amount,
+)
 
 
 import logging
@@ -610,6 +615,11 @@ def request_organization_payout(org, user, amount, notes='', idempotency_key=Non
     Uses select_for_update() row locking on the Organization model to serialize concurrent
     withdrawal requests and prevent race conditions or double-spending of revenue balance.
     """
+    try:
+        amount = validate_positive_amount(amount, field_name="withdrawal amount")
+    except ValueError as exc:
+        return False, str(exc), None
+
     min_withdrawal = Decimal('500.00')
     if amount < min_withdrawal:
         return False, f"Minimum withdrawal amount is ₦{min_withdrawal:,.2f}.", None
@@ -651,11 +661,13 @@ def request_organization_payout(org, user, amount, notes='', idempotency_key=Non
         if amount > avail:
             return False, f"Requested amount (₦{amount:,.2f}) exceeds your available balance (₦{avail:,.2f}).", None
 
+        active_gateway = get_active_gateway_name()
         payout = StorePayout.objects.create(
             organization=locked_org,
             idempotency_key=cleaned_key,
             amount=amount,
             currency='NGN',
+            gateway=active_gateway,
             bank_name=bank_account.bank_name,
             account_number=bank_account.account_number,
             account_name=bank_account.account_name,
@@ -688,6 +700,7 @@ def vendor_payouts(request):
 
         if action == 'update_bank':
             bank_name = request.POST.get('bank_name', '').strip()
+            bank_code = request.POST.get('bank_code', '').strip()
             account_number = request.POST.get('account_number', '').strip()
             account_name = request.POST.get('account_name', '').strip()
 
@@ -695,9 +708,32 @@ def vendor_payouts(request):
                 messages.error(request, "Please fill in bank name, account number, and account name.")
                 return redirect('vendor_payouts')
 
+            changed = (
+                bank_account.bank_name != bank_name
+                or bank_account.account_number != account_number
+                or (bank_code and bank_account.bank_code != bank_code)
+            )
             bank_account.bank_name = bank_name
+            if bank_code:
+                bank_account.bank_code = bank_code
             bank_account.account_number = account_number
             bank_account.account_name = account_name
+            if changed:
+                # Invalidate any previous Bachs destination ID so payouts cannot target a stale account
+                bank_account.bachs_destination_id = None
+
+            if get_active_gateway_name() == 'bachs' and bank_account.bank_code and settings.BACHS_API_KEY:
+                try:
+                    dest = BachsGateway().create_payout_destination(
+                        currency='NGN',
+                        account_number=bank_account.account_number,
+                        bank_code=bank_account.bank_code,
+                        name=bank_account.account_name,
+                    )
+                    bank_account.bachs_destination_id = dest['destination_id']
+                except Exception as exc:
+                    logger.warning("[Vendor Payouts] Could not pre-register Bachs destination: %s", exc)
+
             bank_account.save()
             messages.success(request, "Settlement bank account details updated successfully!")
             return redirect('vendor_payouts')
