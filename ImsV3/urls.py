@@ -30,11 +30,18 @@ def service_worker(request):
         content = f.read()
     return HttpResponse(content, content_type='application/javascript')
 
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from subscriptions.views import bachs_webhook
+
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
+    path('webhooks/bachs/', bachs_webhook, name='bachs_webhook_root'),
     path('', include('pages.urls')),
     path('ims/', include('ims.urls')),
     path('api/v1/inventory/', include('ims.api_urls')),
+    path('api/v1/mobile/', include('api.urls')),
+    path('api/v1/schema/', SpectacularAPIView.as_view(), name='api-schema'),
+    path('api/v1/docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),
     path('subscriptions/', include('subscriptions.urls')),
     path('account/', include('account.urls')),
     path('intelligence/', include('intelligence.urls')),

@@ -14,6 +14,15 @@ def squadco_public_key(request):
         return {"SQUAD_PUBLIC_KEY": ""}
 
 
+def payment_gateway_context(request):
+    try:
+        from .models import PaymentGatewayConfig
+        return {"ACTIVE_PAYMENT_GATEWAY": PaymentGatewayConfig.get_active_gateway()}
+    except Exception:
+        logger.exception("payment_gateway_context processor failed")
+        return {"ACTIVE_PAYMENT_GATEWAY": "bachs"}
+
+
 def subscription_context(request):
     """
     Add subscription information to all template contexts.

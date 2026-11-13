@@ -37,7 +37,15 @@ INTERNAL_IPS = [
 ]
 
 ALLOWED_HOSTS = get_list(config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.lvh.me'))
-CSRF_TRUSTED_ORIGINS = get_list(config('CSRF_TRUSTED_ORIGINS', default=''))
+CSRF_TRUSTED_ORIGINS = get_list(config('CSRF_TRUSTED_ORIGINS', default='http://localhost:8000,http://127.0.0.1:8000'))
+
+if DEBUG:
+    for _ngrok_host in ('.ngrok-free.dev', '.ngrok-free.app', '.ngrok.io'):
+        if _ngrok_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_ngrok_host)
+    for _ngrok_origin in ('https://*.ngrok-free.dev', 'https://*.ngrok-free.app', 'https://*.ngrok.io'):
+        if _ngrok_origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_ngrok_origin)
 
 
 # ENV = config('ENV', default='development')  # 'production' or 'development'
@@ -75,6 +83,12 @@ INSTALLED_APPS = [
     'store.apps.StoreConfig',
     'simple_history',
     'anymail',
+    'corsheaders',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular',
+    'api.apps.ApiConfig',
 ]
 
 import sys
@@ -86,6 +100,7 @@ if ENV == 'development' and 'test' not in sys.argv:
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -120,6 +135,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'subscriptions.context_processors.squadco_public_key',
+                'subscriptions.context_processors.payment_gateway_context',
                 'subscriptions.context_processors.subscription_context',
                 'ims.context_processors.ticket_notifications',
                 'account.context_processors.organization_role',
@@ -448,6 +464,20 @@ SQUAD_MERCHANT_ID = config('SQUAD_MERCHANT_ID', default='')
 # SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='https://sandbox-api-d.squadco.com')
 SQUAD_API_BASE_URL = config('SQUAD_API_BASE_URL', default='')
 
+BACHS_API_KEY = config('BACHS_API_KEY', default='').strip()
+BACHS_WEBHOOK_SECRET = config('BACHS_WEBHOOK_SECRET', default='').strip()
+_default_bachs_base = (
+    'https://api.bachs.io'
+    if BACHS_API_KEY.startswith('sk_live_')
+    else 'https://sandbox-api.bachs.io'
+)
+BACHS_API_BASE_URL = config('BACHS_API_BASE_URL', default=_default_bachs_base).strip().rstrip('/')
+PUBLIC_BASE_URL = config('PUBLIC_BASE_URL', default='').strip().rstrip('/')
+
+if DEBUG:
+    USE_X_FORWARDED_HOST = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 
 LOGGING_CONFIG = 'logging.config.dictConfig'
@@ -550,3 +580,108 @@ else:
 
 # Tauri Desktop Application Settings
 TAURI_APP_VERSION = '0.1.0'
+
+# Mobile REST API (DRF + SimpleJWT + drf-spectacular + CORS)
+from datetime import timedelta
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'EXCEPTION_HANDLER': 'api.exceptions.mobile_exception_handler',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.MobilePageNumberPagination',
+    'PAGE_SIZE': 25,
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Quicksales SaaS Mobile API',
+    'DESCRIPTION': 'REST API extending Quicksales SaaS to mobile applications.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'ENUM_NAME_OVERRIDES': {
+        'PaymentMethodEnum': [
+            ('cash', 'Cash'),
+            ('transfer', 'Transfer'),
+            ('pos', 'POS'),
+        ],
+    },
+}
+
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', cast=bool, default=True)
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',
+    'content-type',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-organization-id',
+    'x-branch-id',
+]
+
+
+# Mobile REST API (DRF + SimpleJWT + drf-spectacular + CORS)
+from datetime import timedelta
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'EXCEPTION_HANDLER': 'api.exceptions.mobile_exception_handler',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.MobilePageNumberPagination',
+    'PAGE_SIZE': 25,
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Quicksales SaaS Mobile API',
+    'DESCRIPTION': 'REST API extending Quicksales SaaS to mobile applications.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'ENUM_NAME_OVERRIDES': {
+        'PaymentMethodEnum': [
+            ('cash', 'Cash'),
+            ('transfer', 'Transfer'),
+            ('pos', 'POS'),
+        ],
+    },
+}
+
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', cast=bool, default=True)
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',
+    'content-type',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-organization-id',
+    'x-branch-id',
+]

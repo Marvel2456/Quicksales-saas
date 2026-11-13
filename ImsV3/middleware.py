@@ -25,12 +25,25 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
             reverse('logout'),
             '/static/',
             '/media/',
+            '/api/v1/mobile/auth/',
+            '/api/v1/schema/',
+            '/api/v1/docs/',
         ]
         
         # Check if current path is allowed
         for url in allowed_urls:
             if request.path.startswith(url):
                 return None
+
+        if request.path.startswith('/api/v1/mobile/'):
+            from django.http import JsonResponse
+            return JsonResponse(
+                {
+                    'detail': 'Password change is required before accessing this resource.',
+                    'code': 'password_change_required',
+                },
+                status=403,
+            )
         
         # Redirect to force password change page
         return redirect('force_password_change')
@@ -40,6 +53,10 @@ class SubdomainOrganizationMiddleware(MiddlewareMixin):
     # Public and authentication URLs exempt from organization mismatch check
     EXEMPT_URLS = [
         '/account/login/',
+        '/admin/',
+        '/api/v1/mobile/',
+        '/api/v1/schema/',
+        '/api/v1/docs/',
         '/account/logout/',
         '/account/register/',
         '/account/verify-email/',
@@ -57,11 +74,15 @@ class SubdomainOrganizationMiddleware(MiddlewareMixin):
     ]
 
     def process_request(self, request):
-        host = request.get_host().split(':')[0]
+        from django.conf import settings
+
+        host = request.get_host().split(':')[0].lower()
         parts = host.split('.')
 
-        # Root domain (e.g., landing page or docs.yourapp.com)
-        if len(parts) < 3:
+        # Root domain (e.g., landing page or docs.yourapp.com) or local ngrok tunnels in DEBUG mode
+        if len(parts) < 3 or (
+            settings.DEBUG and host.endswith(('.ngrok-free.dev', '.ngrok-free.app', '.ngrok.io'))
+        ):
             request.organization = None
             return None
 
