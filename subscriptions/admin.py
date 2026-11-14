@@ -10,13 +10,14 @@ from .services.settlement import get_platform_settlement_summary
 class PaymentGatewayConfigAdmin(ModelAdmin):
     list_display = (
         'active_gateway',
+        'minimum_withdrawal_ngn',
         'quicksales_settleable_summary',
         'customer_withdrawable_summary',
         'updated_at',
         'updated_by',
     )
     readonly_fields = ('updated_at', 'funds_settlement_breakdown')
-    fields = ('active_gateway', 'updated_at', 'funds_settlement_breakdown')
+    fields = ('active_gateway', 'minimum_withdrawal_ngn', 'updated_at', 'funds_settlement_breakdown')
 
     def has_add_permission(self, request):
         return not PaymentGatewayConfig.objects.exists()

@@ -187,6 +187,12 @@ class PaymentGatewayConfig(models.Model):
         default='bachs',
         help_text='The default payment gateway used across Subscriptions, Online Store checkouts, and Online Store withdrawals.'
     )
+    minimum_withdrawal_ngn = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('500.00'),
+        help_text='Minimum NGN amount a merchant can withdraw in a single request.'
+    )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         'account.CustomUser', on_delete=models.SET_NULL,
@@ -205,6 +211,11 @@ class PaymentGatewayConfig(models.Model):
     def get_active_gateway(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj.active_gateway
+
+    @classmethod
+    def get_minimum_withdrawal_ngn(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj.minimum_withdrawal_ngn
 
     def __str__(self):
         return f"Active Gateway: {self.get_active_gateway_display()}"

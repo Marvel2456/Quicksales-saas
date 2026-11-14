@@ -429,3 +429,68 @@ class BachsGatewaySecurityAndSwitchTests(TestCase):
             self.assertIsNotNone(res)
             self.assertEqual(res.status_code, 404)
             self.assertEqual(res.content, b"Organization not found")
+
+    @patch("subscriptions.services.gateways.requests.post")
+    def test_automatic_withdrawal_with_admin_min_and_settled_balance_only(self, mock_post):
+        from store.vendor_views import request_organization_payout, calculate_organization_balances
+
+        def _side_effect(url, **kwargs):
+            resp = MagicMock()
+            resp.status_code = 201
+            if url.endswith("/v1/payouts/destinations"):
+                resp.json.return_value = {"id": "pd_auto_123", "is_usable": True}
+            else:
+                resp.json.return_value = {"id": "po_auto_999", "status": "processing"}
+            return resp
+
+        mock_post.side_effect = _side_effect
+
+        # Paid online order -> withdrawable
+        OnlineOrder.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            buyer_name="Paid Buyer",
+            buyer_email="paid@example.com",
+            payment_method="bachs",
+            payment_status="paid",
+            payment_reference="ORD-PAID-AUTO",
+            currency="NGN",
+            subtotal=Decimal("3000.00"),
+            total_amount=Decimal("3000.00"),
+        )
+        # Confirmed COD order -> NOT settled online, must NOT be withdrawable
+        OnlineOrder.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            buyer_name="COD Buyer",
+            buyer_email="cod@example.com",
+            payment_method="cod",
+            payment_status="pending",
+            status="confirmed",
+            currency="NGN",
+            subtotal=Decimal("5000.00"),
+            total_amount=Decimal("5000.00"),
+        )
+
+        balances = calculate_organization_balances(self.org)
+        self.assertEqual(balances["available_balance"], Decimal("3000.00"))
+
+        # Admin sets minimum withdrawal to 1500.00
+        cfg, _ = PaymentGatewayConfig.objects.get_or_create(pk=1)
+        cfg.minimum_withdrawal_ngn = Decimal("1500.00")
+        cfg.save()
+
+        ok_low, msg_low, _ = request_organization_payout(self.org, self.user, Decimal("1000.00"))
+        self.assertFalse(ok_low)
+        self.assertIn("1,500.00", msg_low)
+
+        ok_over, msg_over, _ = request_organization_payout(self.org, self.user, Decimal("4000.00"))
+        self.assertFalse(ok_over)
+        self.assertIn("exceeds your available balance", msg_over)
+
+        ok, _, payout = request_organization_payout(self.org, self.user, Decimal("2000.00"))
+        self.assertTrue(ok)
+        self.assertEqual(payout.status, "processing")
+        self.assertEqual(payout.gateway, "bachs")
+        self.assertEqual(payout.gateway_reference, "po_auto_999")
+        self.assertEqual(calculate_organization_balances(self.org)["available_balance"], Decimal("1000.00"))

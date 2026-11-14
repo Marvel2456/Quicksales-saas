@@ -558,21 +558,15 @@ def vendor_discounts(request):
 
 def calculate_organization_balances(org):
     """
-    Computes total gross online revenue (product orders + service/class enrollments),
+    Computes settled online revenue (paid online orders + paid service enrollments),
     completed payouts, pending/processing payouts, and available balance for withdrawal.
     """
-    paid_orders = OnlineOrder.objects.filter(
+    paid_online_orders = OnlineOrder.objects.filter(
         organization=org,
-        payment_status='paid'
-    )
-    total_sales_revenue = paid_orders.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
-
-    confirmed_orders = OnlineOrder.objects.filter(
-        organization=org,
-        status__in=['confirmed', 'dispatched', 'delivered']
-    )
-    order_gross_revenue = confirmed_orders.aggregate(total=models.Sum('total_amount'))['total'] or total_sales_revenue
-    order_gross_revenue = max(order_gross_revenue, total_sales_revenue)
+        payment_status='paid',
+        payment_method__in=['bachs', 'squadco'],
+    ).exclude(status='cancelled')
+    order_gross_revenue = paid_online_orders.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
 
     # Paid service/class enrollments
     paid_enrollments = ServiceEnrollment.objects.filter(
@@ -611,16 +605,18 @@ def calculate_organization_balances(org):
 
 def request_organization_payout(org, user, amount, notes='', idempotency_key=None):
     """
-    Atomically and safely creates a withdrawal request.
-    Uses select_for_update() row locking on the Organization model to serialize concurrent
-    withdrawal requests and prevent race conditions or double-spending of revenue balance.
+    Atomically verifies settled balance and minimum withdrawal, creates a StorePayout,
+    and immediately disburses via Bachs when Bachs is the active gateway.
     """
+    from subscriptions.models import PaymentGatewayConfig
+    from .payout_service import disburse_store_payout
+
     try:
         amount = validate_positive_amount(amount, field_name="withdrawal amount")
     except ValueError as exc:
         return False, str(exc), None
 
-    min_withdrawal = Decimal('500.00')
+    min_withdrawal = PaymentGatewayConfig.get_minimum_withdrawal_ngn()
     if amount < min_withdrawal:
         return False, f"Minimum withdrawal amount is ₦{min_withdrawal:,.2f}.", None
 
@@ -675,6 +671,31 @@ def request_organization_payout(org, user, amount, notes='', idempotency_key=Non
             notes=notes,
             requested_by=user
         )
+        if active_gateway == 'bachs':
+            try:
+                disburse_store_payout(
+                    payout,
+                    bank_account,
+                    actor_label=f"auto ({getattr(user, 'email', 'merchant')})",
+                )
+            except Exception as exc:
+                payout.status = 'rejected'
+                payout.admin_notes = (
+                    (payout.admin_notes + '\n' if payout.admin_notes else '')
+                    + f'Automatic Bachs disbursement failed: {exc}'
+                )
+                payout.save(update_fields=['status', 'admin_notes'])
+                return False, f"Withdrawal could not be processed: {exc}", None
+
+            status_phrase = (
+                "has been sent" if payout.status == 'completed' else "is being processed"
+            )
+            return (
+                True,
+                f"Withdrawal #{payout.reference} for ₦{amount:,.2f} {status_phrase} to {bank_account.bank_name} ({bank_account.account_number}).",
+                payout,
+            )
+
         return True, f"Withdrawal request #{payout.reference} for ₦{amount:,.2f} submitted successfully! It will be reviewed and processed to {bank_account.bank_name} ({bank_account.account_number}).", payout
 
 
@@ -699,8 +720,9 @@ def vendor_payouts(request):
         action = request.POST.get('action')
 
         if action == 'update_bank':
+            from .payout_service import resolve_bank_code
             bank_name = request.POST.get('bank_name', '').strip()
-            bank_code = request.POST.get('bank_code', '').strip()
+            bank_code = resolve_bank_code(bank_name, request.POST.get('bank_code', ''))
             account_number = request.POST.get('account_number', '').strip()
             account_name = request.POST.get('account_name', '').strip()
 
@@ -756,6 +778,9 @@ def vendor_payouts(request):
 
             return redirect('vendor_payouts')
 
+    from subscriptions.models import PaymentGatewayConfig
+    min_withdrawal = PaymentGatewayConfig.get_minimum_withdrawal_ngn()
+
     context = {
         'organization': org,
         'store': store,
@@ -764,6 +789,7 @@ def vendor_payouts(request):
         'completed_payouts': balances['completed_payouts'],
         'pending_payouts': balances['pending_payouts'],
         'available_balance': balances['available_balance'],
+        'min_withdrawal': min_withdrawal,
         'payouts': payouts,
     }
     return render(request, 'store/vendor/payouts.html', context)

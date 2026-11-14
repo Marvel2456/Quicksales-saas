@@ -469,12 +469,15 @@ class IdempotencyAndConcurrencyTests(TestCase):
         Simulates two concurrent withdrawal requests competing for the same balance.
         If available balance is ₦50,000, two requests of ₦40,000 each must not both succeed.
         """
+        from unittest.mock import patch
         # Bank details setup
         StoreBankAccount.objects.create(
             organization=self.org,
             bank_name='Zenith Bank',
+            bank_code='057',
             account_number='1002003004',
-            account_name='Idemp Owner Ent'
+            account_name='Idemp Owner Ent',
+            bachs_destination_id='pd_test_1002003004',
         )
 
         # Create 1 paid order of ₦50,000
@@ -490,12 +493,14 @@ class IdempotencyAndConcurrencyTests(TestCase):
         )
 
         # First withdrawal request of ₦40,000 -> Should SUCCEED
-        success1, msg1, payout1 = request_organization_payout(self.org, self.user, Decimal('40000.00'), notes='WD 1')
+        with patch("subscriptions.services.gateways.BachsGateway.create_payout", return_value={"payout_id": "po_race_1", "status": "processing"}):
+            success1, msg1, payout1 = request_organization_payout(self.org, self.user, Decimal('40000.00'), notes='WD 1')
         self.assertTrue(success1)
         self.assertIsNotNone(payout1)
 
         # Second withdrawal request of ₦40,000 -> Should FAIL due to insufficient remaining balance (₦10,000 left)
-        success2, msg2, payout2 = request_organization_payout(self.org, self.user, Decimal('40000.00'), notes='WD 2')
+        with patch("subscriptions.services.gateways.BachsGateway.create_payout", return_value={"payout_id": "po_race_2", "status": "processing"}):
+            success2, msg2, payout2 = request_organization_payout(self.org, self.user, Decimal('40000.00'), notes='WD 2')
         self.assertFalse(success2)
         self.assertIn("exceeds your available balance", msg2)
         self.assertIsNone(payout2)
