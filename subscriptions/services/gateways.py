@@ -255,6 +255,37 @@ class BachsGateway:
             "raw": data,
         }
 
+    def resolve_bank_account(self, account_number, bank_code, timeout=12):
+        ok, msg = self.validate_config()
+        if not ok:
+            raise RuntimeError(msg)
+
+        acct = str(account_number or "").strip()
+        bcode = str(bank_code or "").strip()
+        if not acct or not bcode:
+            raise ValueError("Both account_number and bank_code are required.")
+
+        resp = requests.post(
+            f"{self.base_url}/v1/misc/bank-accounts/resolve",
+            headers=self._headers(),
+            json={"account_number": acct, "bank_code": bcode},
+            timeout=timeout,
+        )
+        if resp.status_code != 200:
+            err_msg = self._extract_error(resp)
+            raise RuntimeError(f"Bachs bank resolve error ({resp.status_code}): {err_msg}")
+
+        data = resp.json()
+        account_name = (data.get("account_name") or "").strip()
+        if not account_name:
+            raise RuntimeError("Bachs did not return an account_name.")
+        return {
+            "resolved": bool(data.get("resolved", True)),
+            "account_name": account_name,
+            "account_number": data.get("account_number") or acct,
+            "raw": data,
+        }
+
     def create_payout(
         self,
         destination_id,

@@ -96,8 +96,17 @@ def verify_bank_account_api(request):
 
     resolved_account_name = None
 
-    # 1. Try SquadCo Account Lookup API
-    if settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL and bank_code:
+    # 1. Try Bachs Account Resolve API when Bachs is configured
+    bachs_code = (bank_info.get('paystack_code') if bank_info else None) or bank_code
+    if settings.BACHS_API_KEY and bachs_code:
+        try:
+            resolved = BachsGateway().resolve_bank_account(account_number, bachs_code)
+            resolved_account_name = resolved.get('account_name')
+        except Exception as e:
+            logger.debug("Bachs account lookup exception: %s", e)
+
+    # 2. Fallback to SquadCo Account Lookup API
+    if not resolved_account_name and settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL and bank_code:
         try:
             squad_headers = {
                 "Authorization": f"Bearer {settings.SQUAD_SECRET_KEY}",
