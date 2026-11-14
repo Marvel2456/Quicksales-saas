@@ -55,6 +55,18 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* iOS: stop Safari from inflating text sizes when the phone is rotated */
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        /* Long page-number lists wrap onto a new line on phones instead of overflowing */
+        .pagination {
+            flex-wrap: wrap;
+            row-gap: 4px;
+        }
+
         /* iOS modal input fix: prevent body scroll lock from swallowing taps */
         .modal {
             -webkit-overflow-scrolling: touch;

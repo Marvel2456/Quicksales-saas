@@ -60,10 +60,11 @@ def report(request, pk):
     # Sum on full filtered set (not just current page)
     total_profits = sum(sale_qs.values_list('total_profit', flat=True))
 
-    paginator = Paginator(sale_qs.order_by('-date_updated'), 5)
+    paginator = Paginator(sale_qs.order_by('-date_updated'), 20)
     page_number = request.GET.get('page')
     sale_page = paginator.get_page(page_number)
-    nums = "a" * sale_page.paginator.num_pages
+    # Compact page window (e.g. 1 … 4 5 [6] 7 8 … 40) so pagination fits on phone screens
+    page_range = paginator.get_elided_page_range(sale_page.number, on_each_side=1, on_ends=1)
 
     context = {
         'branch':branch,
@@ -71,7 +72,8 @@ def report(request, pk):
         'total_profits':total_profits,
         'start_date': start_date_contains,
         'end_date': end_date_contains,
-        'nums': nums,
+        'page_range': page_range,
+        'ellipsis': Paginator.ELLIPSIS,
     }
     return render(request, 'ims/reports.html', context)
 
