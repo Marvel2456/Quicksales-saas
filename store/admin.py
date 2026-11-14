@@ -1,12 +1,8 @@
 from django.contrib import admin, messages
 from django.db import transaction
-from django.utils import timezone
 from unfold.admin import ModelAdmin
-from subscriptions.services.gateways import (
-    BachsGateway,
-    get_active_gateway_name,
-    validate_positive_amount,
-)
+from subscriptions.services.gateways import get_active_gateway_name
+from .payout_service import disburse_store_payout
 from .models import (
     Buyer, StoreListing, ProductListing,
     StoreDiscount, StoreDiscountRedemption,
@@ -123,57 +119,9 @@ class StorePayoutAdmin(ModelAdmin):
                         skipped += 1
                         continue
 
-                    validate_positive_amount(payout.amount, field_name='payout amount')
                     bank_account = StoreBankAccount.objects.filter(organization=payout.organization).first()
-                    if not bank_account or bank_account.account_number != payout.account_number:
-                        raise ValueError(
-                            f'Bank account snapshot mismatch for payout {payout.reference}; manual review required.'
-                        )
-
-                    if active_gateway == 'bachs':
-                        bachs = BachsGateway()
-                        dest_id = bank_account.bachs_destination_id
-                        if not dest_id:
-                            if not bank_account.bank_code:
-                                raise ValueError(f'Missing bank_code on {bank_account} for Bachs destination.')
-                            dest = bachs.create_payout_destination(
-                                currency=payout.currency,
-                                account_number=bank_account.account_number,
-                                bank_code=bank_account.bank_code,
-                                name=bank_account.account_name,
-                            )
-                            dest_id = dest['destination_id']
-                            bank_account.bachs_destination_id = dest_id
-                            bank_account.save(update_fields=['bachs_destination_id', 'updated_at'])
-
-                        res = bachs.create_payout(
-                            destination_id=dest_id,
-                            amount=payout.amount,
-                            reference=payout.reference,
-                            narration=f'Quicksales payout {payout.reference}',
-                            idempotency_key=payout.idempotency_key or payout.reference,
-                        )
-                        payout.gateway = 'bachs'
-                        payout.gateway_reference = res['payout_id']
-                        payout.status = 'completed' if res['status'] in ('completed', 'succeeded', 'paid') else 'processing'
-                        if payout.status == 'completed':
-                            payout.processed_at = timezone.now()
-                        payout.admin_notes = (
-                            (payout.admin_notes + '\n' if payout.admin_notes else '')
-                            + f'Disbursed via Bachs by {request.user.email} (ref={res["payout_id"]}).'
-                        )
-                        payout.save(update_fields=['gateway', 'gateway_reference', 'status', 'processed_at', 'admin_notes'])
-                        disbursed += 1
-                    else:
-                        payout.gateway = active_gateway
-                        payout.status = 'completed'
-                        payout.processed_at = timezone.now()
-                        payout.admin_notes = (
-                            (payout.admin_notes + '\n' if payout.admin_notes else '')
-                            + f'Approved for {active_gateway} by {request.user.email}.'
-                        )
-                        payout.save(update_fields=['gateway', 'status', 'processed_at', 'admin_notes'])
-                        disbursed += 1
+                    disburse_store_payout(payout, bank_account, actor_label=request.user.email)
+                    disbursed += 1
             except Exception as exc:
                 self.message_user(request, f'Payout {payout_id} failed: {exc}', level=messages.ERROR)
 
