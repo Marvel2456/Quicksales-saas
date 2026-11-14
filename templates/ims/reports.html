@@ -36,7 +36,7 @@
             </div><!--//col-->
              
         </div><!--row-->
-        <div class="col-auto pb-2 d-flex gap-2">
+        <div class="col-auto pb-2 d-flex flex-wrap gap-2">
            <a href="{% url 'export_profit' branch.id %}?start_date={{ request.GET.start_date|default:start_date }}&end_date={{ request.GET.end_date|default:end_date }}" class="btn app-btn-secondary">
                 Export Filtered CSV
             </a>
@@ -90,25 +90,30 @@
                                 </tbody>
                             </table>
                             <h5 class="text-center fw-bold pt-3">Total Profit: {{ currency_symbol }}{{total_profits}}</h5>
-                            <div class="pagination pb-4">
-                                <span class="step-links">
-                                  <nav aria-label="Page navigation example">
-                                    <ul class="pagination" style="color:yellow;">
-                                        {% if sale_page.has_previous %}
-                                        <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.previous_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">previous</a></li>
+                            {% if sale_page.paginator.num_pages > 1 %}
+                            <nav aria-label="Profit report pages" class="pb-4 px-2">
+                                <p class="text-center text-muted small mb-2">
+                                    Showing {{ sale_page.start_index }}–{{ sale_page.end_index }} of {{ sale_page.paginator.count }}
+                                </p>
+                                <ul class="pagination pagination-sm flex-wrap justify-content-center mb-0">
+                                    {% if sale_page.has_previous %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ sale_page.previous_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" aria-label="Previous">&laquo;</a></li>
+                                    {% endif %}
+                                    {% for num in page_range %}
+                                        {% if num == ellipsis %}
+                                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                                        {% elif num == sale_page.number %}
+                                        <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+                                        {% else %}
+                                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{ num }}</a></li>
                                         {% endif %}
-                                        {% for i in nums %}
-                                        <span class="current">
-                                        <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{forloop.counter}}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">{{forloop.counter}}</a></li>
-                                        </span>
-                                        {% endfor %}
-                                        {% if sale_page.has_next %}
-                                        <li class="page-item"><a class="page-link" style="color:grey;" href="?page={{ sale_page.next_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}">next</a></li>
-                                        {% endif %}
-                                    </ul>
-                                  </nav>
-                                </span>
-                            </div>
+                                    {% endfor %}
+                                    {% if sale_page.has_next %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ sale_page.next_page_number }}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}" aria-label="Next">&raquo;</a></li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
                         </div><!--//table-responsive-->
                        
                     </div><!--app-card-body-->		
