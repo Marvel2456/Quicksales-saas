@@ -5,37 +5,65 @@ from subscriptions.services.gateways import (
     validate_positive_amount,
 )
 
-NIGERIAN_BANK_CODES = {
-    'Guaranty Trust Bank (GTBank)': '000013',
-    'Access Bank': '000014',
-    'Zenith Bank': '000015',
-    'First Bank of Nigeria': '000016',
-    'United Bank for Africa (UBA)': '000004',
-    'OPay Digital Services': '100004',
-    'PalmPay': '100033',
-    'Kuda Microfinance Bank': '090267',
-    'Moniepoint Microfinance Bank': '090405',
-    'Fidelity Bank': '000007',
-    'First City Monument Bank (FCMB)': '000003',
-    'Stanbic IBTC Bank': '000012',
-    'Sterling Bank': '000001',
-    'Union Bank of Nigeria': '000018',
-    'Wema Bank (ALAT)': '000017',
-    'Keystone Bank': '000002',
-    'Polaris Bank': '000008',
-    'Providus Bank': '000023',
-    'Taj Bank': '000026',
-    'Jaiz Bank': '000006',
-    'FairMoney Microfinance Bank': '090328',
+# Bachs /v1/reference/banks uses CBN/Paystack-style bank codes (e.g. 011, 058, 999992),
+# whereas SquadCo uses 6-digit NIBSS codes (e.g. 000016, 000013, 100004).
+BACHS_BANK_CODES = {
+    'Guaranty Trust Bank (GTBank)': '058',
+    'Access Bank': '044',
+    'Zenith Bank': '057',
+    'First Bank of Nigeria': '011',
+    'United Bank for Africa (UBA)': '033',
+    'OPay Digital Services': '999992',
+    'PalmPay': '999991',
+    'Kuda Microfinance Bank': '50211',
+    'Moniepoint Microfinance Bank': '50515',
+    'Fidelity Bank': '070',
+    'First City Monument Bank (FCMB)': '214',
+    'Stanbic IBTC Bank': '221',
+    'Sterling Bank': '232',
+    'Union Bank of Nigeria': '032',
+    'Wema Bank (ALAT)': '035',
+    'Keystone Bank': '082',
+    'Polaris Bank': '076',
+    'Providus Bank': '101',
+    'Taj Bank': '302',
+    'Jaiz Bank': '301',
+    'FairMoney Microfinance Bank': '51318',
+}
+
+NIBSS_TO_BACHS_CODE = {
+    '000013': '058',
+    '000014': '044',
+    '000015': '057',
+    '000016': '011',
+    '000004': '033',
+    '100004': '999992',
+    '100033': '999991',
+    '090267': '50211',
+    '090405': '50515',
+    '000007': '070',
+    '000003': '214',
+    '000012': '221',
+    '000001': '232',
+    '000018': '032',
+    '000017': '035',
+    '000002': '082',
+    '000008': '076',
+    '000023': '101',
+    '000026': '302',
+    '000006': '301',
+    '090328': '51318',
 }
 
 
 def resolve_bank_code(bank_name, explicit_code=''):
-    """Return explicit bank_code or fall back to known Nigerian NIBSS bank code."""
+    """Return Bachs-compatible bank code from explicit code or bank_name."""
     code = (explicit_code or '').strip()
+    if code in NIBSS_TO_BACHS_CODE:
+        return NIBSS_TO_BACHS_CODE[code]
     if code:
         return code
-    return NIGERIAN_BANK_CODES.get((bank_name or '').strip(), '')
+    return BACHS_BANK_CODES.get((bank_name or '').strip(), '')
 
 
 def disburse_store_payout(payout, bank_account, actor_label='auto'):
@@ -57,7 +85,7 @@ def disburse_store_payout(payout, bank_account, actor_label='auto'):
                     f'Missing bank_code on {bank_account.bank_name or "bank account"} for Bachs payout. '
                     'Please re-select your bank in Settlement Bank Account.'
                 )
-            if not bank_account.bank_code:
+            if bank_account.bank_code != bank_code:
                 bank_account.bank_code = bank_code
                 bank_account.save(update_fields=['bank_code', 'updated_at'])
             dest = bachs.create_payout_destination(
@@ -98,4 +126,3 @@ def disburse_store_payout(payout, bank_account, actor_label='auto'):
     )
     payout.save(update_fields=['gateway', 'status', 'processed_at', 'admin_notes'])
     return payout
-
