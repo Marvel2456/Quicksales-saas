@@ -97,13 +97,26 @@ def verify_bank_account_api(request):
     resolved_account_name = None
 
     # 1. Try Bachs Account Resolve API when Bachs is configured
-    bachs_code = (bank_info.get('paystack_code') if bank_info else None) or bank_code
-    if settings.BACHS_API_KEY and bachs_code:
-        try:
-            resolved = BachsGateway().resolve_bank_account(account_number, bachs_code)
-            resolved_account_name = resolved.get('account_name')
-        except Exception as e:
-            logger.debug("Bachs account lookup exception: %s", e)
+    if settings.BACHS_API_KEY:
+        from .payout_service import resolve_bank_code
+        candidate_codes = []
+        for c in (
+            resolve_bank_code(bank_name, bank_code, use_bachs_api=True),
+            bank_info.get('paystack_code') if bank_info else None,
+            bank_code,
+        ):
+            if c and c not in candidate_codes:
+                candidate_codes.append(c)
+
+        bachs_client = BachsGateway()
+        for candidate_code in candidate_codes:
+            try:
+                resolved = bachs_client.resolve_bank_account(account_number, candidate_code)
+                resolved_account_name = resolved.get('account_name')
+                if resolved_account_name:
+                    break
+            except Exception as e:
+                logger.debug("Bachs account lookup exception (code=%s): %s", candidate_code, e)
 
     # 2. Fallback to SquadCo Account Lookup API
     if not resolved_account_name and settings.SQUAD_SECRET_KEY and settings.SQUAD_API_BASE_URL and bank_code:

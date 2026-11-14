@@ -1346,11 +1346,15 @@ def bachs_webhook(request):
 
             elif event_type in {"payout.completed", "payout.succeeded", "payout.paid", "payout.failed", "payout.rejected"}:
                 from store.models import StorePayout
-                payout_ref = data.get("reference") or data.get("id") or data.get("payout_id")
-                if payout_ref:
+                payout_candidates = [
+                    str(v).strip()
+                    for v in (data.get("reference"), data.get("id"), data.get("payout_id"))
+                    if v
+                ]
+                if payout_candidates:
                     payout = (
                         StorePayout.objects.select_for_update()
-                        .filter(Q(reference=payout_ref) | Q(gateway_reference=payout_ref))
+                        .filter(Q(reference__in=payout_candidates) | Q(gateway_reference__in=payout_candidates))
                         .first()
                     )
                     if payout and payout.status in {"pending", "processing"}:
