@@ -56,14 +56,27 @@ NIBSS_TO_BACHS_CODE = {
 }
 
 
-def resolve_bank_code(bank_name, explicit_code=''):
-    """Return Bachs-compatible bank code from explicit code or bank_name."""
+def resolve_bank_code(bank_name, explicit_code='', use_bachs_api=True):
+    """Return Bachs-compatible bank code from Bachs reference list, explicit code, or fallback map."""
+    name = (bank_name or '').strip()
+    if use_bachs_api and name:
+        try:
+            banks = BachsGateway().list_banks(country='NG')
+            needle = name.lower().replace('(gtbank)', '').replace('digital services', '').replace('microfinance bank', '').replace('(alat)', '').strip()
+            for b in banks:
+                bname = str(b.get('name') or '').strip().lower()
+                bcode = str(b.get('code') or '').strip()
+                if bname and bcode and (bname == name.lower() or needle in bname or bname in name.lower()):
+                    return bcode
+        except Exception:
+            pass
+
     code = (explicit_code or '').strip()
     if code in NIBSS_TO_BACHS_CODE:
         return NIBSS_TO_BACHS_CODE[code]
     if code:
         return code
-    return BACHS_BANK_CODES.get((bank_name or '').strip(), '')
+    return BACHS_BANK_CODES.get(name, '')
 
 
 def disburse_store_payout(payout, bank_account, actor_label='auto'):

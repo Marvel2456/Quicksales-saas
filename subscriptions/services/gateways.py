@@ -286,6 +286,36 @@ class BachsGateway:
             "raw": data,
         }
 
+    def list_banks(self, country="NG", timeout=12):
+        from django.core.cache import cache
+
+        ok, msg = self.validate_config()
+        if not ok:
+            raise RuntimeError(msg)
+
+        cc = (country or "NG").strip().upper()
+        cache_key = f"bachs:banks:{self.base_url}:{cc}"
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+
+        resp = requests.get(
+            f"{self.base_url}/v1/reference/banks",
+            headers=self._headers(),
+            params={"country": cc},
+            timeout=timeout,
+        )
+        if resp.status_code != 200:
+            err_msg = self._extract_error(resp)
+            raise RuntimeError(f"Bachs banks error ({resp.status_code}): {err_msg}")
+
+        data = resp.json()
+        banks = data.get("banks") if isinstance(data, dict) else data
+        if not isinstance(banks, list):
+            banks = []
+        cache.set(cache_key, banks, timeout=60 * 60 * 12)
+        return banks
+
     def create_payout(
         self,
         destination_id,
