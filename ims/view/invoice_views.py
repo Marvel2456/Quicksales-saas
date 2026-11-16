@@ -267,6 +267,7 @@ def create_invoice(request, pk):
         payment_plan = request.POST.get('payment_plan', 'one_time')
         if payment_plan not in ('one_time', 'installment'):
             payment_plan = 'one_time'
+        show_product_images = request.POST.get('show_product_images') == 'on'
 
         # Parse line items from POST
         inventory_ids = request.POST.getlist('inventory_id[]')
@@ -292,6 +293,7 @@ def create_invoice(request, pk):
             payment_plan=payment_plan,
             amount_paid=0.0,
             inventory_deducted=False,
+            show_product_images=show_product_images,
             invoice_number=_generate_invoice_number(organization),
             status='pending',
         )
@@ -388,7 +390,17 @@ def invoice_detail(request, pk):
     if not _check_invoice_ownership(request, organization, invoice):
         return redirect('invoices', pk=invoice.branch.id)
 
-    items = invoice.items.select_related('inventory__product').all()
+    items = list(
+        invoice.items.select_related('inventory__product')
+        .prefetch_related('inventory__store_listings')
+        .all()
+    )
+    for item in items:
+        img_field = _resolve_invoice_item_image_field(item)
+        item.display_image_url = getattr(img_field, 'url', None) if img_field else None
+        if invoice.show_product_images:
+            item.pdf_image_uri = _get_pdf_safe_image_uri(img_field, request=request) if img_field else None
+    has_product_images = any(getattr(item, 'display_image_url', None) for item in items)
     payments = invoice.payments.select_related('recorded_by').order_by('date_paid')
     org_role = get_request_org_role(request, organization)
     edit_logs = invoice.edit_logs.select_related('user').order_by('-timestamp') if org_role == 'owner' else []
@@ -396,11 +408,91 @@ def invoice_detail(request, pk):
     context = {
         'invoice': invoice,
         'items': items,
+        'has_product_images': has_product_images,
         'payments': payments,
         'edit_logs': edit_logs,
         'branch': invoice.branch,
     }
     return render(request, 'ims/invoice_detail.html', context)
+
+
+def _resolve_invoice_item_image_field(item):
+    """Return the first available ImageFieldFile for an invoice item (Product or Store ProductListing)."""
+    inv = getattr(item, 'inventory', None)
+    if not inv:
+        return None
+    product = getattr(inv, 'product', None)
+    if product:
+        for attr in ('image', 'image_detail', 'image_extra'):
+            field = getattr(product, attr, None)
+            if field and getattr(field, 'name', None):
+                return field
+    try:
+        for listing in inv.store_listings.all():
+            for attr in ('image', 'image_detail', 'image_extra'):
+                field = getattr(listing, attr, None)
+                if field and getattr(field, 'name', None):
+                    return field
+    except Exception:
+        pass
+    return None
+
+
+def _get_pdf_safe_image_uri(image_or_product, request=None):
+    """Return a JPEG data URI for xhtml2pdf so WebP/remote images always render."""
+    image_field = image_or_product
+    if image_or_product and hasattr(image_or_product, 'product_name'):
+        image_field = (
+            getattr(image_or_product, 'image', None)
+            or getattr(image_or_product, 'image_detail', None)
+            or getattr(image_or_product, 'image_extra', None)
+        )
+    if not image_field or not getattr(image_field, 'name', None):
+        return None
+    img_url = None
+    try:
+        img_url = image_field.url
+    except Exception:
+        img_url = None
+    if img_url and img_url.startswith('/') and request is not None:
+        img_url = request.build_absolute_uri(img_url)
+    try:
+        import base64
+        from io import BytesIO
+        from PIL import Image, ImageOps
+
+        raw_bytes = None
+        try:
+            with image_field.open('rb') as f:
+                raw_bytes = f.read()
+        except Exception:
+            if img_url and img_url.startswith(('http://', 'https://')):
+                import requests
+                resp = requests.get(img_url, timeout=5)
+                if resp.status_code == 200:
+                    raw_bytes = resp.content
+
+        if not raw_bytes:
+            return img_url
+
+        img = Image.open(BytesIO(raw_bytes))
+        img = ImageOps.exif_transpose(img)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[-1] if 'A' in img.mode else None)
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        img.thumbnail((96, 96))
+        buf = BytesIO()
+        img.save(buf, format='JPEG', quality=85)
+        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+        return f"data:image/jpeg;base64,{b64}"
+    except Exception:
+        return img_url
 
 
 @role_required(roles=['owner', 'manager'], permission='invoices')
@@ -419,7 +511,16 @@ def invoice_pdf(request, pk):
     if not _check_invoice_ownership(request, organization, invoice):
         return redirect('invoices', pk=invoice.branch.id)
 
-    items = invoice.items.select_related('inventory__product').all()
+    items = list(
+        invoice.items.select_related('inventory__product')
+        .prefetch_related('inventory__store_listings')
+        .all()
+    )
+    if invoice.show_product_images:
+        for item in items:
+            img_field = _resolve_invoice_item_image_field(item)
+            item.display_image_url = getattr(img_field, 'url', None) if img_field else None
+            item.pdf_image_uri = _get_pdf_safe_image_uri(img_field, request=request) if img_field else None
     payments = invoice.payments.select_related('recorded_by').order_by('date_paid')
 
     template_path = 'ims/invoice_pdf.html'
@@ -750,6 +851,7 @@ def edit_invoice(request, pk):
         payment_plan = request.POST.get('payment_plan', invoice.payment_plan or 'one_time')
         if payment_plan not in ('one_time', 'installment'):
             payment_plan = 'one_time'
+        show_product_images = request.POST.get('show_product_images') == 'on'
 
         inventory_ids = request.POST.getlist('inventory_id[]')
         quantities = request.POST.getlist('quantity[]')
@@ -848,6 +950,7 @@ def edit_invoice(request, pk):
                 invoice.due_date = due_date_str
                 invoice.payment_method = payment_method
                 invoice.payment_plan = payment_plan
+                invoice.show_product_images = request.POST.get('show_product_images') == 'on'
                 invoice.total_amount = new_total
 
                 # Replace all line items

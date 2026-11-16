@@ -50,6 +50,8 @@ class Buyer(models.Model):
         super().save(*args, **kwargs)
 
 
+
+
 class StoreListing(models.Model):
     """
     Public-facing storefront settings for an organization.
@@ -95,6 +97,8 @@ class StoreListing(models.Model):
         if not self.branch_id and self.organization_id:
             self.branch = self.organization.default_branch
         super().save(*args, **kwargs)
+
+
 
 
 class ProductListing(models.Model):
@@ -331,6 +335,8 @@ class OnlineOrder(models.Model):
         super().save(*args, **kwargs)
 
 
+
+
 class OnlineOrderItem(models.Model):
     """
     Individual items inside an online order.
@@ -350,6 +356,8 @@ class OnlineOrderItem(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = Decimal(str(self.unit_price)) * self.quantity
         super().save(*args, **kwargs)
+
+
 
 
 class StoreDiscountRedemption(models.Model):
@@ -433,6 +441,8 @@ class StorePayout(models.Model):
         super().save(*args, **kwargs)
 
 
+
+
 class ServiceListing(models.Model):
     """
     An online class, course, webinar, training, or service offered by an organization.
@@ -481,6 +491,8 @@ class ServiceListing(models.Model):
             if not self.usd_to_ngn_rate or self.usd_to_ngn_rate == Decimal('1500.00'):
                 self.usd_to_ngn_rate = (Decimal(str(self.price_ngn)) / Decimal(str(self.price_usd))).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
+
+
 
     @property
     def get_image_url(self):
@@ -590,5 +602,30 @@ class ServiceEnrollment(models.Model):
                 self.exchange_rate_used = rate
             self.settled_amount_ngn = (Decimal(str(self.amount or '0.00')) * rate).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
+
+
+class WithdrawalOTP(models.Model):
+    """Single-use, 5-minute 5-digit OTP authorizing a merchant withdrawal."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='withdrawal_otps')
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='requested_withdrawal_otps')
+    recipient_email = models.EmailField()
+    code_hash = models.CharField(max_length=128)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    bank_account_number = models.CharField(max_length=20)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    is_used = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['organization', 'is_used', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"OTP for {self.organization.name} ({self.amount}) -> {self.recipient_email}"
+
 
 

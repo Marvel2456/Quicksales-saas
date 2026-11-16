@@ -13,6 +13,11 @@
             </div>
             <div class="col-auto d-flex flex-wrap gap-2">
                 <a href="{% url 'invoices' branch.id %}" class="btn app-btn-secondary">&larr; Back</a>
+                {% if has_product_images %}
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#invoiceImagePreviewModal">
+                    🖼 Preview Images
+                </button>
+                {% endif %}
                 <a href="{% url 'invoice_pdf' invoice.id %}" class="btn btn-outline-dark" target="_blank">
                     ⬇ Download PDF
                 </a>
@@ -181,6 +186,9 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
+                                    {% if invoice.show_product_images %}
+                                    <th>Image</th>
+                                    {% endif %}
                                     <th>Product</th>
                                     <th>Quantity</th>
                                     <th>Unit Price</th>
@@ -191,6 +199,21 @@
                                 {% for item in items %}
                                 <tr>
                                     <td>{{ forloop.counter }}</td>
+                                    {% if invoice.show_product_images %}
+                                    <td>
+                                        {% if item.display_image_url %}
+                                        <a href="#" data-bs-toggle="modal" data-bs-target="#invoiceImagePreviewModal" title="Preview image">
+                                            <img src="{{ item.display_image_url }}" alt="{{ item.inventory.product.product_name }}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;">
+                                        </a>
+                                        {% elif item.inventory and item.inventory.product.image %}
+                                        <a href="#" data-bs-toggle="modal" data-bs-target="#invoiceImagePreviewModal" title="Preview image">
+                                            <img src="{{ item.inventory.product.image.url }}" alt="{{ item.inventory.product.product_name }}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;">
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
                                     <td>{{ item.inventory.product.product_name|default:"—" }}</td>
                                     <td>{{ item.quantity }}</td>
                                     <td>{{ currency_symbol }}{{ item.unit_price|floatformat:2 }}</td>
@@ -530,5 +553,40 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Invoice Product Image Preview Modal -->
+<div class="modal fade" id="invoiceImagePreviewModal" tabindex="-1" aria-labelledby="invoiceImagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="invoiceImagePreviewModalLabel">Invoice {{ invoice.invoice_number }} — Product Images</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% for item in items %}
+                <div class="d-flex align-items-center gap-3 py-2 border-bottom">
+                    {% if item.display_image_url %}
+                    <img src="{{ item.display_image_url }}" alt="{{ item.inventory.product.product_name }}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0;">
+                    {% elif item.inventory and item.inventory.product.image %}
+                    <img src="{{ item.inventory.product.image.url }}" alt="{{ item.inventory.product.product_name }}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0;">
+                    {% else %}
+                    <div class="d-flex align-items-center justify-content-center bg-light text-muted rounded" style="width:64px;height:64px;font-size:11px;flex-shrink:0;">No img</div>
+                    {% endif %}
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold text-dark">{{ item.inventory.product.product_name|default:"Item" }}</div>
+                        <div class="small text-muted">Qty: {{ item.quantity }}</div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted mb-0">No items.</p>
+                {% endfor %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{% url 'invoice_pdf' invoice.id %}" target="_blank" class="btn btn-primary text-white">Download PDF</a>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock content %}
