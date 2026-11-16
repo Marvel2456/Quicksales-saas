@@ -721,6 +721,144 @@ def request_organization_payout(org, user, amount, notes='', idempotency_key=Non
         return True, f"Withdrawal request #{payout.reference} for ₦{amount:,.2f} submitted successfully! It will be reviewed and processed to {bank_account.bank_name} ({bank_account.account_number}).", payout
 
 
+def _mask_email(email):
+    if not email or '@' not in email:
+        return ''
+    local, domain = email.split('@', 1)
+    if len(local) <= 2:
+        masked_local = local[0] + '*' * max(1, len(local) - 1)
+    else:
+        masked_local = local[0] + '*' * min(4, len(local) - 2) + local[-1]
+    return f"{masked_local}@{domain}"
+
+
+def verify_and_consume_withdrawal_otp(org, otp_id, otp_code, amount, bank_account_number):
+    """Validate and atomically consume a 5-digit, 5-minute withdrawal OTP."""
+    from django.contrib.auth.hashers import check_password
+    from .models import WithdrawalOTP
+
+    code = str(otp_code or '').strip()
+    if not otp_id or len(code) != 5 or not code.isdigit():
+        return False, "Please enter the 5-digit authorization OTP sent to the organization owner."
+
+    try:
+        with transaction.atomic():
+            otp = WithdrawalOTP.objects.select_for_update().get(id=otp_id, organization=org)
+            if otp.is_used:
+                return False, "This authorization code has already been used or invalidated. Please request a new one."
+            if otp.expires_at <= timezone.now():
+                otp.is_used = True
+                otp.save(update_fields=['is_used'])
+                return False, "Your 5-digit authorization code has expired (valid for 5 minutes). Please request a new one."
+            if otp.attempts >= 5:
+                otp.is_used = True
+                otp.save(update_fields=['is_used'])
+                return False, "Too many invalid OTP attempts. Please request a new authorization code."
+            if otp.amount != amount or otp.bank_account_number != (bank_account_number or ''):
+                return False, "Withdrawal amount or destination bank changed after OTP was sent. Please request a new OTP."
+            if not check_password(code, otp.code_hash):
+                otp.attempts += 1
+                if otp.attempts >= 5:
+                    otp.is_used = True
+                otp.save(update_fields=['attempts', 'is_used'])
+                remaining = max(0, 5 - otp.attempts)
+                if remaining == 0:
+                    return False, "Too many invalid OTP attempts. Please request a new authorization code."
+                return False, f"Invalid 5-digit OTP ({remaining} attempt{'s' if remaining != 1 else ''} remaining)."
+
+            otp.is_used = True
+            otp.save(update_fields=['is_used'])
+            return True, "ok"
+    except (WithdrawalOTP.DoesNotExist, ValueError):
+        return False, "Invalid or missing withdrawal authorization code. Please request a new OTP."
+
+
+@login_required
+@role_required(['owner', 'manager'])
+@require_online_store_access
+def vendor_send_withdrawal_otp(request):
+    """Generate and email a 5-digit, 5-minute OTP to the organization owner."""
+    import secrets
+    from django.contrib.auth.hashers import make_password
+    from subscriptions.models import PaymentGatewayConfig
+    from .models import WithdrawalOTP
+    from .emails import send_withdrawal_otp_email
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
+
+    org = get_request_organization(request)
+    owner = getattr(org, 'owned_by', None)
+    owner_email = (getattr(owner, 'email', '') or '').strip()
+    if not owner_email:
+        return JsonResponse({'success': False, 'message': 'Organization owner email is not configured.'}, status=400)
+
+    try:
+        body = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        body = request.POST
+
+    try:
+        amount = validate_positive_amount(body.get('amount', '0'), field_name='withdrawal amount')
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+
+    min_withdrawal = PaymentGatewayConfig.get_minimum_withdrawal_ngn()
+    if amount < min_withdrawal:
+        return JsonResponse({'success': False, 'message': f"Minimum withdrawal amount is ₦{min_withdrawal:,.2f}."}, status=400)
+
+    bank_account = StoreBankAccount.objects.filter(organization=org).first()
+    if not bank_account or not bank_account.account_number or not bank_account.bank_name:
+        return JsonResponse({'success': False, 'message': 'Please configure your settlement bank account first.'}, status=400)
+
+    balances = calculate_organization_balances(org)
+    if amount > balances['available_balance']:
+        return JsonResponse({
+            'success': False,
+            'message': f"Requested amount (₦{amount:,.2f}) exceeds your available balance (₦{balances['available_balance']:,.2f})."
+        }, status=400)
+
+    # 30-second cooldown per organization
+    cooldown_cutoff = timezone.now() - timezone.timedelta(seconds=30)
+    recent_otp = WithdrawalOTP.objects.filter(
+        organization=org,
+        created_at__gte=cooldown_cutoff,
+    ).first()
+    if recent_otp:
+        return JsonResponse({
+            'success': False,
+            'message': 'Please wait 30 seconds before requesting another OTP.',
+        }, status=429)
+
+    otp_code = f"{secrets.randbelow(100000):05d}"
+    expires_at = timezone.now() + timezone.timedelta(minutes=5)
+
+    with transaction.atomic():
+        WithdrawalOTP.objects.filter(organization=org, is_used=False).update(is_used=True)
+        otp = WithdrawalOTP.objects.create(
+            organization=org,
+            requested_by=request.user,
+            recipient_email=owner_email,
+            code_hash=make_password(otp_code),
+            amount=amount,
+            bank_account_number=bank_account.account_number,
+            expires_at=expires_at,
+        )
+
+    sent = send_withdrawal_otp_email(org, owner_email, otp_code, amount, bank_account, request.user)
+    if not sent:
+        otp.is_used = True
+        otp.save(update_fields=['is_used'])
+        return JsonResponse({'success': False, 'message': 'Could not send OTP email. Please try again.'}, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'otp_id': str(otp.id),
+        'masked_email': _mask_email(owner_email),
+        'expires_in': 300,
+    })
+
+
 @login_required
 @role_required(['owner', 'manager'])
 @require_online_store_access
@@ -787,6 +925,15 @@ def vendor_payouts(request):
                 amount_val = Decimal(str(request.POST.get('amount', '0')).strip())
             except Exception:
                 amount_val = Decimal('0.00')
+
+            otp_id = request.POST.get('otp_id', '').strip()
+            otp_code = request.POST.get('otp_code', '').strip()
+            otp_ok, otp_msg = verify_and_consume_withdrawal_otp(
+                org, otp_id, otp_code, amount_val, bank_account.account_number
+            )
+            if not otp_ok:
+                messages.error(request, otp_msg)
+                return redirect('vendor_payouts')
 
             notes = request.POST.get('notes', '').strip()
             idempotency_key = request.POST.get('idempotency_key', '').strip() or None

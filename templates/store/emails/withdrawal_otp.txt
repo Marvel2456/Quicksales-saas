@@ -1,0 +1,11 @@
+Withdrawal Authorization Code — {{ organization.name }}
+
+A store withdrawal was requested by {{ requested_by_label }}.
+Use this 5-digit verification code to authorize the payout (valid for 5 minutes):
+
+Code: {{ otp_code }}
+
+Amount: NGN {{ amount|floatformat:2 }}
+Destination: {{ bank_account.bank_name }} - {{ bank_account.account_number }} ({{ bank_account.account_name }})
+
+If you did not initiate or approve this withdrawal, do not share this code.

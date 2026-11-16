@@ -15,6 +15,7 @@ urlpatterns = [
     path('dashboard/store/orders/<uuid:order_id>/', vendor_views.vendor_order_detail, name='vendor_order_detail'),
     path('dashboard/store/discounts/', vendor_views.vendor_discounts, name='vendor_discounts'),
     path('dashboard/store/payouts/', vendor_views.vendor_payouts, name='vendor_payouts'),
+    path('dashboard/store/payouts/send-otp/', vendor_views.vendor_send_withdrawal_otp, name='vendor_send_withdrawal_otp'),
     path('dashboard/store/bank/verify/', vendor_views.verify_bank_account_api, name='vendor_verify_bank_account'),
     path('dashboard/store/customers/', vendor_views.vendor_customers, name='vendor_customers'),
     path('dashboard/store/services/', vendor_views.manage_services, name='manage_services'),

@@ -265,3 +265,41 @@ def send_service_enrollment_email(enrollment_id):
         return False
 
 
+def send_withdrawal_otp_email(organization, recipient_email, otp_code, amount, bank_account, requested_by):
+    """Send a 5-digit, 5-minute withdrawal authorization OTP to the organization owner."""
+    if not recipient_email:
+        return False
+
+    requested_by_label = (
+        requested_by.get_full_name().strip() or requested_by.email
+        if requested_by else "Store Manager"
+    )
+    context = {
+        'organization': organization,
+        'otp_code': otp_code,
+        'amount': amount,
+        'bank_account': bank_account,
+        'requested_by_label': requested_by_label,
+    }
+    subject = f"Withdrawal Authorization Code: {otp_code} ({organization.name})"
+    html_content = render_to_string('store/emails/withdrawal_otp.html', context)
+    text_content = render_to_string('store/emails/withdrawal_otp.txt', context)
+    from_email = f"Quicksales Security <{settings.DEFAULT_FROM_EMAIL}>"
+
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=[recipient_email],
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=False)
+        logger.info("[Payout OTP] Sent 5-digit OTP to %s for org %s", recipient_email, organization.id)
+        return True
+    except Exception as ex:
+        logger.exception("[Payout OTP] Failed sending OTP email to %s: %s", recipient_email, ex)
+        return False
+
+
+

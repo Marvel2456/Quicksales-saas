@@ -313,6 +313,7 @@ class Invoice(models.Model):
     total_amount = models.FloatField(default=0, blank=True, null=True)
     amount_paid = models.FloatField(default=0, blank=True, null=True)
     inventory_deducted = models.BooleanField(default=False)
+    show_product_images = models.BooleanField(default=False)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_CHOICES, blank=True, null=True)
     invoice_number = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     date_created = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_index=True)

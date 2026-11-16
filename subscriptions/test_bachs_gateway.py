@@ -494,3 +494,179 @@ class BachsGatewaySecurityAndSwitchTests(TestCase):
         self.assertEqual(payout.gateway, "bachs")
         self.assertEqual(payout.gateway_reference, "po_auto_999")
         self.assertEqual(calculate_organization_balances(self.org)["available_balance"], Decimal("1000.00"))
+
+    @patch("store.emails.EmailMultiAlternatives.send", return_value=1)
+    def test_withdrawal_5_digit_otp_lifecycle_expiry_and_lockout(self, mock_email_send):
+        from django.utils import timezone
+        from account.models import OrganizationMembership
+        from store.models import WithdrawalOTP
+        from store.vendor_views import verify_and_consume_withdrawal_otp
+
+        OrganizationMembership.objects.get_or_create(
+            user=self.user,
+            organization=self.org,
+            defaults={"branch": self.branch, "role": "owner", "is_active": True},
+        )
+        self.plan.has_online_store = True
+        self.plan.save(update_fields=["has_online_store"])
+        Subscription.objects.create(
+            organization=self.org,
+            plan=self.plan,
+            provider="bachs",
+            currency="NGN",
+            end_date=timezone.now() + timezone.timedelta(days=30),
+            is_active=True,
+        )
+
+        OnlineOrder.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            buyer_name="OTP Buyer",
+            buyer_email="otpbuyer@example.com",
+            payment_method="bachs",
+            payment_status="paid",
+            payment_reference="ORD-OTP-1",
+            currency="NGN",
+            subtotal=Decimal("4000.00"),
+            total_amount=Decimal("4000.00"),
+        )
+
+        # Capture the generated OTP code by wrapping send_withdrawal_otp_email
+        captured = {}
+        with patch("store.emails.send_withdrawal_otp_email") as mock_send_otp:
+            def _capture(org, recipient_email, otp_code, amount, bank_account, requested_by):
+                captured["code"] = otp_code
+                captured["recipient"] = recipient_email
+                return True
+            mock_send_otp.side_effect = _capture
+
+            client = Client()
+            client.force_login(self.user)
+            resp = client.post(
+                reverse("vendor_send_withdrawal_otp"),
+                data=json.dumps({"amount": "2000.00"}),
+                content_type="application/json",
+                HTTP_HOST=f"{self.org.slug}.lvh.me",
+            )
+            self.assertEqual(resp.status_code, 200)
+            payload = resp.json()
+            self.assertTrue(payload["success"])
+            otp_id = payload["otp_id"]
+
+            # Immediate resend hits 30s cooldown
+            resp_cd = client.post(
+                reverse("vendor_send_withdrawal_otp"),
+                data=json.dumps({"amount": "2000.00"}),
+                content_type="application/json",
+                HTTP_HOST=f"{self.org.slug}.lvh.me",
+            )
+            self.assertEqual(resp_cd.status_code, 429)
+
+        self.assertEqual(len(captured["code"]), 5)
+        self.assertTrue(captured["code"].isdigit())
+        self.assertEqual(captured["recipient"], self.user.email)
+
+        # Mismatched amount fails
+        ok_amt, _ = verify_and_consume_withdrawal_otp(
+            self.org, otp_id, captured["code"], Decimal("2500.00"), self.bank_account.account_number
+        )
+        self.assertFalse(ok_amt)
+
+        # Valid code succeeds once, then replay fails
+        ok, _ = verify_and_consume_withdrawal_otp(
+            self.org, otp_id, captured["code"], Decimal("2000.00"), self.bank_account.account_number
+        )
+        self.assertTrue(ok)
+        ok_replay, _ = verify_and_consume_withdrawal_otp(
+            self.org, otp_id, captured["code"], Decimal("2000.00"), self.bank_account.account_number
+        )
+        self.assertFalse(ok_replay)
+
+        # Expired OTP (> 5 minutes) fails
+        from django.contrib.auth.hashers import make_password
+        expired_otp = WithdrawalOTP.objects.create(
+            organization=self.org,
+            requested_by=self.user,
+            recipient_email=self.user.email,
+            code_hash=make_password("12345"),
+            amount=Decimal("1000.00"),
+            bank_account_number=self.bank_account.account_number,
+            expires_at=timezone.now() - timezone.timedelta(seconds=1),
+        )
+        ok_exp, msg_exp = verify_and_consume_withdrawal_otp(
+            self.org, str(expired_otp.id), "12345", Decimal("1000.00"), self.bank_account.account_number
+        )
+        self.assertFalse(ok_exp)
+        self.assertIn("expired", msg_exp.lower())
+
+        # Lockout after 5 failed attempts
+        lock_otp = WithdrawalOTP.objects.create(
+            organization=self.org,
+            requested_by=self.user,
+            recipient_email=self.user.email,
+            code_hash=make_password("54321"),
+            amount=Decimal("1000.00"),
+            bank_account_number=self.bank_account.account_number,
+            expires_at=timezone.now() + timezone.timedelta(minutes=5),
+        )
+        for _ in range(5):
+            ok_bad, _ = verify_and_consume_withdrawal_otp(
+                self.org, str(lock_otp.id), "00000", Decimal("1000.00"), self.bank_account.account_number
+            )
+            self.assertFalse(ok_bad)
+        ok_after_lock, _ = verify_and_consume_withdrawal_otp(
+            self.org, str(lock_otp.id), "54321", Decimal("1000.00"), self.bank_account.account_number
+        )
+        self.assertFalse(ok_after_lock)
+
+    def test_invoice_show_product_images_flag_and_pdf_render(self):
+        from django.utils import timezone
+        from account.models import OrganizationMembership
+        from ims.models import Invoice, InvoiceItem
+
+        OrganizationMembership.objects.get_or_create(
+            user=self.user,
+            organization=self.org,
+            defaults={"branch": self.branch, "role": "owner", "is_active": True},
+        )
+        Subscription.objects.create(
+            organization=self.org,
+            plan=self.plan,
+            provider="bachs",
+            currency="NGN",
+            end_date=timezone.now() + timezone.timedelta(days=30),
+            is_active=True,
+        )
+        inv = Invoice.objects.create(
+            organization=self.org,
+            branch=self.branch,
+            created_by=self.user,
+            customer_name="Jane Doe",
+            invoice_number="INV-IMG-001",
+            show_product_images=True,
+            total_amount=Decimal("2500.00"),
+        )
+        InvoiceItem.objects.create(
+            invoice=inv,
+            organization=self.org,
+            branch=self.branch,
+            inventory=self.inventory,
+            quantity=1,
+            unit_price=2500.0,
+            total=2500.0,
+        )
+        client = Client()
+        client.force_login(self.user)
+        resp = client.get(
+            reverse("invoice_pdf", kwargs={"pk": inv.id}),
+            HTTP_HOST=f"{self.org.slug}.lvh.me",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+
+        detail_resp = client.get(
+            reverse("invoice_detail", kwargs={"pk": inv.id}),
+            HTTP_HOST=f"{self.org.slug}.lvh.me",
+        )
+        self.assertEqual(detail_resp.status_code, 200)
+        self.assertContains(detail_resp, "invoiceImagePreviewModal")
