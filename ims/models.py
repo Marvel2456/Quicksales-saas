@@ -42,10 +42,23 @@ class Product(models.Model):
     image = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Primary product image for online store display")
     image_detail = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Additional detail / angle image for online store display")
     image_extra = models.ImageField(upload_to='product_images/', blank=True, null=True, help_text="Extra detail / angle image for online store display")
+    variation = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Optional variation details, e.g. 'Black, White, Red' or 'Size: M'",
+    )
     supplier_emails = models.TextField(blank=True, null=True, help_text="Optional comma-separated vendor point-of-contact emails")
     
     def __str__(self):
         return self.product_name or 'Unnamed Product'
+
+    @property
+    def variation_options(self):
+        """Return a list of selectable options when variation contains comma-separated values."""
+        if not self.variation or ',' not in self.variation:
+            return []
+        return [opt.strip() for opt in self.variation.split(',') if opt.strip()]
 
     @property
     def supplier_email_list(self):
@@ -363,6 +376,7 @@ class InvoiceItem(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, blank=True, null=True)
     inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
+    selected_variation = models.CharField(max_length=120, blank=True, default='')
     quantity = models.IntegerField(default=1, blank=True, null=True)
     unit_price = models.FloatField(blank=True, null=True)   # snapshot of sale_price at invoice creation
     total = models.FloatField(default=0, blank=True, null=True)

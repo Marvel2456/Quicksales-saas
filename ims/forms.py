@@ -94,10 +94,14 @@ class ProductForm(ModelForm):
         self.fields['product_name'].widget.attrs['class'] = 'input'
         self.fields['product_code'].widget.attrs['class'] = 'input'
         self.fields['product_code'].required = False
+        self.fields['variation'].required = False
+        self.fields['variation'].widget.attrs['class'] = 'form-control'
         self.fields['category'].widget.attrs['class'] = 'form-select'
         self.fields['brand'].widget.attrs['class'] = 'input'
         self.fields['unit'].widget.attrs['class'] = 'input'
         self.fields['batch_no'].widget.attrs['class'] = 'input'
+        self.fields['variation'].required = False
+        self.fields['variation'].widget.attrs['class'] = 'form-control'
         self.fields['image'].required = False
         self.fields['image'].widget.attrs['class'] = 'form-control'
         self.fields['image'].widget.attrs['accept'] = 'image/*'
@@ -118,7 +122,7 @@ class ProductForm(ModelForm):
 
     class Meta:
        model = Product
-       fields = ('product_name', 'product_code', 'category', 'brand', 'unit', 'batch_no', 'image', 'image_detail', 'image_extra')
+       fields = ('product_name', 'product_code', 'category', 'brand', 'unit', 'batch_no', 'variation', 'image', 'image_detail', 'image_extra')
        
        widgets = {
            'category': forms.Select(attrs={'class':'form-select'})
@@ -181,6 +185,8 @@ class EditProductForm(forms.ModelForm):
 
         self.fields['product_code'].widget.attrs['class'] = 'input'
         self.fields['product_code'].required = False
+        self.fields['variation'].required = False
+        self.fields['variation'].widget.attrs['class'] = 'form-control'
         self.fields['image'].required = False
         self.fields['image'].widget.attrs['class'] = 'form-control'
         self.fields['image'].widget.attrs['accept'] = 'image/*'
@@ -207,7 +213,7 @@ class EditProductForm(forms.ModelForm):
 
     class Meta:
         model = Product
-        fields = ['product_name', 'product_code', 'brand', 'category', 'unit', 'batch_no', 'image', 'image_detail', 'image_extra']
+        fields = ['product_name', 'product_code', 'brand', 'category', 'unit', 'batch_no', 'variation', 'image', 'image_detail', 'image_extra']
 
     def clean_image(self):
         image = self.cleaned_data.get('image')

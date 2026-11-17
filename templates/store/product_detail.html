@@ -166,6 +166,28 @@
 
                     <hr class="my-4 text-muted opacity-25">
 
+                    <!-- Variation Info / Comma-separated Option Chips -->
+                    {% if listing.inventory.product.variation_options %}
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Select Option</label>
+                        <div class="d-flex flex-wrap gap-2" id="storeVariationOptions">
+                            {% for opt in listing.inventory.product.variation_options %}
+                            <button type="button"
+                                class="btn btn-sm {% if forloop.first %}btn-dark{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 store-var-btn"
+                                data-var-val="{{ opt }}"
+                                onclick="selectStoreVariationOption(this)">
+                                {{ opt }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" id="selectedVariationValue" value="{{ listing.inventory.product.variation_options.0 }}">
+                    </div>
+                    {% elif listing.inventory.product.variation %}
+                    <div class="mb-3">
+                        <span class="badge bg-light text-dark border px-3 py-2">{{ listing.inventory.product.variation }}</span>
+                    </div>
+                    {% endif %}
+
                     <!-- Quantity & Action -->
                     {% if listing.is_in_stock %}
                     <div class="mb-4">
@@ -315,8 +337,21 @@
             }, 3500);
         }
 
+        function selectStoreVariationOption(btn) {
+            document.querySelectorAll('.store-var-btn').forEach(b => {
+                b.classList.remove('btn-dark');
+                b.classList.add('btn-outline-secondary');
+            });
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-dark');
+            const hid = document.getElementById('selectedVariationValue');
+            if (hid) hid.value = btn.dataset.varVal || '';
+        }
+
         function addSelectedQty() {
             const qty = parseInt(document.getElementById('buyQty').value || 1);
+            const varInput = document.getElementById('selectedVariationValue');
+            const selectedVariation = varInput ? varInput.value : '';
             fetch("{% url 'store_add_to_cart' organization.slug %}", {
                 method: "POST",
                 headers: {
@@ -325,6 +360,7 @@
                 },
                 body: JSON.stringify({
                     listing_id: "{{ listing.id }}",
+                    selected_variation: selectedVariation,
                     quantity: qty
                 })
             })

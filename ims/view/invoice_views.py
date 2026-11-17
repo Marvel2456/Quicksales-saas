@@ -23,6 +23,17 @@ from account.utils import (
 )
 
 
+def _build_variation_options_json(inventory_qs):
+    """Return JSON mapping inventory_id -> comma-separated variation options list."""
+    data = {}
+    for inv in inventory_qs:
+        prod = getattr(inv, 'product', None)
+        opts = prod.variation_options if prod else []
+        if opts:
+            data[str(inv.id)] = opts
+    return json.dumps(data)
+
+
 def _generate_invoice_number(organization):
     """Generate a unique invoice number like INV-20240227-0001"""
     today = date.today().strftime('%Y%m%d')
@@ -256,6 +267,7 @@ def create_invoice(request, pk):
         product__organization=organization,
         quantity__gt=0,
     ).select_related('product').order_by('product__product_name')
+    variation_options_json = _build_variation_options_json(inventory_qs)
 
     if request.method == 'POST':
         customer_name = request.POST.get('customer_name', '').strip()
@@ -271,12 +283,13 @@ def create_invoice(request, pk):
 
         # Parse line items from POST
         inventory_ids = request.POST.getlist('inventory_id[]')
+        selected_variations = request.POST.getlist('selected_variation[]')
         quantities = request.POST.getlist('quantity[]')
 
         if not inventory_ids or not any(quantities):
             messages.error(request, 'Please add at least one item to the invoice.')
             return render(request, 'ims/create_invoice.html', {
-                'branch': branch, 'inventory': inventory_qs
+                'branch': branch, 'inventory': inventory_qs, 'variation_options_json': variation_options_json,
             })
 
         # Create the invoice
@@ -301,7 +314,8 @@ def create_invoice(request, pk):
         total = 0.0
         valid_items_count = 0
         item_descriptions = []
-        for inv_id, qty in zip(inventory_ids, quantities):
+        for idx, (inv_id, qty) in enumerate(zip(inventory_ids, quantities)):
+            sel_var = (selected_variations[idx] if idx < len(selected_variations) else '').strip()
             try:
                 inventory = Inventory.objects.get(
                     id=inv_id,
@@ -322,6 +336,7 @@ def create_invoice(request, pk):
                     return render(request, 'ims/create_invoice.html', {
                         'branch': branch,
                         'inventory': inventory_qs,
+                        'variation_options_json': variation_options_json,
                     })
                 unit_price = inventory.sale_price or 0.0
                 item_total = unit_price * qty_int
@@ -330,13 +345,15 @@ def create_invoice(request, pk):
                     organization=organization,
                     branch=branch,
                     inventory=inventory,
+                    selected_variation=sel_var,
                     quantity=qty_int,
                     unit_price=unit_price,
                     total=item_total,
                 )
                 total += item_total
                 valid_items_count += 1
-                item_descriptions.append(f"{inventory.product.product_name} (x{qty_int})")
+                desc_name = f"{inventory.product.product_name} ({sel_var})" if sel_var else inventory.product.product_name
+                item_descriptions.append(f"{desc_name} (x{qty_int})")
             except Inventory.DoesNotExist:
                 continue
 
@@ -346,6 +363,7 @@ def create_invoice(request, pk):
             return render(request, 'ims/create_invoice.html', {
                 'branch': branch,
                 'inventory': inventory_qs,
+                'variation_options_json': variation_options_json,
             })
 
         invoice.total_amount = total
@@ -370,6 +388,7 @@ def create_invoice(request, pk):
     context = {
         'branch': branch,
         'inventory': inventory_qs,
+        'variation_options_json': variation_options_json,
     }
     return render(request, 'ims/create_invoice.html', context)
 

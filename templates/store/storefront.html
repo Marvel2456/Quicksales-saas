@@ -423,15 +423,26 @@
                                     {{ item.display_title }}
                                 </a>
                             </h3>
+                            {% if item.inventory.product.variation %}
+                            <div class="mb-1">
+                                <span class="badge bg-light text-dark border text-truncate" style="max-width: 100%; font-size: 0.7rem;">{{ item.inventory.product.variation }}</span>
+                            </div>
+                            {% endif %}
                             <div class="fw-bold fs-5 text-dark mb-3">
                                 {{ organization.currency_symbol }}{{ item.display_price|floatformat:2|intcomma }}
                             </div>
                         </div>
 
                         {% if item.is_in_stock %}
+                        {% if item.inventory.product.variation_options %}
+                        <a href="{% url 'product_detail' organization.slug item.id %}" class="btn-add-bag text-center text-decoration-none d-block">
+                            <i class="bi bi-sliders me-1"></i> Select Option
+                        </a>
+                        {% else %}
                         <button onclick="addToBag('{{ item.id }}')" class="btn-add-bag">
                             <i class="bi bi-bag-plus me-1"></i> Add to Bag
                         </button>
+                        {% endif %}
                         {% else %}
                         <button class="btn btn-light rounded-3 text-muted w-100 fw-semibold" disabled>Out of Stock</button>
                         {% endif %}
