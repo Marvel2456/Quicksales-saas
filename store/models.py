@@ -345,6 +345,7 @@ class OnlineOrderItem(models.Model):
     order = models.ForeignKey(OnlineOrder, on_delete=models.CASCADE, related_name='items')
     product_listing = models.ForeignKey(ProductListing, on_delete=models.SET_NULL, null=True, blank=True)
     inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, null=True, blank=True)
+    selected_variation = models.CharField(max_length=120, blank=True, default='')
     product_name = models.CharField(max_length=255)
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)

@@ -107,9 +107,12 @@
                                                 <option value="">-- Select product --</option>
                                                 {% for inv in inventory %}
                                                 <option value="{{ inv.id }}" data-price="{{ inv.sale_price }}">
-                                                    {{ inv.product.product_name }} (Stock: {{ inv.quantity }})
+                                                    {{ inv.product.product_name }}{% if inv.product.variation %} [{{ inv.product.variation }}]{% endif %} (Stock: {{ inv.quantity }})
                                                 </option>
                                                 {% endfor %}
+                                            </select>
+                                            <select name="selected_variation[]" class="form-select form-select-sm variation-select mt-1 d-none">
+                                                <option value="">-- Select option --</option>
                                             </select>
                                         </td>
                                         <td><input type="number" name="quantity[]" class="form-control qty-input"
@@ -145,14 +148,34 @@
 <script>
     const CURRENCY_SYMBOL = "{{ currency_symbol }}";
     const LOCALE = {% if is_nigeria %}'en-NG'{% else %}'en-US'{% endif %};
+    const VARIATION_OPTIONS = {{ variation_options_json|default:"{}"|safe }};
 
     // Template for a new row
     const inventoryOptions = `
         <option value="">-- Select product --</option>
         {% for inv in inventory %}
-        <option value="{{ inv.id }}" data-price="{{ inv.sale_price }}">{{ inv.product.product_name }} (Stock: {{ inv.quantity }})</option>
+        <option value="{{ inv.id }}" data-price="{{ inv.sale_price }}">{{ inv.product.product_name }}{% if inv.product.variation %} [{{ inv.product.variation }}]{% endif %} (Stock: {{ inv.quantity }})</option>
         {% endfor %}
     `;
+
+    function populateVariationOptions(row) {
+        const select = row.querySelector('.product-select');
+        const varSelect = row.querySelector('.variation-select');
+        if (!select || !varSelect) return;
+        const opts = VARIATION_OPTIONS[select.value] || [];
+        varSelect.innerHTML = '<option value="">-- Select option --</option>';
+        if (opts.length > 0) {
+            opts.forEach(function(optVal) {
+                const opt = document.createElement('option');
+                opt.value = optVal;
+                opt.textContent = optVal;
+                varSelect.appendChild(opt);
+            });
+            varSelect.classList.remove('d-none');
+        } else {
+            varSelect.classList.add('d-none');
+        }
+    }
 
     function recalcRow(row) {
         const select = row.querySelector('.product-select');
@@ -183,7 +206,10 @@
     }
 
     function attachRowListeners(row) {
-        row.querySelector('.product-select').addEventListener('change', () => recalcRow(row));
+        row.querySelector('.product-select').addEventListener('change', () => {
+            populateVariationOptions(row);
+            recalcRow(row);
+        });
         row.querySelector('.qty-input').addEventListener('input', () => recalcRow(row));
         row.querySelector('.remove-row-btn').addEventListener('click', () => {
             if (document.querySelectorAll('.item-row').length > 1) {
@@ -201,7 +227,10 @@
         const newRow = document.createElement('tr');
         newRow.className = 'item-row';
         newRow.innerHTML = `
-            <td><select name="inventory_id[]" class="form-select product-select" required>${inventoryOptions}</select></td>
+            <td>
+                <select name="inventory_id[]" class="form-select product-select" required>${inventoryOptions}</select>
+                <select name="selected_variation[]" class="form-select form-select-sm variation-select mt-1 d-none"><option value="">-- Select option --</option></select>
+            </td>
             <td><input type="number" name="quantity[]" class="form-control qty-input" min="1" value="1" required></td>
             <td><input type="text" class="form-control unit-price-display" readonly placeholder="0.00"></td>
             <td><input type="text" class="form-control row-total" readonly placeholder="0.00"></td>

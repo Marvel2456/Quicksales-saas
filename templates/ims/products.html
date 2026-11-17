@@ -73,7 +73,12 @@
                                 <tbody>
                                     {% for product in products_page %}
                                     <tr>
-                                        <td class="cell"><span class="truncate">{{product.product_name}}</span></td>
+                                        <td class="cell">
+                                            <span class="truncate">{{product.product_name}}</span>
+                                            {% if product.variation %}
+                                            <div class="small text-muted">{{ product.variation }}</div>
+                                            {% endif %}
+                                        </td>
                                         <td class="cell">{{product.category}}</td>
                                         <td class="cell"><span class="note">{{product.updated_at}}</span></td>
                                         {% if org_role == 'owner' %}

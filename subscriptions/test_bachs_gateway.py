@@ -670,3 +670,91 @@ class BachsGatewaySecurityAndSwitchTests(TestCase):
         )
         self.assertEqual(detail_resp.status_code, 200)
         self.assertContains(detail_resp, "invoiceImagePreviewModal")
+
+    def test_product_variation_text_field_comma_options_invoice_and_storefront(self):
+        import json
+        from django.utils import timezone
+        from account.models import OrganizationMembership
+        from ims.models import Invoice
+        from store.models import ProductListing, StoreListing
+
+        OrganizationMembership.objects.get_or_create(
+            user=self.user,
+            organization=self.org,
+            defaults={"branch": self.branch, "role": "owner", "is_active": True},
+        )
+        Subscription.objects.create(
+            organization=self.org,
+            plan=self.plan,
+            provider="bachs",
+            currency="NGN",
+            end_date=timezone.now() + timezone.timedelta(days=30),
+            is_active=True,
+        )
+
+        # Single label vs comma-separated options
+        self.product.variation = "Size: M"
+        self.product.save(update_fields=["variation"])
+        self.assertEqual(self.product.variation_options, [])
+
+        self.product.branch = self.branch
+        self.product.variation = "Black, White, Red"
+        self.product.save(update_fields=["branch", "variation"])
+        self.assertEqual(self.product.variation_options, ["Black", "White", "Red"])
+
+        # Invoice creation with selected_variation
+        client = Client()
+        client.force_login(self.user)
+        inv_resp = client.post(
+            reverse("create_invoice", kwargs={"pk": self.branch.id}),
+            {
+                "customer_name": "Opt Buyer",
+                "payment_plan": "one_time",
+                "inventory_id[]": [str(self.inventory.id)],
+                "selected_variation[]": ["White"],
+                "quantity[]": ["1"],
+            },
+            HTTP_HOST=f"{self.org.slug}.lvh.me",
+        )
+        self.assertEqual(inv_resp.status_code, 302)
+        inv = Invoice.objects.get(organization=self.org, customer_name="Opt Buyer")
+        self.assertEqual(inv.items.first().selected_variation, "White")
+
+        detail_resp = client.get(
+            reverse("invoice_detail", kwargs={"pk": inv.id}),
+            HTTP_HOST=f"{self.org.slug}.lvh.me",
+        )
+        self.assertContains(detail_resp, "White")
+
+        pdf_resp = client.get(
+            reverse("invoice_pdf", kwargs={"pk": inv.id}),
+            HTTP_HOST=f"{self.org.slug}.lvh.me",
+        )
+        self.assertEqual(pdf_resp.status_code, 200)
+        self.assertEqual(pdf_resp["Content-Type"], "application/pdf")
+
+        # Storefront + product_detail + add_to_cart_api
+        store, _ = StoreListing.objects.get_or_create(
+            organization=self.org, defaults={"branch": self.branch, "is_active": True}
+        )
+        listing, _ = ProductListing.objects.get_or_create(
+            store=store, inventory=self.inventory, defaults={"is_visible": True}
+        )
+        sf_resp = client.get(reverse("storefront", kwargs={"org_slug": self.org.slug}))
+        self.assertEqual(sf_resp.status_code, 200)
+        self.assertContains(sf_resp, "Black, White, Red")
+        self.assertContains(sf_resp, "Select Option")
+
+        pd_resp = client.get(
+            reverse("product_detail", kwargs={"org_slug": self.org.slug, "listing_id": listing.id})
+        )
+        self.assertEqual(pd_resp.status_code, 200)
+        self.assertContains(pd_resp, "selectStoreVariationOption")
+
+        cart_resp = client.post(
+            reverse("store_add_to_cart", kwargs={"org_slug": self.org.slug}),
+            data=json.dumps({"listing_id": str(listing.id), "selected_variation": "Red", "quantity": 1}),
+            content_type="application/json",
+        )
+        self.assertEqual(cart_resp.status_code, 200)
+        self.assertTrue(cart_resp.json().get("success"))

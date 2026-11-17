@@ -245,7 +245,14 @@
                     {% endif %}
                 </td>
                 {% endif %}
-                <td>{{ item.inventory.product.product_name|default:"—" }}</td>
+                <td>
+                    {{ item.inventory.product.product_name|default:"—" }}
+                    {% if item.selected_variation %}
+                    <div style="font-size:10px; color:#666;">{{ item.selected_variation }}</div>
+                    {% elif item.inventory and item.inventory.product.variation %}
+                    <div style="font-size:10px; color:#666;">{{ item.inventory.product.variation }}</div>
+                    {% endif %}
+                </td>
                 <td>{{ item.quantity }}</td>
                 <td>{% if organization.currency_code == 'USD' %}${% else %}N{% endif %}{{ item.unit_price|floatformat:2 }}</td>
                 <td>{% if organization.currency_code == 'USD' %}${% else %}N{% endif %}{{ item.total|floatformat:2 }}</td>

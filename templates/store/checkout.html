@@ -253,6 +253,11 @@
                                     <h6 class="fw-bold mb-1 text-truncate" style="max-width: 220px;" title="{{ item.listing.display_title }}">
                                         {{ item.listing.display_title }}
                                     </h6>
+                                    {% if item.selected_variation %}
+                                    <div class="small text-muted mb-1">Option: {{ item.selected_variation }}</div>
+                                    {% elif item.listing.inventory.product.variation %}
+                                    <div class="small text-muted mb-1">{{ item.listing.inventory.product.variation }}</div>
+                                    {% endif %}
                                     <div class="text-muted small mb-2">
                                         {% if currency == 'USD' %}${% else %}₦{% endif %}{{ item.unit_price|floatformat:2|intcomma }} each
                                     </div>
@@ -263,7 +268,7 @@
                                         <span class="fw-bold px-2" id="itemQty-{{ item.listing.id }}" style="font-size: 0.95rem; min-width: 24px; text-align: center; display: inline-block;">{{ item.quantity }}</span>
                                         <button type="button" class="cart-qty-btn" id="btnPlus-{{ item.listing.id }}" onclick="changeCartQuantity('{{ item.listing.id }}', 1)" title="Increase quantity" {% if item.quantity >= item.available %}disabled{% endif %}>+</button>
                                         
-                                        <button type="button" class="btn-remove-item ms-2 text-danger" onclick="removeItemFromCart('{{ item.listing.id }}', '{{ item.listing.display_title|escapejs }}')" title="Remove item">
+                                        <button type="button" class="btn-remove-item ms-2 text-danger" onclick="removeItemFromCart('{{ item.cart_key|default:item.listing.id }}', '{{ item.listing.display_title|escapejs }}')" title="Remove item">
                                             <i class="bi bi-trash3"></i> <span class="small">Remove</span>
                                         </button>
                                     </div>

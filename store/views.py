@@ -157,6 +157,15 @@ def complete_order_sale(order, staff=None):
     return sale
 
 
+def _parse_cart_key(key):
+    """Split a session cart key into (listing_id, selected_variation)."""
+    raw = str(key)
+    if '::' in raw:
+        lid, sel = raw.split('::', 1)
+        return lid, sel
+    return raw, ''
+
+
 def _get_cart(request, org_slug):
     cart_key = f"store_cart_{org_slug}"
     return request.session.get(cart_key, {})
@@ -327,6 +336,7 @@ def add_to_cart_api(request, org_slug):
         data = request.POST
 
     listing_id = str(data.get('listing_id', ''))
+    selected_variation = str(data.get('selected_variation', '') or '').strip()[:120]
     quantity = int(data.get('quantity', 1))
 
     if quantity < 1:
@@ -338,19 +348,21 @@ def add_to_cart_api(request, org_slug):
     store = get_object_or_404(StoreListing, organization=org)
     listing = get_object_or_404(ProductListing, id=listing_id, store=store, is_visible=True)
 
-    # Check available stock
+    # Check available stock across all variation selections for this listing
     available = listing.stock_quantity
     cart = _get_cart(request, org_slug)
-    current_qty = cart.get(listing_id, 0)
-    new_qty = current_qty + quantity
-
-    if new_qty > available:
+    cart_key = f"{listing_id}::{selected_variation}" if selected_variation else listing_id
+    current_listing_total = sum(
+        q for k, q in cart.items() if _parse_cart_key(k)[0] == listing_id
+    )
+    if current_listing_total + quantity > available:
         return JsonResponse({
             'success': False,
             'message': "Requested quantity exceeds available stock."
         }, status=400)
 
-    cart[listing_id] = new_qty
+    new_qty = cart.get(cart_key, 0) + quantity
+    cart[cart_key] = new_qty
     _save_cart(request, org_slug, cart)
 
     total_count = sum(cart.values())
@@ -403,10 +415,11 @@ def update_cart_api(request, org_slug):
 
     unit_price = Decimal('0.00')
     item_total = Decimal('0.00')
+    lid, _ = _parse_cart_key(listing_id)
     if quantity <= 0:
         cart.pop(listing_id, None)
     else:
-        listing = get_object_or_404(ProductListing, id=listing_id)
+        listing = get_object_or_404(ProductListing, id=lid)
         unit_price = Decimal(str(listing.display_price or 0))
         available = listing.stock_quantity
         if quantity > available:
@@ -420,15 +433,17 @@ def update_cart_api(request, org_slug):
     _save_cart(request, org_slug, cart)
 
     # Calculate full cart summary
+    lids = list({_parse_cart_key(k)[0] for k in cart.keys()})
     listings_map = {
         str(l.id): l for l in ProductListing.objects.filter(
-            id__in=list(cart.keys()),
+            id__in=lids,
             is_visible=True
         )
     }
     subtotal = Decimal('0.00')
-    for lid, qty in cart.items():
-        l = listings_map.get(str(lid))
+    for raw_k, qty in cart.items():
+        p_lid, _ = _parse_cart_key(raw_k)
+        l = listings_map.get(str(p_lid))
         if l:
             subtotal += Decimal(str(l.display_price or 0)) * qty
 
@@ -477,7 +492,7 @@ def store_checkout(request, org_slug):
         return redirect('storefront', org_slug=org_slug)
 
     # Fetch listing objects for cart items
-    listing_ids = list(cart.keys())
+    listing_ids = list({_parse_cart_key(k)[0] for k in cart.keys()})
     listings_map = {
         str(l.id): l for l in ProductListing.objects.filter(
             id__in=listing_ids,
@@ -489,7 +504,8 @@ def store_checkout(request, org_slug):
     cart_items = []
     subtotal = Decimal('0.00')
 
-    for lid, qty in cart.items():
+    for raw_key, qty in cart.items():
+        lid, sel_var = _parse_cart_key(raw_key)
         listing = listings_map.get(str(lid))
         if not listing:
             continue
@@ -497,7 +513,9 @@ def store_checkout(request, org_slug):
         item_total = unit_price * qty
         subtotal += item_total
         cart_items.append({
+            'cart_key': raw_key,
             'listing': listing,
+            'selected_variation': sel_var,
             'quantity': qty,
             'unit_price': unit_price,
             'total_price': item_total,
@@ -616,6 +634,7 @@ def store_checkout(request, org_slug):
                     order=order,
                     product_listing=item['listing'],
                     inventory=item['listing'].inventory,
+                    selected_variation=item.get('selected_variation', ''),
                     product_name=item['listing'].display_title,
                     unit_price=item['unit_price'],
                     quantity=item['quantity'],

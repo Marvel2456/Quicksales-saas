@@ -77,7 +77,12 @@
                                     </div>    
                                     {% for inventory in inventory_page %}
                                     <tr>
-                                        <td class="cell"><span class="truncate">{{inventory.product.product_name}}</span></td>
+                                        <td class="cell">
+                                            <span class="truncate">{{inventory.product.product_name}}</span>
+                                            {% if inventory.product.variation %}
+                                            <div class="small text-muted">{{ inventory.product.variation }}</div>
+                                            {% endif %}
+                                        </td>
                                         <td class="cell">{{inventory.product.category}}</td>
                                         <td class="cell">{{inventory.store_quantity}}</span></td>
                                         <td class="cell">{{inventory.last_updated}}</td>
