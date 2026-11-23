@@ -119,12 +119,26 @@
         #ios-sheet-body {
             padding: 0 16px 24px;
         }
-        /* Remove Bootstrap card border inside the sheet */
-        #ios-sheet-body .card {
+        /* Remove Bootstrap card/modal nesting & double padding inside the iOS sheet */
+        #ios-sheet-body .card,
+        #ios-sheet-body .modal-content {
             border: none !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
             padding: 0 !important;
             margin: 0 !important;
+        }
+        #ios-sheet-body .modal-header {
+            padding: 4px 0 12px !important;
+        }
+        #ios-sheet-body .modal-body {
+            padding: 4px 0 12px !important;
+        }
+        #ios-sheet-body .modal-footer {
+            padding: 12px 0 0 !important;
+        }
+        #ios-sheet-body form.p-3 {
+            padding: 0 !important;
         }
         /* Style inputs inside sheet for easy touch */
         #ios-sheet-body .form-control,
@@ -649,6 +663,21 @@
                 return modalEl.id === 'session-expired-modal';
             }
 
+            function adjustSheetForKeyboard() {
+                if (!sheet.classList.contains('qs-open')) return;
+                if (window.visualViewport) {
+                    var vv = window.visualViewport;
+                    var keyboardOffset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+                    sheet.style.bottom = keyboardOffset + 'px';
+                    sheet.style.maxHeight = Math.max(220, Math.floor(vv.height - 20)) + 'px';
+                }
+            }
+
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', adjustSheetForKeyboard);
+                window.visualViewport.addEventListener('scroll', adjustSheetForKeyboard);
+            }
+
             function openSheet(targetSelector) {
                 if (sheet.classList.contains('qs-open')) return;
                 var source = document.querySelector(targetSelector);
@@ -678,19 +707,28 @@
                 // Open
                 backdrop.classList.add('qs-active');
                 sheet.classList.add('qs-open');
+                adjustSheetForKeyboard();
 
-                // Focus first input on open
+                // Focus first input on open and ensure it stays above keyboard
                 setTimeout(function () {
                     var first = body.querySelector('input:not([type=hidden]), textarea, select');
                     if (first) {
                         first.removeAttribute('readonly');
                         first.focus({ preventScroll: true });
+                        setTimeout(function () {
+                            adjustSheetForKeyboard();
+                            if (typeof first.scrollIntoView === 'function') {
+                                first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                            }
+                        }, 150);
                     }
                 }, 220);
             }
 
             function closeSheet() {
                 sheet.classList.remove('qs-open');
+                sheet.style.bottom = '';
+                sheet.style.maxHeight = '';
                 backdrop.classList.remove('qs-active');
 
                 // Restore moved modal content to its original place.
@@ -709,19 +747,29 @@
             // Tap backdrop to dismiss
             backdrop.addEventListener('click', closeSheet);
 
-            // Block Bootstrap from opening native modal UI on iOS.
+            // Intercept programmatic bootstrap.Modal(...).show() calls on iOS
+            // and open the custom iOS bottom sheet instead.
             document.addEventListener('show.bs.modal', function (e) {
                 if (isNonSheetModal(e.target)) return;
                 e.preventDefault();
                 e.stopPropagation();
+                if (e.target && e.target.id && !sheet.classList.contains('qs-open')) {
+                    openSheet('#' + e.target.id);
+                }
             }, true);
 
-            // Make iOS reliably focus controls when tapped inside the sheet.
+            // Make iOS reliably focus controls and keep them visible above keyboard.
             function focusFieldFromTap(e) {
                 var field = e.target.closest('input, textarea, select');
                 if (!field || field.disabled) return;
                 field.removeAttribute('readonly');
                 field.focus({ preventScroll: true });
+                setTimeout(function () {
+                    adjustSheetForKeyboard();
+                    if (typeof field.scrollIntoView === 'function') {
+                        field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }
+                }, 150);
             }
             body.addEventListener('touchend', focusFieldFromTap, { passive: true });
             body.addEventListener('click', focusFieldFromTap);

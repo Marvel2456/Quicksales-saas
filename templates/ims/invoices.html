@@ -28,11 +28,11 @@
 
         <!-- Filters -->
         <form method="GET" class="row gx-2 gy-2 mb-4 align-items-end">
-            <div class="col-auto">
+            <div class="col-12 col-sm-6 col-md-auto">
                 <input type="text" name="customer" class="form-control" placeholder="Customer name"
                     value="{% if customer_query and customer_query != 'None' %}{{ customer_query }}{% endif %}">
             </div>
-            <div class="col-auto">
+            <div class="col-12 col-sm-6 col-md-auto">
                 <select name="status" class="form-select">
                     <option value="">All Statuses</option>
                     <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
@@ -42,7 +42,7 @@
                 </select>
             </div>
             {% if org_role == 'owner' and branch_staff %}
-            <div class="col-auto">
+            <div class="col-12 col-sm-6 col-md-auto">
                 <select name="staff" class="form-select">
                     <option value="">All Staff Creators</option>
                     {% for staff_user in branch_staff %}
@@ -53,14 +53,17 @@
                 </select>
             </div>
             {% endif %}
-            <div class="col-auto">
-                <input type="date" name="start_date" class="form-control" placeholder="Start Date"
-                    value="{{ start_date }}">
+            <div class="col-6 col-md-auto">
+                <label class="form-label small text-muted mb-1 d-block">Start Date</label>
+                <input type="date" name="start_date" class="form-control w-100" style="min-width: 140px;"
+                    value="{{ start_date|default:'' }}">
             </div>
-            <div class="col-auto">
-                <input type="date" name="end_date" class="form-control" placeholder="End Date" value="{{ end_date }}">
+            <div class="col-6 col-md-auto">
+                <label class="form-label small text-muted mb-1 d-block">End Date</label>
+                <input type="date" name="end_date" class="form-control w-100" style="min-width: 140px;"
+                    value="{{ end_date|default:'' }}">
             </div>
-            <div class="col-auto">
+            <div class="col-12 col-md-auto">
                 <button type="submit" class="btn app-btn-secondary">Filter</button>
                 <a href="{% url 'invoices' branch.id %}" class="btn btn-outline-secondary ms-1">Clear</a>
             </div>

@@ -47,15 +47,15 @@
         </div>
     </td>
     <td class="cell text-end pe-3">
-        <div class="btn-group">
-            <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 fw-semibold" 
+        <div class="d-inline-flex align-items-center gap-2 flex-nowrap">
+            <button class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 fw-semibold text-nowrap" 
                     type="button"
                     onclick="copyProductLink('{{ request.scheme }}://{{ request.get_host }}{% url 'product_detail' organization.slug listing.id %}', this)" 
                     title="Copy direct product link">
                 <i class="bi bi-link-45deg fs-6"></i>
                 <span>Share Link</span>
             </button>
-            <button class="btn btn-sm btn-light border" 
+            <button class="btn btn-sm btn-light border px-2" 
                     type="button"
                     onclick="openEditListingModal(this)"
                     data-id="{{ listing.id }}"
