@@ -238,11 +238,14 @@ def store_settings(request):
         messages.success(request, "Store settings updated successfully!")
         return redirect('store_settings')
 
+    from subscriptions.services.fees import BACHS_FEE_RULES_SUMMARY
+
     context = {
         'organization': org,
         'store': store,
         'branches': branches,
         'active_branch': store.get_active_branch(),
+        'fee_rules': BACHS_FEE_RULES_SUMMARY,
     }
     return render(request, 'store/vendor/store_settings.html', context)
 
@@ -581,14 +584,20 @@ def vendor_discounts(request):
 def calculate_organization_balances(org):
     """
     Computes settled online revenue (paid online orders + paid service enrollments),
-    completed payouts, pending/processing payouts, and available balance for withdrawal.
+    gateway processing fees, net revenue, completed/pending payouts, and available balance.
     """
+    from django.db.models.functions import Coalesce
+
     paid_online_orders = OnlineOrder.objects.filter(
         organization=org,
         payment_status='paid',
         payment_method__in=['bachs', 'squadco'],
     ).exclude(status='cancelled')
     order_gross_revenue = paid_online_orders.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
+    order_gateway_fees = paid_online_orders.aggregate(total=models.Sum('gateway_fee'))['total'] or Decimal('0.00')
+    order_net_revenue = paid_online_orders.aggregate(
+        total=models.Sum(Coalesce('net_amount', 'total_amount'))
+    )['total'] or Decimal('0.00')
 
     # Paid service/class enrollments
     paid_enrollments = ServiceEnrollment.objects.filter(
@@ -596,10 +605,13 @@ def calculate_organization_balances(org):
         payment_status='paid'
     )
     service_settled_ngn = paid_enrollments.aggregate(total=models.Sum('settled_amount_ngn'))['total'] or Decimal('0.00')
+    service_gateway_fees = paid_enrollments.aggregate(total=models.Sum('gateway_fee'))['total'] or Decimal('0.00')
     service_revenue_ngn = paid_enrollments.filter(currency='NGN').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
     service_revenue_usd = paid_enrollments.filter(currency='USD').aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
 
     total_gross_revenue = order_gross_revenue + service_settled_ngn
+    total_gateway_fees = order_gateway_fees + service_gateway_fees
+    total_net_revenue = order_net_revenue + service_settled_ngn
 
     completed_payouts = StorePayout.objects.filter(
         organization=org,
@@ -611,11 +623,13 @@ def calculate_organization_balances(org):
         status__in=['pending', 'processing']
     ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
 
-    available_balance = max(Decimal('0.00'), total_gross_revenue - completed_payouts - pending_payouts)
+    available_balance = max(Decimal('0.00'), total_net_revenue - completed_payouts - pending_payouts)
 
     return {
         'total_gross_revenue': total_gross_revenue,
         'order_gross_revenue': order_gross_revenue,
+        'total_gateway_fees': total_gateway_fees,
+        'total_net_revenue': total_net_revenue,
         'service_settled_ngn': service_settled_ngn,
         'service_revenue_ngn': service_revenue_ngn,
         'service_revenue_usd': service_revenue_usd,
@@ -948,6 +962,7 @@ def vendor_payouts(request):
             return redirect('vendor_payouts')
 
     from subscriptions.models import PaymentGatewayConfig
+    from subscriptions.services.fees import BACHS_FEE_RULES_SUMMARY
     min_withdrawal = PaymentGatewayConfig.get_minimum_withdrawal_ngn()
 
     context = {
@@ -955,9 +970,12 @@ def vendor_payouts(request):
         'store': store,
         'bank_account': bank_account,
         'total_gross_revenue': balances['total_gross_revenue'],
+        'total_gateway_fees': balances['total_gateway_fees'],
+        'total_net_revenue': balances['total_net_revenue'],
         'completed_payouts': balances['completed_payouts'],
         'pending_payouts': balances['pending_payouts'],
         'available_balance': balances['available_balance'],
+        'fee_rules': BACHS_FEE_RULES_SUMMARY,
         'min_withdrawal': min_withdrawal,
         'payouts': payouts,
     }

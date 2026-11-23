@@ -24,7 +24,13 @@
         {% for tier_group in tier_groups %}
             {% if tier_group.grouper != 'free' %}
         <div class="mb-5">
-          <h5 class="text-center mb-4 fw-bold">{{ tier_group.grouper|title }} Plans</h5>
+          <h5 class="text-center mb-4 fw-bold">
+            {% if tier_group.list.0.plan_category == 'online_vendor' %}
+              {{ tier_group.list.0.get_tier_display }}
+            {% else %}
+              {{ tier_group.grouper|title }} Plans
+            {% endif %}
+          </h5>
           <div class="row g-3">
             {% regroup tier_group.list by size as size_groups %}
             {% for size_group in size_groups %}
@@ -37,7 +43,9 @@
                    data-monthly-id="{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{{ p.id }}{% endif %}{% endfor %}"
                    data-annual-price="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{% if is_nigeria %}{{ p.price }}{% else %}{{ p.price_usd }}{% endif %}{% endif %}{% endfor %}"
                    data-annual-id="{% for p in size_group.list %}{% if p.billing_frequency == 'annually' %}{{ p.id }}{% endif %}{% endfor %}">
-                <h6 class="card-title text-center fw-bold pt-2 mb-2">{{ plan_ref.tier|title }} {{ plan_ref.size|title }}</h6>
+                <h6 class="card-title text-center fw-bold pt-2 mb-2">
+                  {% if plan_ref.plan_category == 'online_vendor' and plan_ref.name %}{{ plan_ref.name }}{% else %}{{ plan_ref.tier|title }} {{ plan_ref.size|title }}{% endif %}
+                </h6>
                 <div class="text-center mb-3">
                   <div class="h4 fw-bold text-primary">{{ currency_symbol }}<span class="plan-price-modal">{% for p in size_group.list %}{% if p.billing_frequency == 'monthly' %}{% if is_nigeria %}{{ p.price|floatformat:0 }}{% else %}{{ p.price_usd|floatformat:2 }}{% endif %}{% endif %}{% endfor %}</span></div>
                   <small class="text-muted"><span class="billing-period-modal">per month</span></small>
@@ -48,16 +56,21 @@
                   <li>✔ <strong>{{ plan_ref.max_users }}</strong> User{{ plan_ref.max_users|pluralize }}</li>
                   <li>✔ <strong>{{ plan_ref.max_branches }}</strong> Branch{{ plan_ref.max_branches|pluralize:"es" }}</li>
                   <li>✔ <strong>{{ plan_ref.max_products }}</strong> Products</li>
-                  <li>✔ Online Store</li>
-                  <li>✔ Basic Analytics</li>
-                  {% if plan_ref.tier != 'basic' %}
-                    <li>✔ Advanced Reports</li>
-                    <li>✔ API Access</li>
-                  {% endif %}
-                  {% if plan_ref.tier == 'premium' %}
-                    <li>✔ Custom Branding</li>
-                    <li>✔ Priority Support</li>
-                    <li>✔ Dedicated Manager</li>
+                  {% if plan_ref.has_inventory %}<li>✔ Inventory Management</li>{% endif %}
+                  {% if plan_ref.has_invoices %}<li>✔ Invoices &amp; PDF</li>{% endif %}
+                  {% if plan_ref.has_online_store %}<li>✔ Online Store</li>{% else %}<li class="text-muted">✕ Online Store</li>{% endif %}
+                  {% if not plan_ref.disable_store %}<li>✔ In-Person POS Store</li>{% else %}<li class="text-muted">✕ In-Person POS Store</li>{% endif %}
+                  {% if plan_ref.plan_category == 'standard' %}
+                    <li>✔ Basic Analytics</li>
+                    {% if plan_ref.tier != 'basic' %}
+                      <li>✔ Advanced Reports</li>
+                      <li>✔ API Access</li>
+                    {% endif %}
+                    {% if plan_ref.tier == 'premium' %}
+                      <li>✔ Custom Branding</li>
+                      <li>✔ Priority Support</li>
+                      <li>✔ Dedicated Manager</li>
+                    {% endif %}
                   {% endif %}
                 </ul>
                 
@@ -314,13 +327,18 @@ document.addEventListener('DOMContentLoaded', function() {
               document.body.appendChild(toast);
             };
 
-            const payload = JSON.stringify({
+            const selectedPlanId = frequency === 'monthly' ? card.dataset.monthlyId : card.dataset.annualId;
+            const payloadObj = {
               tier: tier,
               size: size,
               frequency: frequency,
               amount: finalPrice,
               coupon_code: couponCode
-            });
+            };
+            if (selectedPlanId) {
+              payloadObj.plan_id = selectedPlanId;
+            }
+            const payload = JSON.stringify(payloadObj);
 
             console.log('Sending XHR payload:', payload);
             xhr.send(payload);

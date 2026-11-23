@@ -58,7 +58,7 @@ def _extract_checkout_url(data):
     return next((value for value in candidates if value), None)
 
 
-def complete_order_sale(order, staff=None):
+def complete_order_sale(order, staff=None, fee_payload=None):
     """
     Atomically creates the IMS Sale record, SalesItems, and deducts branch inventory.
     Idempotent and thread-safe: uses select_for_update() row locking to prevent race conditions
@@ -78,12 +78,16 @@ def complete_order_sale(order, staff=None):
         if not branch:
             return None
 
+        sale_product_total = max(
+            Decimal('0.00'),
+            (locked_order.total_amount or Decimal('0.00')) - (locked_order.buyer_fee_amount or Decimal('0.00')),
+        )
         sale = Sale.objects.create(
             organization=org,
             branch=branch,
             staff=staff,
             transaction_id=f"ONL-{locked_order.order_number}",
-            final_total_price=float(locked_order.total_amount),
+            final_total_price=float(sale_product_total),
             discount=float(locked_order.discount_amount),
             method=(
                 'Bachs' if locked_order.payment_method == 'bachs'
@@ -126,7 +130,20 @@ def complete_order_sale(order, staff=None):
         locked_order.payment_status = 'paid'
         if not locked_order.paid_at:
             locked_order.paid_at = timezone.now()
-        locked_order.save(update_fields=['sale', 'status', 'payment_status', 'paid_at', 'updated_at'])
+        update_fields = ['sale', 'status', 'payment_status', 'paid_at', 'updated_at']
+        if locked_order.payment_method == 'bachs' and locked_order.net_amount is None:
+            from subscriptions.services.fees import extract_bachs_fee_details
+            fee_info = extract_bachs_fee_details(
+                fee_payload, locked_order.total_amount, locked_order.currency
+            )
+            locked_order.payment_channel = fee_info['payment_channel']
+            locked_order.gateway_fee = fee_info['gateway_fee']
+            locked_order.net_amount = fee_info['net_amount']
+            update_fields.extend(['payment_channel', 'gateway_fee', 'net_amount'])
+        elif locked_order.net_amount is None:
+            locked_order.net_amount = locked_order.total_amount
+            update_fields.append('net_amount')
+        locked_order.save(update_fields=update_fields)
 
     # Asynchronously send order confirmation email to the buyer
     try:
@@ -456,7 +473,11 @@ def update_cart_api(request, org_slug):
             else:
                 discount_amount = min(disc.value, subtotal)
 
-    total_amount = max(Decimal('0.00'), subtotal - discount_amount)
+    from subscriptions.services.fees import calculate_buyer_service_charge
+    currency = 'NGN' if (org.country and org.country.lower() == 'nigeria') else 'USD'
+    base_total = max(Decimal('0.00'), subtotal - discount_amount)
+    buyer_fee_amount = calculate_buyer_service_charge(base_total, currency)
+    total_amount = base_total + buyer_fee_amount
     cart_count = sum(cart.values())
 
     return JsonResponse({
@@ -467,6 +488,7 @@ def update_cart_api(request, org_slug):
         'item_total': float(item_total),
         'subtotal': float(subtotal),
         'discount_amount': float(discount_amount),
+        'buyer_fee_amount': float(buyer_fee_amount),
         'total_amount': float(total_amount),
         'cart_empty': cart_count == 0
     })
@@ -538,8 +560,11 @@ def store_checkout(request, org_slug):
         else:
             messages.warning(request, f"Coupon '{discount_code}' is invalid or expired.")
 
-    total_amount = max(Decimal('0.00'), subtotal - discount_amount)
+    from subscriptions.services.fees import calculate_buyer_service_charge
     currency = 'NGN' if (org.country and org.country.lower() == 'nigeria') else 'USD'
+    base_total = max(Decimal('0.00'), subtotal - discount_amount)
+    buyer_fee_amount = calculate_buyer_service_charge(base_total, currency)
+    total_amount = base_total + buyer_fee_amount
 
     if request.method == 'POST' and ('place_order' in request.POST or request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('ajax') == 'true'):
         is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('ajax') == 'true')
@@ -624,6 +649,7 @@ def store_checkout(request, org_slug):
                 currency=currency,
                 subtotal=subtotal,
                 discount_amount=discount_amount,
+                buyer_fee_amount=buyer_fee_amount,
                 total_amount=total_amount,
                 discount=discount,
             )
@@ -802,6 +828,7 @@ def store_checkout(request, org_slug):
         'subtotal': subtotal,
         'discount': discount,
         'discount_amount': discount_amount,
+        'buyer_fee_amount': buyer_fee_amount,
         'total_amount': total_amount,
         'currency': currency,
         'buyer': buyer,
@@ -843,6 +870,7 @@ def store_payment_callback(request, org_slug):
         return redirect('storefront', org_slug=org_slug)
 
     is_successful = False
+    fee_payload = None
     if order.payment_method == 'bachs' or order.gateway_checkout_id:
         checkout_id = order.gateway_checkout_id or request.GET.get('checkout_id') or reference
         try:
@@ -856,6 +884,7 @@ def store_payment_callback(request, org_slug):
                 )
                 if ok_amt:
                     is_successful = True
+                    fee_payload = verified.get("raw")
                 else:
                     logger.error("[Store Callback] Amount/currency mismatch for order %s: %s", order.order_number, reason)
         except Exception as ex:
@@ -885,7 +914,7 @@ def store_payment_callback(request, org_slug):
     logger.info("[Store Callback] Verification result for ref '%s': is_successful=%s", reference, is_successful)
 
     if is_successful or order.payment_status == 'paid':
-        complete_order_sale(order)
+        complete_order_sale(order, fee_payload=fee_payload)
         _save_cart(request, org_slug, {})
         return redirect('order_success', org_slug=org_slug, order_number=order.order_number)
     else:
@@ -1535,7 +1564,7 @@ def service_payment_callback(request, org_slug):
         return redirect('service_checkout_payment', org_slug=org.slug, enrollment_number=enrollment.enrollment_number)
 
 
-def fulfill_online_order_from_webhook(order_number=None, checkout_id=None, paid_amount=None, paid_currency=None):
+def fulfill_online_order_from_webhook(order_number=None, checkout_id=None, paid_amount=None, paid_currency=None, raw_payload=None):
     """Idempotent webhook fulfillment helper for OnlineOrder with amount & currency verification."""
     with transaction.atomic():
         qs = OnlineOrder.objects.select_for_update()
@@ -1554,11 +1583,11 @@ def fulfill_online_order_from_webhook(order_number=None, checkout_id=None, paid_
             logger.error("[Store Webhook] Rejected order %s: %s", order.order_number, reason)
             return False
 
-    complete_order_sale(order)
+    complete_order_sale(order, fee_payload=raw_payload)
     return True
 
 
-def fulfill_service_enrollment_from_webhook(enrollment_number=None, checkout_id=None, paid_amount=None, paid_currency=None):
+def fulfill_service_enrollment_from_webhook(enrollment_number=None, checkout_id=None, paid_amount=None, paid_currency=None, raw_payload=None):
     """Idempotent webhook fulfillment helper for ServiceEnrollment with amount & currency verification."""
     with transaction.atomic():
         qs = ServiceEnrollment.objects.select_for_update()

@@ -31,7 +31,12 @@ def _build_variation_options_json(inventory_qs):
         opts = prod.variation_options if prod else []
         if opts:
             data[str(inv.id)] = opts
-    return json.dumps(data)
+    return (
+        json.dumps(data)
+        .replace('<', '\\u003c')
+        .replace('>', '\\u003e')
+        .replace('&', '\\u0026')
+    )
 
 
 def _generate_invoice_number(organization):
@@ -457,6 +462,35 @@ def _resolve_invoice_item_image_field(item):
     return None
 
 
+def _is_safe_public_http_url(url):
+    """Reject non-HTTP(S) schemes and private/loopback/link-local hosts to prevent SSRF."""
+    try:
+        import ipaddress
+        import socket
+        from urllib.parse import urlparse
+
+        parsed = urlparse(str(url or '').strip())
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+            return False
+        host = parsed.hostname.strip().lower()
+        if host in ('localhost', '127.0.0.1', '::1', '0.0.0.0') or host.endswith('.local'):
+            return False
+        try:
+            ip_obj = ipaddress.ip_address(host)
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
+                return False
+        except ValueError:
+            # Hostname: resolve and verify none of the resolved IPs are internal/reserved
+            for info in socket.getaddrinfo(host, None):
+                addr = info[4][0]
+                ip_obj = ipaddress.ip_address(addr)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
+                    return False
+        return True
+    except Exception:
+        return False
+
+
 def _get_pdf_safe_image_uri(image_or_product, request=None):
     """Return a JPEG data URI for xhtml2pdf so WebP/remote images always render."""
     image_field = image_or_product
@@ -485,9 +519,9 @@ def _get_pdf_safe_image_uri(image_or_product, request=None):
             with image_field.open('rb') as f:
                 raw_bytes = f.read()
         except Exception:
-            if img_url and img_url.startswith(('http://', 'https://')):
+            if img_url and _is_safe_public_http_url(img_url):
                 import requests
-                resp = requests.get(img_url, timeout=5)
+                resp = requests.get(img_url, timeout=5, allow_redirects=False)
                 if resp.status_code == 200:
                     raw_bytes = resp.content
 
