@@ -14,6 +14,12 @@ class Plan(models.Model):
         ('growth', 'Growth'),
         ('premium', 'Premium'),
         ('invoice', 'Invoice'),
+        ('online_vendor', 'Online Vendor (Invoice & Inventory)'),
+        ('online_vendor_store', 'Online Vendor (Online Store)'),
+    )
+    PLAN_CATEGORY_CHOICES = (
+        ('standard', 'Standard Business'),
+        ('online_vendor', 'Online Vendors'),
     )
     SIZE_CHOICES = (
         ('starter', 'Starter'),
@@ -28,7 +34,9 @@ class Plan(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, unique=True, editable=False)
     name = models.CharField(max_length=255, blank=True, null=True)
-    tier = models.CharField(max_length=20, choices=TIER_CHOICES, default='basic')
+    plan_category = models.CharField(max_length=30, choices=PLAN_CATEGORY_CHOICES, default='standard', db_index=True)
+    show_on_landing = models.BooleanField(default=True, help_text="Show this plan on the public landing page pricing section")
+    tier = models.CharField(max_length=30, choices=TIER_CHOICES, default='basic')
     size = models.CharField(max_length=20, choices=SIZE_CHOICES, default='starter')
     billing_frequency = models.CharField(max_length=20, choices=BILLING_FREQUENCY_CHOICES, default='monthly')
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -38,7 +46,9 @@ class Plan(models.Model):
     max_users = models.IntegerField(default=1)
     max_branches = models.IntegerField(default=1, blank=True, null=True)
     max_products = models.IntegerField(default=100, blank=True, null=True)
-    disable_store = models.BooleanField(default=False)
+    has_inventory = models.BooleanField(default=True, help_text="Enable Inventory management for this plan")
+    has_invoices = models.BooleanField(default=True, help_text="Enable Invoices & PDF generation for this plan")
+    disable_store = models.BooleanField(default=False, help_text="Disable in-person POS Store feature")
     has_online_store = models.BooleanField(default=True, help_text="Enable online storefront, customer catalog link, and web orders for this plan")
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)

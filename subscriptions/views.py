@@ -267,7 +267,8 @@ def get_or_create_plan(tier, size, billing_frequency):
             'max_users': features['users'],
             'max_branches': features['branches'],
             'max_products': features['products'],
-            'disable_store': tier_upper == 'invoice',
+            'disable_store': tier_upper in ('invoice', 'online_vendor', 'online_vendor_store'),
+            'has_online_store': tier_upper != 'online_vendor' and tier_upper != 'invoice',
         }
     )
 
@@ -362,7 +363,7 @@ def settingsView(request):
         return redirect('dashboard')
     
     subscription = Subscription.objects.filter(organization=organization, is_active=True).order_by('-end_date').first()
-    plans = Plan.objects.exclude(tier='free').order_by('tier', 'size', 'billing_frequency')
+    plans = Plan.objects.exclude(tier='free').order_by('plan_category', 'tier', 'size', 'billing_frequency')
     branches = organization.branch_set.all().order_by('name')
 
     from ims.models import APIKey
@@ -630,7 +631,6 @@ def init_payment(request, plan_id):
 
 
 
-@csrf_exempt
 @login_required
 def create_payment(request):
     if request.method != 'POST':
@@ -1317,6 +1317,7 @@ def bachs_webhook(request):
                         checkout_id=checkout_id,
                         paid_amount=raw_amount,
                         paid_currency=raw_currency,
+                        raw_payload=data,
                     )
                 elif flow_type == "service_enrollment":
                     from store.views import fulfill_service_enrollment_from_webhook
@@ -1325,6 +1326,7 @@ def bachs_webhook(request):
                         checkout_id=checkout_id,
                         paid_amount=raw_amount,
                         paid_currency=raw_currency,
+                        raw_payload=data,
                     )
                 else:
                     # Subscription payment (by metadata.payment_ref or checkout_id)
@@ -1377,7 +1379,6 @@ def bachs_webhook(request):
 
 @role_required(roles=['owner'])
 @login_required
-@csrf_exempt  # HTMX POST requests are already CSRF-configured, but csrf_exempt is added for safety if header is omitted
 def generate_api_key_view(request):
     """
     Generates a secure API Key for the user's organization.
@@ -1413,7 +1414,6 @@ def generate_api_key_view(request):
 
 @role_required(roles=['owner'])
 @login_required
-@csrf_exempt
 def revoke_api_key_view(request, key_id):
     """
     Deletes (revokes) an API Key.

@@ -1,0 +1,36 @@
+<div class="alert alert-info border rounded-3 shadow-sm mb-4 bg-white" role="alert">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <div class="fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle-fill text-primary"></i>
+            <span>Payment &amp; Withdrawal Fee Notice</span>
+        </div>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#bachsFeeRulesCollapse" aria-expanded="false">
+            View Fee Schedule
+        </button>
+    </div>
+    <p class="small text-muted mb-0">
+        Payment processing fees are <strong>shared between buyer and seller</strong> across all transfer and card payments. Buyers pay a <strong>Service Charge</strong> at checkout (0.75% capped at ₦1,000 for NGN; 2.5% + $0.20 for USD), and the remaining gateway fee is deducted before settling into your wallet (<strong>Gross Sales &minus; Gateway Fees = Net Available Balance</strong>).
+    </p>
+    <div class="collapse mt-3" id="bachsFeeRulesCollapse">
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0 small bg-light">
+                <thead class="table-light">
+                    <tr>
+                        <th>Payment / Payout Channel</th>
+                        <th>Fee</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in fee_rules %}
+                    <tr>
+                        <td class="fw-semibold text-dark">{{ rule.channel }}</td>
+                        <td class="text-primary fw-semibold">{{ rule.fee }}</td>
+                        <td class="text-muted">{{ rule.notes }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

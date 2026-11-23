@@ -96,16 +96,18 @@ class PaymentGatewayConfigAdmin(ModelAdmin):
 
 @admin.register(Plan)
 class PlanAdmin(ModelAdmin):
-    list_display = ('name', 'tier', 'size', 'billing_frequency', 'price', 'price_usd', 'has_online_store', 'disable_store', 'max_users', 'max_branches', 'max_products', 'created_at')
+    list_display = ('name', 'plan_category', 'tier', 'size', 'billing_frequency', 'price', 'price_usd', 'show_on_landing', 'has_inventory', 'has_invoices', 'has_online_store', 'disable_store', 'created_at')
     search_fields = ('name', 'tier', 'size')
-    list_filter = ('tier', 'size', 'billing_frequency', 'has_online_store')
+    list_filter = ('plan_category', 'tier', 'size', 'billing_frequency', 'show_on_landing', 'has_online_store', 'disable_store')
     ordering = ('-created_at',)
     date_hierarchy = 'created_at'
-    list_per_page = 10
-    list_display_links = ('name',)  
+    list_per_page = 15
+    list_display_links = ('name', 'tier')
 
     fields = (
         'name',
+        'plan_category',
+        'show_on_landing',
         'tier',
         'size',
         'billing_frequency',
@@ -113,6 +115,8 @@ class PlanAdmin(ModelAdmin):
         'price_usd',
         'duration_in_days',
         'description',
+        'has_inventory',
+        'has_invoices',
         'has_online_store',
         'disable_store',
         'max_users',

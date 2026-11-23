@@ -60,7 +60,9 @@
                         </div>
                     </div>
                     <div class="h3 fw-bold text-dark mb-2">{{ currency_symbol }}{{ total_gross_revenue|floatformat:2|intcomma }}</div>
-                    <small class="text-muted">Lifetime paid store orders</small>
+                    <small class="text-muted">
+                        Fees: -{{ currency_symbol }}{{ total_gateway_fees|default:"0.00"|floatformat:2|intcomma }} &bull; Net: {{ currency_symbol }}{{ total_net_revenue|default:total_gross_revenue|floatformat:2|intcomma }}
+                    </small>
                 </div>
             </div>
 
@@ -92,6 +94,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- Bachs Payment & Withdrawal Fee Notice -->
+        {% include 'store/vendor/partials/bachs_fee_notice.html' %}
 
         <!-- Settlement Bank Account Overview -->
         <div class="app-card shadow-sm p-4 mb-4 rounded-3 border-0 bg-white">

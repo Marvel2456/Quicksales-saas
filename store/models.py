@@ -303,7 +303,11 @@ class OnlineOrder(models.Model):
     currency = models.CharField(max_length=10, default='NGN')
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    buyer_fee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    payment_channel = models.CharField(max_length=40, blank=True, default='')
+    gateway_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     discount = models.ForeignKey(StoreDiscount, on_delete=models.SET_NULL, null=True, blank=True)
 
     # Fulfillment tracking
@@ -410,6 +414,7 @@ class StorePayout(models.Model):
     idempotency_key = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='payouts')
     amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    gateway_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     currency = models.CharField(max_length=10, default='NGN')
     gateway = models.CharField(max_length=20, blank=True, null=True)
     gateway_reference = models.CharField(max_length=150, blank=True, null=True, db_index=True)
@@ -560,6 +565,8 @@ class ServiceEnrollment(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     exchange_rate_used = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1.00'))
     settled_amount_ngn = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    payment_channel = models.CharField(max_length=40, blank=True, default='')
+    gateway_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
 
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', db_index=True)
     payment_reference = models.CharField(max_length=100, unique=True, null=True, blank=True, db_index=True)

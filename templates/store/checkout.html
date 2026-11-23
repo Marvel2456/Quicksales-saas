@@ -316,6 +316,11 @@
                             <span class="fw-semibold" id="cartDiscount">-{% if currency == 'USD' %}${% else %}₦{% endif %}{{ discount_amount|floatformat:2|intcomma }}</span>
                         </div>
 
+                        <div class="d-flex justify-content-between mb-2 {% if not buyer_fee_amount or buyer_fee_amount <= 0 %}d-none{% endif %}" id="serviceChargeRow">
+                            <span class="text-muted">Service Charge</span>
+                            <span class="fw-semibold" id="cartServiceCharge">{% if currency == 'USD' %}${% else %}₦{% endif %}{{ buyer_fee_amount|floatformat:2|intcomma }}</span>
+                        </div>
+
                         <hr class="my-2">
 
                         <div class="d-flex justify-content-between fs-5 fw-bold text-dark">
@@ -557,6 +562,17 @@
                         discountElem.textContent = '-' + formatMoney(data.discount_amount);
                     } else {
                         discountRow.classList.add('d-none');
+                    }
+                }
+
+                const serviceChargeRow = document.getElementById('serviceChargeRow');
+                const serviceChargeElem = document.getElementById('cartServiceCharge');
+                if (serviceChargeRow && serviceChargeElem) {
+                    if (data.buyer_fee_amount > 0) {
+                        serviceChargeRow.classList.remove('d-none');
+                        serviceChargeElem.textContent = formatMoney(data.buyer_fee_amount);
+                    } else {
+                        serviceChargeRow.classList.add('d-none');
                     }
                 }
 

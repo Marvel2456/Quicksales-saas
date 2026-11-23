@@ -2110,109 +2110,210 @@
     <section id="pricing" class="pricing-section py-5">
         <div class="container">
             <!-- Header -->
-            <div class="text-center mb-5">
+            <div class="text-center mb-4">
                 <div class="d-inline-block mb-3">
                     <span class="inventory-badge fw-bold">PRICING</span>
                 </div>
                 <h2 class="text-center fw-bold text-dark mb-3 hero-title" style="font-size: 3.5rem;">Get started with
                     our<br>starter plans</h2>
-                <p class="text-muted lead mb-5">Flexible plans built to support growing businesses</p>
-            </div>
+                <p class="text-muted lead mb-4">Flexible plans built to support growing businesses</p>
 
-            <div class="row g-4 justify-content-center">
-                {% for plan in starter_plans %}
-                <div class="col-lg-4 col-md-6">
-                    <div
-                        class="card h-100 p-4 border-0 rounded-4 pricing-card {% if plan.tier == 'growth' %}bg-dark-blue text-white{% else %}bg-white border text-dark{% endif %} shadow-sm">
-                        <div class="card-body d-flex flex-column">
-                            <h5
-                                class="fw-bold mb-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark-blue{% endif %} text-capitalize">
-                                {{ plan.tier }}</h5>
+                <!-- Plan Category Tab Toggle & Currency Switcher -->
+                <div class="d-flex flex-wrap justify-content-center align-items-center gap-3 mb-4">
+                    <ul class="nav nav-pills bg-light p-1 rounded-pill border" id="landingPricingTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active rounded-pill px-4 fw-semibold" id="tab-standard-btn" data-bs-toggle="pill" data-bs-target="#tab-standard" type="button" role="tab" aria-controls="tab-standard" aria-selected="true">
+                                Standard Business
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link rounded-pill px-4 fw-semibold" id="tab-online-vendors-btn" data-bs-toggle="pill" data-bs-target="#tab-online-vendors" type="button" role="tab" aria-controls="tab-online-vendors" aria-selected="false">
+                                For Online Vendors
+                            </button>
+                        </li>
+                    </ul>
 
-                            <div class="mb-2">
-                                <span class="display-5 fw-bold">₦{{ plan.price|intcomma }}</span>
-                                <span class="fs-6 opacity-75">/ per month</span>
-                            </div>
-
-                            <p class="mb-4 text-sm opacity-75">
-                                {% if plan.tier == 'basic' %}For small brands{% endif %}
-                                {% if plan.tier == 'growth' %}For mid sized organizations{% endif %}
-                                {% if plan.tier == 'premium' %}For large sized organizations{% endif %}
-                            </p>
-
-                            <a href="{% url 'register' %}?plan={{ plan.id }}"
-                                class="btn btn-lg w-100 fw-bold mb-4 rounded-3 {% if plan.tier == 'growth' %}btn-primary{% else %}btn-light-grey{% endif %}">
-                                {% if plan.tier == 'basic' %}Start 7 days trial{% else %}Get Started{% endif %}
-                            </a>
-
-                            <div class="features-list mt-2">
-                                <ul class="list-unstyled mb-0 d-grid gap-2">
-                                    <li class="d-flex align-items-center">
-                                        <i
-                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
-                                        <span>
-                                            {% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %}
-                                            {% if plan.max_users == 1 %}user{% else %}users{% endif %}
-                                        </span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i
-                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
-                                        <span>{{ plan.max_branches }} Branch{% if plan.max_branches > 1 %}es{% endif %}</span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i
-                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
-                                        <span>Over {{ plan.max_products }} products catalogue</span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i
-                                            class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
-                                        <span>Online Storefront</span>
-                                    </li>
-
-                                    {% if plan.tier == 'basic' %}
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-dark"></i>
-                                        <span>Basic Analytics</span>
-                                    </li>
-                                    {% endif %}
-
-                                    {% if plan.tier == 'growth' %}
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-white"></i>
-                                        <span>Basic Analytics</span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-white"></i>
-                                        <span>Advanced Reporting</span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-white"></i>
-                                        <span>API access</span>
-                                    </li>
-                                    {% endif %}
-
-                                    {% if plan.tier == 'premium' %}
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-dark"></i>
-                                        <span>Advanced Analytics</span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-dark"></i>
-                                        <span>Advanced Reporting</span>
-                                    </li>
-                                    <li class="d-flex align-items-center">
-                                        <i class="bi bi-check-lg me-2 text-dark"></i>
-                                        <span>API access</span>
-                                    </li>
-                                    {% endif %}
-                                </ul>
-                            </div>
-                        </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Currency">
+                        <a href="?currency=NGN#pricing" class="btn {% if visitor_is_nigeria %}btn-dark{% else %}btn-outline-secondary{% endif %}">₦ NGN</a>
+                        <a href="?currency=USD#pricing" class="btn {% if not visitor_is_nigeria %}btn-dark{% else %}btn-outline-secondary{% endif %}">$ USD</a>
                     </div>
                 </div>
-                {% endfor %}
+            </div>
+
+            <div class="tab-content" id="landingPricingTabContent">
+                <!-- Standard Business Plans Tab -->
+                <div class="tab-pane fade show active" id="tab-standard" role="tabpanel" aria-labelledby="tab-standard-btn">
+                    <div class="row g-4 justify-content-center">
+                        {% for plan in starter_plans %}
+                        <div class="col-lg-4 col-md-6">
+                            <div
+                                class="card h-100 p-4 border-0 rounded-4 pricing-card {% if plan.tier == 'growth' %}bg-dark-blue text-white{% else %}bg-white border text-dark{% endif %} shadow-sm">
+                                <div class="card-body d-flex flex-column">
+                                    <h5
+                                        class="fw-bold mb-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark-blue{% endif %} text-capitalize">
+                                        {{ plan.name|default:plan.tier }}</h5>
+
+                                    <div class="mb-2">
+                                        {% if not visitor_is_nigeria and plan.price_usd > 0 %}
+                                        <span class="display-5 fw-bold">${{ plan.price_usd|floatformat:0|intcomma }}</span>
+                                        {% else %}
+                                        <span class="display-5 fw-bold">₦{{ plan.price|intcomma }}</span>
+                                        {% endif %}
+                                        <span class="fs-6 opacity-75">/ per {{ plan.billing_frequency|cut:"ly" }}</span>
+                                    </div>
+
+                                    <p class="mb-4 text-sm opacity-75">
+                                        {% if plan.description %}{{ plan.description }}
+                                        {% elif plan.tier == 'basic' %}For small brands
+                                        {% elif plan.tier == 'growth' %}For mid sized organizations
+                                        {% elif plan.tier == 'premium' %}For large sized organizations{% endif %}
+                                    </p>
+
+                                    <a href="{% url 'register' %}?plan={{ plan.id }}"
+                                        class="btn btn-lg w-100 fw-bold mb-4 rounded-3 {% if plan.tier == 'growth' %}btn-primary{% else %}btn-light-grey{% endif %}">
+                                        {% if plan.tier == 'basic' %}Start 7 days trial{% else %}Get Started{% endif %}
+                                    </a>
+
+                                    <div class="features-list mt-2">
+                                        <ul class="list-unstyled mb-0 d-grid gap-2">
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>
+                                                    {% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %}
+                                                    {% if plan.max_users == 1 %}user{% else %}users{% endif %}
+                                                </span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>{{ plan.max_branches }} Branch{% if plan.max_branches > 1 %}es{% endif %}</span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>Over {{ plan.max_products }} products catalogue</span>
+                                            </li>
+                                            {% if plan.has_online_store %}
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>Online Storefront</span>
+                                            </li>
+                                            {% endif %}
+
+                                            {% if plan.tier == 'basic' %}
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-dark"></i>
+                                                <span>Basic Analytics</span>
+                                            </li>
+                                            {% endif %}
+
+                                            {% if plan.tier == 'growth' %}
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-white"></i>
+                                                <span>Basic Analytics</span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-white"></i>
+                                                <span>Advanced Reporting</span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-white"></i>
+                                                <span>API access</span>
+                                            </li>
+                                            {% endif %}
+
+                                            {% if plan.tier == 'premium' %}
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-dark"></i>
+                                                <span>Advanced Analytics</span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-dark"></i>
+                                                <span>Advanced Reporting</span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 text-dark"></i>
+                                                <span>API access</span>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Online Vendors Plans Tab -->
+                <div class="tab-pane fade" id="tab-online-vendors" role="tabpanel" aria-labelledby="tab-online-vendors-btn">
+                    <div class="row g-4 justify-content-center">
+                        {% for plan in online_vendor_plans %}
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card h-100 p-4 border-0 rounded-4 pricing-card {% if plan.has_online_store %}bg-dark-blue text-white{% else %}bg-white border text-dark{% endif %} shadow-sm">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="fw-bold mb-2 {% if plan.has_online_store %}text-white{% else %}text-dark-blue{% endif %}">
+                                        {{ plan.name|default:plan.get_tier_display }}
+                                    </h5>
+
+                                    <div class="mb-2">
+                                        {% if not visitor_is_nigeria and plan.price_usd > 0 %}
+                                        <span class="display-5 fw-bold">${{ plan.price_usd|floatformat:0|intcomma }}</span>
+                                        {% else %}
+                                        <span class="display-5 fw-bold">₦{{ plan.price|intcomma }}</span>
+                                        {% endif %}
+                                        <span class="fs-6 opacity-75">/ {{ plan.get_billing_frequency_display|lower }}</span>
+                                    </div>
+
+                                    <p class="mb-4 text-sm opacity-75">
+                                        {{ plan.description|default:"Built specifically for online vendors" }}
+                                    </p>
+
+                                    <a href="{% url 'register' %}?plan={{ plan.id }}"
+                                        class="btn btn-lg w-100 fw-bold mb-4 rounded-3 {% if plan.has_online_store %}btn-primary{% else %}btn-light-grey{% endif %}">
+                                        Get Started
+                                    </a>
+
+                                    <div class="features-list mt-2">
+                                        <ul class="list-unstyled mb-0 d-grid gap-2">
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>{% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %} {% if plan.max_users == 1 %}user{% else %}users{% endif %}</span>
+                                            </li>
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>Over {{ plan.max_products }} products catalogue</span>
+                                            </li>
+                                            {% if plan.has_inventory %}
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>Inventory Management</span>
+                                            </li>
+                                            {% endif %}
+                                            {% if plan.has_invoices %}
+                                            <li class="d-flex align-items-center">
+                                                <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>
+                                                <span>Invoices &amp; PDF Receipts</span>
+                                            </li>
+                                            {% endif %}
+                                            <li class="d-flex align-items-center {% if not plan.has_online_store %}opacity-50{% endif %}">
+                                                <i class="bi {% if plan.has_online_store %}bi-check-lg{% else %}bi-x-lg{% endif %} me-2 {% if plan.has_online_store %}text-white{% else %}text-danger{% endif %}"></i>
+                                                <span>Online Storefront &amp; Checkout</span>
+                                            </li>
+                                            <li class="d-flex align-items-center {% if plan.disable_store %}opacity-50{% endif %}">
+                                                <i class="bi {% if not plan.disable_store %}bi-check-lg{% else %}bi-x-lg{% endif %} me-2 {% if not plan.disable_store %}text-white{% else %}text-danger{% endif %}"></i>
+                                                <span>In-Person POS Store</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-md-8 text-center py-4">
+                            <p class="text-muted mb-0">Online Vendor plans are coming soon.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
     </section>

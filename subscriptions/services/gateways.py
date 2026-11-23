@@ -197,12 +197,20 @@ class BachsGateway:
             except ValueError:
                 parsed_amount = None
 
+        from subscriptions.services.fees import extract_bachs_fee_details
+        fee_info = extract_bachs_fee_details(
+            data, parsed_amount or Decimal("0.00"), str(raw_currency).strip().upper() or "NGN"
+        )
+
         return {
             "is_paid": status in paid_statuses,
             "status": status,
             "amount": parsed_amount,
             "currency": str(raw_currency).strip().upper(),
             "checkout_id": data.get("checkout_id") or checkout_id,
+            "payment_channel": fee_info["payment_channel"],
+            "fee": fee_info["gateway_fee"],
+            "net_amount": fee_info["net_amount"],
             "metadata": data.get("metadata") or {},
             "raw": data,
         }
