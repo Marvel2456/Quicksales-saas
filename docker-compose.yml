@@ -9,11 +9,13 @@ services:
     build:
       context: .
     container_name: quicksales
+    restart: unless-stopped
+    mem_limit: 1024m
     command: >
       sh -c "
       python manage.py collectstatic --noinput &&
       python manage.py migrate &&
-      gunicorn ImsV3.wsgi:application --bind 0.0.0.0:8000 --workers=2 --timeout=120 --access-logfile - --error-logfile - --log-level info --capture-output
+      gunicorn ImsV3.wsgi:application --bind 0.0.0.0:8000 --workers=2 --preload --max-requests=1000 --max-requests-jitter=100 --timeout=120 --access-logfile - --error-logfile - --log-level info --capture-output
       "
     ports:
       - 8000:8000
@@ -30,12 +32,14 @@ services:
       - app-net
     image: postgres:16
     container_name: quicksales_db
+    restart: unless-stopped
+    mem_limit: 1024m
     env_file:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -48,11 +52,12 @@ services:
     image: redis:7
     container_name: quicksales_redis
     restart: unless-stopped
+    mem_limit: 256m
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy volatile-lru
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-lru
 
   celery_worker:
     networks:
@@ -60,7 +65,8 @@ services:
     build:
       context: .
     container_name: quicksales_celery_worker
-    command: celery -A ImsV3 worker --loglevel=info --concurrency=2
+    mem_limit: 768m
+    command: celery -A ImsV3 worker --loglevel=info --concurrency=2 --max-tasks-per-child=200 --without-gossip --without-mingle
     volumes:
       - .:/app
     env_file:
@@ -76,6 +82,7 @@ services:
     build:
       context: .
     container_name: quicksales_celery_beat
+    mem_limit: 384m
     command: celery -A ImsV3 beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
@@ -87,6 +94,7 @@ services:
     restart: on-failure
 
   pgadmin:
+    profiles: ["tools"]
     networks:
       - app-net
     image: dpage/pgadmin4
@@ -95,7 +103,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     depends_on:
       - db
 
