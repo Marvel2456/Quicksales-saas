@@ -163,6 +163,7 @@ def inventory_list(request, pk):
 # @is_unsubscribed
 def branchInventory(request):
     """Admin branch inventory view - optimized with select_related"""
+    organization = get_request_organization(request)
     product_contains_query = request.GET.get('product')
     branch_contains_query = request.GET.get('branch')
     
@@ -189,7 +190,11 @@ def branchInventory(request):
     if request.method == "POST":
         form = AdminCreateInventoryForm(request.POST)
         if form.is_valid():
-            form.save()
+            inv_instance = form.save(commit=False)
+            inv_instance.organization = organization
+            if inv_instance.reorder_level is None:
+                inv_instance.reorder_level = 0
+            inv_instance.save()
             messages.success(request, 'successfully created')
             return redirect('branchinv')
 
