@@ -53,6 +53,10 @@ class Plan(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
+    @property
+    def has_unlimited_products(self):
+        return self.max_products is not None and self.max_products > 5000
+
     def __str__(self):
         if self.name:
             return self.name

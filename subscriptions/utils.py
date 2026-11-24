@@ -77,7 +77,11 @@ def can_create_product(organization):
     """Check if organization can create more products based on plan limit."""
     limits = get_plan_limits(organization)
     current_products = Product.objects.filter(organization=organization).count()
-    return current_products < limits['max_products'], current_products, limits['max_products']
+    max_products = limits['max_products']
+    if max_products is not None and max_products > 5000:
+        return True, current_products, None
+    limit_val = max_products or 0
+    return current_products < limit_val, current_products, limit_val
 
 
 def get_subscription_status(organization):
@@ -113,6 +117,10 @@ def get_usage_stats(organization):
     current_branches = Branch.objects.filter(organization=organization).count()
     current_products = Product.objects.filter(organization=organization).count()
     
+    max_products = limits['max_products']
+    products_unlimited = max_products is not None and max_products > 5000
+    products_limit_num = max_products or 0
+
     return {
         'users': {
             'current': current_users,
@@ -128,9 +136,10 @@ def get_usage_stats(organization):
         },
         'products': {
             'current': current_products,
-            'limit': limits['max_products'],
-            'percentage': (current_products / limits['max_products'] * 100) if limits['max_products'] > 0 else 0,
-            'can_create': current_products < limits['max_products']
+            'limit': 'Unlimited' if products_unlimited else products_limit_num,
+            'is_unlimited': products_unlimited,
+            'percentage': 0 if products_unlimited else ((current_products / products_limit_num * 100) if products_limit_num > 0 else 0),
+            'can_create': True if products_unlimited else (current_products < products_limit_num)
         },
         'plan_name': limits['plan_name']
     }

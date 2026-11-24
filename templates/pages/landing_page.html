@@ -2189,7 +2189,11 @@
                                             </li>
                                             <li class="d-flex align-items-center">
                                                 <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
-                                                <span>Over {{ plan.max_products }} products catalogue</span>
+                                                {% if plan.has_unlimited_products %}
+                                                <span>Unlimited products</span>
+                                                {% else %}
+                                                <span>Over {{ plan.max_products|intcomma }} products catalogue</span>
+                                                {% endif %}
                                             </li>
                                             {% if plan.has_online_store %}
                                             <li class="d-flex align-items-center">
@@ -2280,7 +2284,11 @@
                                             </li>
                                             <li class="d-flex align-items-center">
                                                 <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>
-                                                <span>Over {{ plan.max_products }} products catalogue</span>
+                                                {% if plan.has_unlimited_products %}
+                                                <span>Unlimited products</span>
+                                                {% else %}
+                                                <span>Over {{ plan.max_products|intcomma }} products catalogue</span>
+                                                {% endif %}
                                             </li>
                                             {% if plan.has_inventory %}
                                             <li class="d-flex align-items-center">
