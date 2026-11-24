@@ -317,6 +317,12 @@ class CreateInventoryForm(ModelForm):
                 'product': forms.Select(attrs={'class':'form-control form-select'})
             }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cost_price'].required = True
+        self.fields['sale_price'].required = True
+        self.fields['reorder_level'].required = False
+
 
     # def clean(self):
     #     super(CreateInventoryForm, self).clean()
@@ -340,7 +346,13 @@ class AdminCreateInventoryForm(ModelForm):
         widgets = {
                 'product': forms.Select(attrs={'class':'form-select'}),
                 'branch': forms.Select(attrs={'class':'form-select'})
-            }  
+            }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cost_price'].required = True
+        self.fields['sale_price'].required = True
+        self.fields['reorder_level'].required = False
 
 class AdminRestockForm(ModelForm):
     class Meta:

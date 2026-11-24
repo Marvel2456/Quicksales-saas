@@ -63,7 +63,11 @@ def can_create_user(organization):
     from account.models import OrganizationMembership
     limits = get_plan_limits(organization)
     current_users = OrganizationMembership.objects.filter(organization=organization, is_active=True).count()
-    return current_users < limits['max_users'], current_users, limits['max_users']
+    max_users = limits['max_users']
+    if max_users is not None and max_users > 5000:
+        return True, current_users, None
+    limit_val = max_users or 0
+    return current_users < limit_val, current_users, limit_val
 
 
 def can_create_branch(organization):
@@ -117,6 +121,10 @@ def get_usage_stats(organization):
     current_branches = Branch.objects.filter(organization=organization).count()
     current_products = Product.objects.filter(organization=organization).count()
     
+    max_users = limits['max_users']
+    users_unlimited = max_users is not None and max_users > 5000
+    users_limit_num = max_users or 0
+
     max_products = limits['max_products']
     products_unlimited = max_products is not None and max_products > 5000
     products_limit_num = max_products or 0
@@ -124,9 +132,10 @@ def get_usage_stats(organization):
     return {
         'users': {
             'current': current_users,
-            'limit': limits['max_users'],
-            'percentage': (current_users / limits['max_users'] * 100) if limits['max_users'] > 0 else 0,
-            'can_create': current_users < limits['max_users']
+            'limit': 'Unlimited' if users_unlimited else users_limit_num,
+            'is_unlimited': users_unlimited,
+            'percentage': 0 if users_unlimited else ((current_users / users_limit_num * 100) if users_limit_num > 0 else 0),
+            'can_create': True if users_unlimited else (current_users < users_limit_num)
         },
         'branches': {
             'current': current_branches,
