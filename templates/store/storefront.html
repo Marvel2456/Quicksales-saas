@@ -434,7 +434,7 @@
                         </div>
 
                         {% if item.is_in_stock %}
-                        {% if item.inventory.product.variation_options %}
+                        {% if item.inventory.has_variation_quantities or item.inventory.product.variation_options %}
                         <a href="{% url 'product_detail' organization.slug item.id %}" class="btn-add-bag text-center text-decoration-none d-block">
                             <i class="bi bi-sliders me-1"></i> Select Option
                         </a>

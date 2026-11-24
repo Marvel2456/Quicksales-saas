@@ -9,16 +9,19 @@ for (let i = 0; i < updateCart.length; i++) {
         let inventoryId = this.dataset.inventory
         let action = this.dataset.action
         let url = this.dataset.url
+        let card = this.closest('.app-card')
+        let varSelect = card ? card.querySelector('.pos-variation-select') : null
+        let selectedVariation = varSelect ? (varSelect.value || '').trim() : ''
 
-        console.log('inventoryId:', inventoryId, 'action:', action, 'url:', url)
+        console.log('inventoryId:', inventoryId, 'action:', action, 'url:', url, 'selectedVariation:', selectedVariation)
         console.log('csrftoken:', csrftoken)
         
-        UpdateUserCart(inventoryId, action, url)
+        UpdateUserCart(inventoryId, action, url, selectedVariation)
     })
 }
 
-function UpdateUserCart(inventoryId, action, url){
-    console.log('UpdateUserCart called with:', {inventoryId, action, url, csrftoken})
+function UpdateUserCart(inventoryId, action, url, selectedVariation = ''){
+    console.log('UpdateUserCart called with:', {inventoryId, action, url, selectedVariation, csrftoken})
 
     const isOnline = window.offlineManager ? window.offlineManager.isOnline : navigator.onLine;
     if (!isOnline) {
@@ -37,6 +40,11 @@ function UpdateUserCart(inventoryId, action, url){
         return
     }
 
+    const payload = {'inventoryId': inventoryId, 'action': action};
+    if (selectedVariation) {
+        payload.selected_variation = selectedVariation;
+    }
+
     fetch(url, {
         method:'POST',
         credentials: 'include',
@@ -44,7 +52,7 @@ function UpdateUserCart(inventoryId, action, url){
             'Content-Type':'application/json',
             'X-CSRFToken': csrftoken,
         },
-        body:JSON.stringify({'inventoryId':inventoryId, 'action':action})
+        body:JSON.stringify(payload)
     })
     .then(res => {
         console.log('Response status:', res.status)

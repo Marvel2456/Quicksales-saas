@@ -165,15 +165,24 @@
         const opts = VARIATION_OPTIONS[select.value] || [];
         varSelect.innerHTML = '<option value="">-- Select option --</option>';
         if (opts.length > 0) {
-            opts.forEach(function(optVal) {
+            opts.forEach(function(optItem) {
+                const name = typeof optItem === 'string' ? optItem : optItem.name;
+                const qty = typeof optItem === 'string' ? null : optItem.qty;
                 const opt = document.createElement('option');
-                opt.value = optVal;
-                opt.textContent = optVal;
+                opt.value = name;
+                if (qty !== null && qty !== undefined) {
+                    opt.textContent = qty > 0 ? (name + ' (Stock: ' + qty + ')') : (name + ' (Out of stock)');
+                    if (qty <= 0) opt.disabled = true;
+                } else {
+                    opt.textContent = name;
+                }
                 varSelect.appendChild(opt);
             });
             varSelect.classList.remove('d-none');
+            varSelect.required = true;
         } else {
             varSelect.classList.add('d-none');
+            varSelect.required = false;
         }
     }
 

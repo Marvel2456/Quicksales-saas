@@ -1,27 +1,27 @@
 {% block content %}
 
 <div class="modal fade" {% block modal-id %} id="addCostPriceModal" {% endblock modal-id %} tabindex="-1" aria-labelledby="addCostPriceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-            <h6 class="modal-title" id="addCostPriceModalLabel">{% block modal-title %}<i class="fas fa-plus"></i>&nbsp;&nbsp; Cost Price{% endblock modal-title %}</h6>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h6 class="modal-title" id="addCostPriceModalLabel">
+                    {% block modal-title %}<i class="fas fa-tag text-primary"></i> Cost Price{% endblock modal-title %}
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <!--Forms begins-->
-            <form {% block Action %} action="" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
-            {% csrf_token %}
-    
+            <form {% block Action %} action="" {% endblock Action %} method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
                 <div class="modal-body">
-
-                    <div class="input-group mb-3">
-                        <input type="text" class="form-control" name="cost_price"  value="{{products.cost_price}}">
+                    <div class="mb-2">
+                        <label class="form-label">Cost Price</label>
+                        <input type="text" class="form-control" name="cost_price" value="{{products.cost_price}}" placeholder="0.00">
                     </div>
-                    <div class="mt-4 text-center" style="width:100%;">
-                        <button type="submit" class="btn btn-secondary">
-                        {% block Btn-action %}<i class="fa-solid fa-floppy-disk"></i>&nbsp;&nbsp; Save{% endblock Btn-action %}
-                        </button>
-                        
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        {% block Btn-action %}<i class="fa-solid fa-floppy-disk me-1"></i>Save{% endblock Btn-action %}
+                    </button>
                 </div>
             </form>
         </div>

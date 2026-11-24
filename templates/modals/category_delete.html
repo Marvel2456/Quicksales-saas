@@ -1,32 +1,26 @@
-<div class="modal fade" {% block modal-id %} id="deleteCategoryModal{{category.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="deleteCategoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" {% block modal-id %} id="deleteCategoryModal{{category.pk}}" {% endblock modal-id %} tabindex="-1" aria-labelledby="deleteCategoryModalLabel{{category.pk}}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-            <h6 class="modal-title" id="deleteCategoryModalLabel">{% block modal-title %} {% endblock modal-title %}</h6>
-            <span class=""><i class="fa-solid fa-trash-can"></i></span>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h6 class="modal-title" id="deleteCategoryModalLabel{{category.pk}}">
+                    {% block modal-title %}<i class="fa-solid fa-trash-can text-danger"></i> Delete Category{% endblock modal-title %}
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <!--Forms begins-->
-            <form {% block Action %} action="{% url 'category_delete' category.id %}" {% endblock Action %} method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
-            {% csrf_token %}
-    
-                <div class="modal-body">
+            <form {% block Action %} action="{% url 'category_delete' category.id %}" {% endblock Action %} method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body text-center py-4">
                     {% block Value-id %}
-                    <div class="input-group mb-3">
-                        {% comment %} <span class="side-label btn border-secondary bg-light"><i class="fas fa-key"></i></span> {% endcomment %}
-                        <input type="hidden" class="form-control" name="id" value="{{category.id}}" readonly>
-                    </div>
+                    <input type="hidden" name="id" value="{{category.id}}" readonly>
                     {% endblock Value-id %}
-
-                    <div class="card card-body form-group align-items-center">
-                        <h5>Want to delete {{category.category_name}} ?</h5>
-                        <p>
-                            <a href="">
-                            <button type="submit" class="btn btn-success">Yes</button>
-                            </a>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </p>
-                    </div>
+                    <p class="mb-1 fs-5 fw-semibold">Delete "{{ category.category_name }}"?</p>
+                    <p class="text-muted small mb-0">This category will be permanently removed. This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fa-solid fa-trash-can me-1"></i>Yes, Delete
+                    </button>
                 </div>
             </form>
         </div>

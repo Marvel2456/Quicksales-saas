@@ -1,25 +1,24 @@
-<div class="modal fade" id="deactivateStaffModal{{staff.user.pk}}" tabindex="-1" aria-labelledby="deactivateStaffModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="deactivateStaffModal{{staff.user.pk}}" tabindex="-1" aria-labelledby="deactivateStaffModalLabel{{staff.user.pk}}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-            <h6 class="modal-title" id="deactivateStaffModalLabel">Deactivate Account</h6>
-            <span class=""><i class="fa-solid fa-user-slash"></i></span>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h6 class="modal-title" id="deactivateStaffModalLabel{{staff.user.pk}}">
+                    <i class="fa-solid fa-user-slash text-warning"></i> Deactivate Account
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <!--Forms begins-->
-            <form action="{% url 'deactivate_staff' %}" method="POST" class="card p-3 border-dark mt-3" enctype="multipart/form-data">
-            {% csrf_token %}
-                <div class="modal-body">
-                    <div class="input-group mb-3">
-                        <input type="hidden" class="form-control" name="id" value="{{staff.user.id}}" readonly>
-                    </div>
-                    <div class="card card-body form-group align-items-center">
-                        <h5>Are you sure you want to deactivate {{staff.user.first_name}}'s account?</h5>
-                        <p>
-                            <button type="submit" class="btn btn-warning">Deactivate</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </p>
-                    </div>
+            <form action="{% url 'deactivate_staff' %}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body text-center py-4">
+                    <input type="hidden" name="id" value="{{staff.user.id}}" readonly>
+                    <p class="mb-1 fs-5 fw-semibold">Deactivate {{ staff.user.first_name }}'s account?</p>
+                    <p class="text-muted small mb-0">They will be unable to sign in until you reactivate their account.</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fa-solid fa-user-slash me-1"></i>Deactivate
+                    </button>
                 </div>
             </form>
         </div>

@@ -1,59 +1,51 @@
 <!-- Modal -->
 <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h6 class="modal-title" id="addStaffModalLabel">
-          <i class="fas fa-plus"></i>&nbsp;&nbsp; Add Staff
+          <i class="fas fa-user-plus text-primary"></i> Add Staff
         </h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
-      <!-- Form begins -->
-      <form 
-        {% if branch and branch.id %} 
-          action="{% url 'staff' branch.id %}" 
-        {% else %} 
-          action="#" 
-        {% endif %} 
-        method="POST" 
-        class="card p-3 border-dark mt-3"
-      >
+      <form {% if branch and branch.id %}action="{% url 'staff' branch.id %}"{% else %}action="#"{% endif %} method="POST">
         {% csrf_token %}
 
         <div class="modal-body">
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label for="first_name" class="form-label">First Name</label>
+              <input name="first_name" type="text" class="form-control" placeholder="First Name" required>
+            </div>
+            <div class="col-sm-6">
+              <label for="last_name" class="form-label">Last Name</label>
+              <input name="last_name" type="text" class="form-control" placeholder="Last Name" required>
+            </div>
+          </div>
 
           <div class="mb-3">
             <label for="email" class="form-label">Email</label>
-            <input name="email" type="email" class="form-control" placeholder="Email" required>
+            <input name="email" type="email" class="form-control" placeholder="staff@company.com" required>
           </div>
 
-          <div class="mb-3">
-            <label for="first_name" class="form-label">First Name</label>
-            <input name="first_name" type="text" class="form-control" placeholder="First Name" required>
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label for="phone_number" class="form-label">Phone Number</label>
+              <input name="phone_number" type="text" class="form-control" placeholder="Phone Number" required>
+            </div>
+            <div class="col-sm-6">
+              <label for="role" class="form-label">Role</label>
+              <select name="role" class="form-select" required>
+                <option value="" disabled selected>Select Role</option>
+                <option value="owner">Owner</option>
+                <option value="manager">Manager</option>
+                <option value="sales">Sales</option>
+              </select>
+            </div>
           </div>
 
-          <div class="mb-3">
-            <label for="last_name" class="form-label">Last Name</label>
-            <input name="last_name" type="text" class="form-control" placeholder="Last Name" required>
-          </div>
-
-          <div class="mb-3">
-            <label for="phone_number" class="form-label">Phone Number</label>
-            <input name="phone_number" type="text" class="form-control" placeholder="Phone Number" required>
-          </div>
-
-          <div class="mb-3">
-            <label for="role" class="form-label">Role</label>
-            <select name="role" class="form-select" required>
-              <option value="" disabled selected>Select Role</option>
-              <option value="owner">Owner</option>
-              <option value="manager">Manager</option>
-              <option value="sales">Sales</option>
-            </select>
-          </div>
-
-          <div class="mb-3 border rounded p-3 bg-light">
+          <div class="border rounded-3 p-3 bg-light">
             <label class="form-label fw-semibold mb-1">Feature Permissions (Optional Extra Access)</label>
             <div class="small text-muted mb-2">
               Assign additional features to this staff member for this branch (e.g., allow a Sales Rep to create &amp; view their own invoices).
@@ -67,18 +59,18 @@
             </div>
             {% endfor %}
           </div>
+        </div>
 
-          <div class="mt-4 text-center" style="width:100%;">
-            <button type="submit" class="btn btn-secondary">
-              <i class="fas fa-plus"></i>&nbsp;&nbsp; Add Staff
-            </button>
-            <button type="reset" class="btn btn-secondary" title="Reset">
-              <i class="fas fa-sync-alt"></i>
-            </button>
-          </div>
+        <div class="modal-footer">
+          <button type="reset" class="btn btn-light border" title="Reset">
+            <i class="fas fa-sync-alt me-1"></i>Reset
+          </button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Add Staff
+          </button>
         </div>
       </form>
-      <!-- Form ends -->
     </div>
   </div>
 </div>

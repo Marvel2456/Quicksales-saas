@@ -96,6 +96,11 @@ class Inventory(models.Model):
     sold = models.IntegerField(default=0, blank=True, null=True)
     variance = models.IntegerField(default=0)
     available = models.IntegerField(default=0, blank=True, null=True)
+    variation_quantities = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Optional per-variation stock counts, e.g. {'Black': 5, 'White': 3}",
+    )
     last_updated = models.DateField(auto_now=True,)
     date_created = models.DateTimeField(auto_now_add=True, db_index=True)
     history = HistoricalRecords()
@@ -128,6 +133,58 @@ class Inventory(models.Model):
         salesitem = self.salesitem_set.all()
         sold = sum([item.quantity for item in salesitem])
         return sold
+
+    @property
+    def has_variation_quantities(self):
+        return isinstance(self.variation_quantities, dict) and len(self.variation_quantities) > 0
+
+    @property
+    def variation_items_list(self):
+        """Return list of {'name': k, 'qty': int(v)} for templates."""
+        if not self.has_variation_quantities:
+            return []
+        return [{'name': str(k), 'qty': int(v or 0)} for k, v in self.variation_quantities.items()]
+
+    def get_variation_stock(self, variation_name):
+        """Return available stock for a specific variation (or total quantity if no per-variation counts)."""
+        if self.has_variation_quantities and variation_name:
+            for k, v in self.variation_quantities.items():
+                if str(k).strip().lower() == str(variation_name).strip().lower():
+                    return max(0, int(v or 0))
+            return 0
+        return max(0, int(self.quantity or 0))
+
+    def adjust_variation_stock(self, variation_name, delta, save=True):
+        """
+        Adjust stock for a specific variation by delta (negative to deduct, positive to restock/restore),
+        and keep total quantity/quantity_available/status in sync.
+        """
+        delta_int = int(delta or 0)
+        if self.has_variation_quantities and variation_name:
+            vq = dict(self.variation_quantities)
+            matched_key = None
+            target_lower = str(variation_name).strip().lower()
+            for k in vq.keys():
+                if str(k).strip().lower() == target_lower:
+                    matched_key = k
+                    break
+            if matched_key is None:
+                matched_key = str(variation_name).strip()
+            vq[matched_key] = max(0, int(vq.get(matched_key, 0) or 0) + delta_int)
+            self.variation_quantities = vq
+            total = sum(max(0, int(val or 0)) for val in vq.values())
+            self.quantity = total
+            self.quantity_available = total
+            self.status = 'Available' if total > 0 else 'Restocking'
+            if save:
+                self.save(update_fields=['variation_quantities', 'quantity', 'quantity_available', 'status'])
+        else:
+            self.quantity = max(0, int(self.quantity or 0) + delta_int)
+            if self.quantity_available is not None:
+                self.quantity_available = max(0, int(self.quantity_available or 0) + delta_int)
+            self.status = 'Available' if self.quantity > 0 else 'Restocking'
+            if save:
+                self.save(update_fields=['quantity', 'quantity_available', 'status'])
 
 
 class Sale(models.Model):
@@ -200,6 +257,7 @@ class SalesItem(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, blank=True, null=True, db_index=True)
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, db_index=True)
     inventory = models.ForeignKey(Inventory, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
+    selected_variation = models.CharField(max_length=120, blank=True, default='')
     sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
     total = models.FloatField(default=0)
     cost_total = models.FloatField(default=0)

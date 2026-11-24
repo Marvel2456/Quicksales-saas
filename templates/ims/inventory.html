@@ -79,7 +79,13 @@
                                     <tr>
                                         <td class="cell">
                                             <span class="truncate">{{inventory.product.product_name}}</span>
-                                            {% if inventory.product.variation %}
+                                            {% if inventory.has_variation_quantities %}
+                                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                                {% for v in inventory.variation_items_list %}
+                                                <span class="badge bg-light text-dark border" style="font-size:0.7rem;">{{ v.name }}: {{ v.qty }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% elif inventory.product.variation %}
                                             <div class="small text-muted">{{ inventory.product.variation }}</div>
                                             {% endif %}
                                         </td>
@@ -96,11 +102,12 @@
                                                 <i class="fas fa-paper-plane me-1"></i>request supplier
                                             </a>
                                         </td>
-                                        <td class="cell">
+                                        <td class="cell text-nowrap">
                                             {% if org_role == 'manager' %}
-                                            <a class="btn-sm app-btn-secondary disabled" style="cursor:not-allowed; opacity:0.5;" title="Managers cannot set reorder level"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a class="btn-sm app-btn-secondary disabled" style="cursor:not-allowed; opacity:0.5;" title="Managers cannot edit inventory"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
                                             {% else %}
-                                            <a href="#" role="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#reorderModal{{inventory.pk}}"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a href="#" role="button" class="btn-sm app-btn-secondary" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#reorderModal{{inventory.pk}}" title="Edit Inventory"><i class="fa-solid fa-pen-to-square"></i></a>&nbsp;
+                                            <a href="#" role="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" style="cursor:pointer;" data-bs-target="#deleteInventoryModal{{inventory.pk}}" title="Delete Inventory"><i class="fa-solid fa-trash-can"></i></a>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -155,6 +162,67 @@ function addModalPocEmail(containerId) {
     `;
     container.appendChild(div);
 }
+
+(function() {
+    function recalcEditTotal(invId) {
+        const rowsContainer = document.getElementById('editVarRows' + invId);
+        const totalInput = document.getElementById('editTotalQty' + invId);
+        if (!rowsContainer || !totalInput) return;
+        let sum = 0;
+        rowsContainer.querySelectorAll('.edit-var-qty-input').forEach(function(inp) {
+            const v = parseInt(inp.value, 10);
+            if (!isNaN(v) && v > 0) sum += v;
+        });
+        totalInput.value = sum;
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('edit-var-toggle')) {
+            const invId = e.target.getAttribute('data-inv');
+            const section = document.getElementById('editVarSection' + invId);
+            const totalInput = document.getElementById('editTotalQty' + invId);
+            if (!section || !totalInput) return;
+            if (e.target.checked) {
+                section.style.display = 'block';
+                totalInput.readOnly = true;
+                recalcEditTotal(invId);
+            } else {
+                section.style.display = 'none';
+                totalInput.readOnly = false;
+            }
+        }
+    });
+
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('edit-var-qty-input')) {
+            recalcEditTotal(e.target.getAttribute('data-inv'));
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const addBtn = e.target.closest('.edit-add-var-row');
+        if (addBtn) {
+            const invId = addBtn.getAttribute('data-inv');
+            const rowsContainer = document.getElementById('editVarRows' + invId);
+            if (!rowsContainer) return;
+            const row = document.createElement('div');
+            row.className = 'input-group input-group-sm mb-2 edit-var-row';
+            row.innerHTML =
+                '<input type="text" name="variation_name[]" class="form-control" placeholder="Variation (e.g. Blue)">' +
+                '<input type="number" name="variation_qty[]" class="form-control edit-var-qty-input" data-inv="' + invId + '" min="0" value="0" style="max-width:110px;">' +
+                '<button type="button" class="btn btn-outline-danger edit-remove-var-row" data-inv="' + invId + '" title="Remove">&times;</button>';
+            rowsContainer.appendChild(row);
+            return;
+        }
+        const rmBtn = e.target.closest('.edit-remove-var-row');
+        if (rmBtn) {
+            const invId = rmBtn.getAttribute('data-inv');
+            const row = rmBtn.closest('.edit-var-row');
+            if (row) row.remove();
+            recalcEditTotal(invId);
+        }
+    });
+})();
 </script>
 
 {% endblock content %}
