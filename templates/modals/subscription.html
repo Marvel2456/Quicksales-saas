@@ -55,7 +55,7 @@
                 <ul class="list-unstyled mb-3 small" style="min-height: 120px; max-height: 150px; overflow-y: auto;">
                   <li>✔ <strong>{{ plan_ref.max_users }}</strong> User{{ plan_ref.max_users|pluralize }}</li>
                   <li>✔ <strong>{{ plan_ref.max_branches }}</strong> Branch{{ plan_ref.max_branches|pluralize:"es" }}</li>
-                  <li>✔ <strong>{{ plan_ref.max_products }}</strong> Products</li>
+                  <li>✔ <strong>{% if plan_ref.has_unlimited_products %}Unlimited{% else %}{{ plan_ref.max_products }}{% endif %}</strong> Products</li>
                   {% if plan_ref.has_inventory %}<li>✔ Inventory Management</li>{% endif %}
                   {% if plan_ref.has_invoices %}<li>✔ Invoices &amp; PDF</li>{% endif %}
                   {% if plan_ref.has_online_store %}<li>✔ Online Store</li>{% else %}<li class="text-muted">✕ Online Store</li>{% endif %}
