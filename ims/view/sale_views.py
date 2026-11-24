@@ -233,6 +233,7 @@ def updateCart(request, pk):
     data = json.loads(request.body)
     inventoryId = data['inventoryId']
     action = data['action']
+    selected_variation = str(data.get('selected_variation', '') or '').strip()[:120]
     print('inventory:', inventoryId)
     print('Action:', action)
    
@@ -287,6 +288,7 @@ def updateCart(request, pk):
         sale=sale,
         branch=branch,
         inventory=inventory,
+        selected_variation=selected_variation,
         organization=organization,
         defaults={'organization': organization}
     )
@@ -497,8 +499,8 @@ def sale_complete(request, pk):
                 inventory_item = sale_item.inventory
                 inventory_item.refresh_from_db()
                 
-                # Reduce quantity by the amount sold
-                inventory_item.quantity -= sale_item.quantity
+                # Reduce quantity (per-variation if tracked, plus total quantity)
+                inventory_item.adjust_variation_stock(sale_item.selected_variation, -sale_item.quantity, save=False)
                 inventory_item.quantity_restocked = 0  # Prevent restock marker from leaking into history
                 inventory_item.count = None  # Reset to null
                 inventory_item.variance = 0  # Reset variance

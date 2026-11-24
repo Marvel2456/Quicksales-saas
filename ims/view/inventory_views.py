@@ -73,6 +73,19 @@ def inventory_list(request, pk):
     inventory_page = paginator.get_page(page)
     nums = "a" * inventory_page.paginator.num_pages
     
+    import json
+    product_variations_map = {
+        str(p.id): p.variation_options
+        for p in product
+        if p.variation_options
+    }
+    product_variations_json = (
+        json.dumps(product_variations_map)
+        .replace('<', '\\u003c')
+        .replace('>', '\\u003e')
+        .replace('&', '\\u0026')
+    )
+
     form = CreateInventoryForm
     if request.method == "POST":
         form = CreateInventoryForm(request.POST)
@@ -80,12 +93,38 @@ def inventory_list(request, pk):
             invenvtory_instance = form.save(commit=False)
             invenvtory_instance.branch = branch
             invenvtory_instance.organization = organization
-            invenvtory_instance.status = 'Available'
+            if request.POST.get('use_variation_quantities') == 'on':
+                var_names = request.POST.getlist('variation_name[]')
+                var_qtys = request.POST.getlist('variation_qty[]')
+                vq = {}
+                for raw_name, raw_qty in zip(var_names, var_qtys):
+                    vname = (raw_name or '').strip()[:120]
+                    if not vname:
+                        continue
+                    try:
+                        vqty = max(0, int(raw_qty or 0))
+                    except (ValueError, TypeError):
+                        vqty = 0
+                    vq[vname] = vq.get(vname, 0) + vqty
+                if vq:
+                    total_qty = sum(vq.values())
+                    invenvtory_instance.variation_quantities = vq
+                    invenvtory_instance.quantity = total_qty
+                    invenvtory_instance.quantity_available = total_qty
+                    invenvtory_instance.status = 'Available' if total_qty > 0 else 'Restocking'
+                    if invenvtory_instance.product and not invenvtory_instance.product.variation:
+                        invenvtory_instance.product.variation = ", ".join(vq.keys())[:255]
+                        invenvtory_instance.product.save(update_fields=['variation'])
+                else:
+                    invenvtory_instance.status = 'Available' if (invenvtory_instance.quantity or 0) > 0 else 'Restocking'
+            else:
+                invenvtory_instance.status = 'Available' if (invenvtory_instance.quantity or 0) > 0 else 'Restocking'
             invenvtory_instance.save()
             messages.success(request, 'successfully created')
             # Invalidate inventory list cache for this organization
-            for key_pattern in cache.keys(f"inventory_list:org:{organization.id}:*"):
-                cache.delete(key_pattern)
+            if hasattr(cache, 'keys'):
+                for key_pattern in cache.keys(f"inventory_list:org:{organization.id}:*"):
+                    cache.delete(key_pattern)
             return redirect('inventorys', pk=branch.id)
 
     pending_restock_count = RestockRequest.objects.filter(
@@ -98,6 +137,7 @@ def inventory_list(request, pk):
         'branch': branch,
         'inventory': inventory_qs,
         'product': product,
+        'product_variations_json': product_variations_json,
         'form': form,
         'inventory_page': inventory_page,
         'nums': nums,
@@ -169,26 +209,67 @@ def inventory(request, pk):
     return render(request, 'modals/set_reoder.html', context)
 
 
-@role_required(roles=['owner', 'manager'])
+@role_required(roles=['owner'])
 def edit_inventory(request, pk):
     organization = get_request_organization(request)
+    inventory = get_object_or_404(Inventory, id=pk, organization=organization)
     if request.method == 'POST':
-        inventory = get_object_or_404(Inventory, id=pk, organization=organization)
-        if inventory != None:
-            form = ReorderForm(request.POST, instance=inventory)
-            if form.is_valid():
-                form.save()
-                messages.success(request, 'successfully updated')
-                return redirect('inventorys', pk=inventory.branch.id)
-            
-    else:
-        form = ReorderForm(instance=inventory)
+        raw_reorder = request.POST.get('reorder_level')
+        if raw_reorder is not None and str(raw_reorder).strip() != '':
+            try:
+                inventory.reorder_level = max(0, int(raw_reorder))
+            except (ValueError, TypeError):
+                pass
 
-    context = {
-        'form': form,
-        'inventory': inventory,
-    }
-    return render(request, context)
+        use_var_qty = request.POST.get('use_variation_quantities') in ('on', 'true', '1')
+        if use_var_qty:
+            var_names = request.POST.getlist('variation_name[]')
+            var_qtys = request.POST.getlist('variation_qty[]')
+            vq = {}
+            for raw_name, raw_qty in zip(var_names, var_qtys):
+                vname = (raw_name or '').strip()
+                if not vname:
+                    continue
+                try:
+                    vqty = max(0, int(raw_qty or 0))
+                except (ValueError, TypeError):
+                    vqty = 0
+                vq[vname] = vq.get(vname, 0) + vqty
+
+            inventory.variation_quantities = vq
+            if vq:
+                total_qty = sum(vq.values())
+                inventory.quantity = total_qty
+                inventory.quantity_available = total_qty
+                inventory.status = 'Available' if total_qty > 0 else 'Restocking'
+                # Sync product variation labels if new variations were added
+                existing_opts = inventory.product.variation_options
+                merged_opts = list(existing_opts)
+                for vn in vq.keys():
+                    if vn not in merged_opts:
+                        merged_opts.append(vn)
+                if merged_opts != existing_opts:
+                    inventory.product.variation = ', '.join(merged_opts)
+                    inventory.product.save(update_fields=['variation'])
+        else:
+            inventory.variation_quantities = {}
+            raw_qty = request.POST.get('quantity')
+            if raw_qty is not None and str(raw_qty).strip() != '':
+                try:
+                    total_qty = max(0, int(raw_qty))
+                    inventory.quantity = total_qty
+                    inventory.quantity_available = total_qty
+                    inventory.status = 'Available' if total_qty > 0 else 'Restocking'
+                except (ValueError, TypeError):
+                    pass
+
+        inventory.save()
+        if hasattr(cache, 'keys'):
+            cache.delete_many(cache.keys(f'inventory_branch_{inventory.branch.id}_*'))
+        messages.success(request, 'Inventory updated successfully')
+        return redirect('inventorys', pk=inventory.branch.id)
+
+    return redirect('inventorys', pk=inventory.branch.id)
 
 
 @role_required(roles=['owner', 'manager'], permission='inventory')
@@ -199,8 +280,29 @@ def restock(request, pk):
         form = RestockForm(request.POST, instance=inventory)
         if form.is_valid():
             restocked_inventory = form.save(commit=False)
-            restocked_inventory.quantity += restocked_inventory.quantity_restocked
-            restocked_inventory.quantity_restocked = restocked_inventory.quantity_restocked or 0
+            var_names = request.POST.getlist('restock_var_name[]')
+            var_qtys = request.POST.getlist('restock_var_qty[]')
+            if inventory.has_variation_quantities and var_names:
+                vq = dict(inventory.variation_quantities)
+                added_total = 0
+                for raw_name, raw_qty in zip(var_names, var_qtys):
+                    vname = (raw_name or '').strip()
+                    if not vname:
+                        continue
+                    try:
+                        add_q = max(0, int(raw_qty or 0))
+                    except (ValueError, TypeError):
+                        add_q = 0
+                    vq[vname] = int(vq.get(vname, 0) or 0) + add_q
+                    added_total += add_q
+                restocked_inventory.variation_quantities = vq
+                restocked_inventory.quantity = sum(vq.values())
+                restocked_inventory.quantity_available = restocked_inventory.quantity
+                restocked_inventory.quantity_restocked = added_total
+                restocked_inventory.status = 'Available' if restocked_inventory.quantity > 0 else 'Restocking'
+            else:
+                restocked_inventory.quantity += restocked_inventory.quantity_restocked
+                restocked_inventory.quantity_restocked = restocked_inventory.quantity_restocked or 0
             restocked_inventory.save()
             # Reset quantity_restocked to zero so future non-restock saves (e.g., sales) don't carry old restock values into history
             Inventory.objects.filter(id=restocked_inventory.id).update(quantity_restocked=0)
@@ -251,13 +353,15 @@ def inventoryView(request, pk):
 @role_required(roles=['owner'])
 def delete_inventory(request, pk):
     organization = get_request_organization(request)
-    branch = Branch.objects.get(id=pk, organization=organization)
+    inventory = get_object_or_404(Inventory, id=pk, organization=organization)
+    branch_id = inventory.branch.id
     if request.method == 'POST':
-        inventory = Inventory.objects.filter(branch=branch, organization=organization).get(id=request.POST.get('id'))
-        if inventory != None:
-            inventory.delete()
-            messages.success(request, "Succesfully deleted")
-            return redirect('inventorys/'+str(branch.id))
-        
+        product_name = inventory.product.product_name
+        inventory.delete()
+        if hasattr(cache, 'keys'):
+            cache.delete_many(cache.keys(f'inventory_branch_{branch_id}_*'))
+        messages.success(request, f'Inventory for "{product_name}" deleted successfully.')
+    return redirect('inventorys', pk=branch_id)
+
 
 

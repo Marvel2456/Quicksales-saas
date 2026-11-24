@@ -72,6 +72,15 @@
                                         <span class="badge bg-danger">Out of Stock</span>
                                     {% endif %}
                                 </li>
+                                {% if inventory.has_variation_quantities %}
+                                <li class="mt-2">
+                                    <select class="form-select form-select-sm pos-variation-select" data-inventory="{{ inventory.id }}">
+                                        {% for v in inventory.variation_items_list %}
+                                        <option value="{{ v.name }}" {% if v.qty <= 0 %}disabled{% endif %}>{{ v.name }} ({{ v.qty }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </li>
+                                {% endif %}
                             </ul>
                         </div><!--//app-doc-meta-->
 

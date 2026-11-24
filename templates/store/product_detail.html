@@ -166,8 +166,33 @@
 
                     <hr class="my-4 text-muted opacity-25">
 
-                    <!-- Variation Info / Comma-separated Option Chips -->
-                    {% if listing.inventory.product.variation_options %}
+                    <!-- Variation Info / Per-Variation Stock & Option Chips -->
+                    {% if listing.inventory.has_variation_quantities %}
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Select Option</label>
+                        <div class="d-flex flex-wrap gap-2" id="storeVariationOptions">
+                            {% for v in listing.inventory.variation_items_list %}
+                            <button type="button"
+                                class="btn btn-sm {% if forloop.first and v.qty > 0 %}btn-dark{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 store-var-btn"
+                                data-var-val="{{ v.name }}"
+                                data-var-qty="{{ v.qty }}"
+                                {% if v.qty <= 0 %}disabled{% endif %}
+                                onclick="selectStoreVariationOption(this)">
+                                {{ v.name }} {% if v.qty > 0 %}({{ v.qty }} left){% else %}(Out of stock){% endif %}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" id="selectedVariationValue" value="">
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                var firstBtn = document.querySelector('#storeVariationOptions .store-var-btn:not(:disabled)');
+                                if (firstBtn && typeof selectStoreVariationOption === 'function') {
+                                    selectStoreVariationOption(firstBtn);
+                                }
+                            });
+                        </script>
+                    </div>
+                    {% elif listing.inventory.product.variation_options %}
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-muted text-uppercase">Select Option</label>
                         <div class="d-flex flex-wrap gap-2" id="storeVariationOptions">
@@ -346,6 +371,13 @@
             btn.classList.add('btn-dark');
             const hid = document.getElementById('selectedVariationValue');
             if (hid) hid.value = btn.dataset.varVal || '';
+            const qtyInput = document.getElementById('buyQty');
+            if (qtyInput && btn.dataset.varQty) {
+                qtyInput.max = btn.dataset.varQty;
+                if (parseInt(qtyInput.value || 1) > parseInt(btn.dataset.varQty)) {
+                    qtyInput.value = Math.max(1, parseInt(btn.dataset.varQty));
+                }
+            }
         }
 
         function addSelectedQty() {

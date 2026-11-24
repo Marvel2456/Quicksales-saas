@@ -111,16 +111,13 @@ def complete_order_sale(order, staff=None, fee_payload=None):
                     branch=branch,
                     sale=sale,
                     inventory=inv,
+                    selected_variation=item.selected_variation or '',
                     quantity=item.quantity,
                     total=item_total,
                     cost_total=item_cost_total
                 )
 
-                inv.quantity = max(0, (inv.quantity or 0) - item.quantity)
-                inv.quantity_available = max(0, (inv.quantity_available or 0) - item.quantity)
-                if inv.quantity == 0:
-                    inv.status = 'Restocking'
-                inv.save(update_fields=['quantity', 'quantity_available', 'status'])
+                inv.adjust_variation_stock(item.selected_variation, -item.quantity)
 
         sale.total_profit = total_profit
         sale.save(update_fields=['total_profit'])
@@ -365,20 +362,36 @@ def add_to_cart_api(request, org_slug):
     store = get_object_or_404(StoreListing, organization=org)
     listing = get_object_or_404(ProductListing, id=listing_id, store=store, is_visible=True)
 
-    # Check available stock across all variation selections for this listing
-    available = listing.stock_quantity
+    # Check available stock (per-variation when tracked, else listing total)
+    inv = listing.inventory
     cart = _get_cart(request, org_slug)
-    cart_key = f"{listing_id}::{selected_variation}" if selected_variation else listing_id
-    current_listing_total = sum(
-        q for k, q in cart.items() if _parse_cart_key(k)[0] == listing_id
-    )
-    if current_listing_total + quantity > available:
-        return JsonResponse({
-            'success': False,
-            'message': "Requested quantity exceeds available stock."
-        }, status=400)
-
-    new_qty = cart.get(cart_key, 0) + quantity
+    if inv and inv.has_variation_quantities:
+        if not selected_variation:
+            return JsonResponse({
+                'success': False,
+                'message': "Please select an option first."
+            }, status=400)
+        available = inv.get_variation_stock(selected_variation)
+        cart_key = f"{listing_id}::{selected_variation}"
+        current_qty = cart.get(cart_key, 0)
+        if current_qty + quantity > available:
+            return JsonResponse({
+                'success': False,
+                'message': f"Requested quantity exceeds available stock for {selected_variation}."
+            }, status=400)
+        new_qty = current_qty + quantity
+    else:
+        available = listing.stock_quantity
+        cart_key = f"{listing_id}::{selected_variation}" if selected_variation else listing_id
+        current_listing_total = sum(
+            q for k, q in cart.items() if _parse_cart_key(k)[0] == listing_id
+        )
+        if current_listing_total + quantity > available:
+            return JsonResponse({
+                'success': False,
+                'message': "Requested quantity exceeds available stock."
+            }, status=400)
+        new_qty = cart.get(cart_key, 0) + quantity
     cart[cart_key] = new_qty
     _save_cart(request, org_slug, cart)
 
@@ -534,6 +547,11 @@ def store_checkout(request, org_slug):
         unit_price = Decimal(str(listing.display_price or 0))
         item_total = unit_price * qty
         subtotal += item_total
+        item_available = (
+            listing.inventory.get_variation_stock(sel_var)
+            if listing.inventory and listing.inventory.has_variation_quantities and sel_var
+            else listing.stock_quantity
+        )
         cart_items.append({
             'cart_key': raw_key,
             'listing': listing,
@@ -541,7 +559,7 @@ def store_checkout(request, org_slug):
             'quantity': qty,
             'unit_price': unit_price,
             'total_price': item_total,
-            'available': listing.stock_quantity,
+            'available': item_available,
         })
 
     buyer = get_logged_in_buyer(request)

@@ -67,6 +67,100 @@
             row-gap: 4px;
         }
 
+        /* ── Modern Global Modal Design System ─────────────────────── */
+        .modal-backdrop.show {
+            background-color: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            opacity: 1 !important;
+        }
+        .modal .modal-content {
+            border: 1px solid rgba(15, 23, 42, 0.06);
+            border-radius: 16px;
+            box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.06);
+            overflow: hidden;
+        }
+        .modal .modal-header {
+            padding: 1.1rem 1.4rem;
+            border-bottom: 1px solid #f1f5f9;
+            background-color: #ffffff;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .modal .modal-title {
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0;
+        }
+        .modal .modal-header .btn-close {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            margin: 0;
+            border-radius: 8px;
+            background-color: #f8fafc;
+            opacity: 0.75;
+            transition: background-color 0.15s ease, opacity 0.15s ease;
+        }
+        .modal .modal-header .btn-close:hover {
+            background-color: #e2e8f0;
+            opacity: 1;
+        }
+        .modal .modal-body {
+            padding: 1.25rem 1.4rem;
+        }
+        .modal .modal-footer {
+            padding: 0.9rem 1.4rem;
+            border-top: 1px solid #f1f5f9;
+            background-color: #f8fafc;
+            gap: 0.5rem;
+        }
+        .modal .form-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.35rem;
+        }
+        .modal .form-control,
+        .modal .form-select {
+            border-radius: 10px;
+            border-color: #cbd5e1;
+            padding: 0.55rem 0.85rem;
+            font-size: 0.92rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .modal .form-control-sm,
+        .modal .form-select-sm {
+            border-radius: 8px;
+            padding: 0.38rem 0.65rem;
+            font-size: 0.85rem;
+        }
+        .modal .form-control:focus,
+        .modal .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+        }
+        .modal .btn {
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .modal .btn-sm {
+            border-radius: 8px;
+        }
+        /* Safety net: flatten any legacy form.card / border-dark inside modals */
+        .modal .modal-content > form.card,
+        .modal .modal-content > form.border-dark {
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
         /* iOS modal input fix: prevent body scroll lock from swallowing taps */
         .modal {
             -webkit-overflow-scrolling: touch;
@@ -136,14 +230,16 @@
         }
         #ios-sheet-body .modal-footer {
             padding: 12px 0 0 !important;
+            background: transparent !important;
+            flex-wrap: wrap;
         }
         #ios-sheet-body form.p-3 {
             padding: 0 !important;
         }
-        /* Style inputs inside sheet for easy touch */
+        /* Style text/select inputs inside sheet for easy touch (keep checkboxes/switches native) */
         #ios-sheet-body .form-control,
         #ios-sheet-body .form-select,
-        #ios-sheet-body input,
+        #ios-sheet-body input:not([type="checkbox"]):not([type="radio"]),
         #ios-sheet-body textarea {
             font-size: 16px; /* prevents iOS auto-zoom on input focus */
             padding: 12px;
@@ -154,12 +250,16 @@
             pointer-events: auto;
         }
         #ios-sheet-body .btn {
-            padding: 12px 24px;
+            padding: 12px 20px;
             border-radius: 10px;
             touch-action: manipulation;
-            min-height: 48px; /* comfortable tap target */
+            min-height: 44px; /* comfortable tap target */
         }
-        #ios-sheet-body input,
+        #ios-sheet-body .btn-sm {
+            padding: 8px 14px;
+            min-height: 36px;
+        }
+        #ios-sheet-body input:not([type="checkbox"]):not([type="radio"]),
         #ios-sheet-body textarea,
         #ios-sheet-body select {
             pointer-events: auto !important;
@@ -709,11 +809,10 @@
                 sheet.classList.add('qs-open');
                 adjustSheetForKeyboard();
 
-                // Focus first input on open and ensure it stays above keyboard
+                // Focus first editable input on open and ensure it stays above keyboard
                 setTimeout(function () {
-                    var first = body.querySelector('input:not([type=hidden]), textarea, select');
+                    var first = body.querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([readonly]), textarea:not([readonly]), select:not([disabled])');
                     if (first) {
-                        first.removeAttribute('readonly');
                         first.focus({ preventScroll: true });
                         setTimeout(function () {
                             adjustSheetForKeyboard();
@@ -761,8 +860,7 @@
             // Make iOS reliably focus controls and keep them visible above keyboard.
             function focusFieldFromTap(e) {
                 var field = e.target.closest('input, textarea, select');
-                if (!field || field.disabled) return;
-                field.removeAttribute('readonly');
+                if (!field || field.disabled || field.readOnly || field.type === 'checkbox' || field.type === 'radio') return;
                 field.focus({ preventScroll: true });
                 setTimeout(function () {
                     adjustSheetForKeyboard();

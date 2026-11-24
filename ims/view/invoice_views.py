@@ -24,13 +24,19 @@ from account.utils import (
 
 
 def _build_variation_options_json(inventory_qs):
-    """Return JSON mapping inventory_id -> comma-separated variation options list."""
+    """Return JSON mapping inventory_id -> variation options with optional per-variation stock."""
     data = {}
     for inv in inventory_qs:
-        prod = getattr(inv, 'product', None)
-        opts = prod.variation_options if prod else []
-        if opts:
-            data[str(inv.id)] = opts
+        if inv.has_variation_quantities:
+            data[str(inv.id)] = [
+                {'name': v['name'], 'qty': v['qty']}
+                for v in inv.variation_items_list
+            ]
+        else:
+            prod = getattr(inv, 'product', None)
+            opts = prod.variation_options if prod else []
+            if opts:
+                data[str(inv.id)] = [{'name': o, 'qty': None} for o in opts]
     return (
         json.dumps(data)
         .replace('<', '\\u003c')
@@ -140,6 +146,7 @@ def _create_completed_sale_for_invoice(invoice, payment_method):
                 organization=organization,
                 branch=invoice.branch,
                 inventory=item.inventory,
+                selected_variation=item.selected_variation or '',
                 quantity=item.quantity,
                 total=total,
                 cost_total=cost_total,
@@ -332,10 +339,16 @@ def create_invoice(request, pk):
                 qty_int = int(qty) if qty else 0
                 if qty_int <= 0:
                     continue
-                if qty_int > inventory.quantity:
+                available_qty = (
+                    inventory.get_variation_stock(sel_var)
+                    if inventory.has_variation_quantities and sel_var
+                    else (inventory.quantity or 0)
+                )
+                if qty_int > available_qty:
+                    item_label = f"{inventory.product.product_name} ({sel_var})" if sel_var else inventory.product.product_name
                     messages.error(
                         request,
-                        f'Insufficient stock for {inventory.product.product_name}. Available: {inventory.quantity}.',
+                        f'Insufficient stock for {item_label}. Available: {available_qty}.',
                     )
                     invoice.delete()
                     return render(request, 'ims/create_invoice.html', {
@@ -660,17 +673,18 @@ def confirm_payment(request, pk):
                     for item in items:
                         if item.inventory and item.quantity:
                             inv = Inventory.objects.select_for_update().get(id=item.inventory.id)
-                            if (inv.quantity or 0) < item.quantity:
+                            avail = (
+                                inv.get_variation_stock(item.selected_variation)
+                                if inv.has_variation_quantities and item.selected_variation
+                                else (inv.quantity or 0)
+                            )
+                            if avail < item.quantity:
+                                label = f"{inv.product.product_name} ({item.selected_variation})" if item.selected_variation else inv.product.product_name
                                 raise ValueError(
-                                    f"Insufficient stock for {inv.product.product_name}. "
-                                    f"Available: {inv.quantity}, Required: {item.quantity}."
+                                    f"Insufficient stock for {label}. "
+                                    f"Available: {avail}, Required: {item.quantity}."
                                 )
-                            inv.quantity = (inv.quantity or 0) - item.quantity
-                            if inv.quantity_available is not None and inv.quantity_available > 0:
-                                inv.quantity_available = max(0, inv.quantity_available - item.quantity)
-                            if inv.quantity <= 0:
-                                inv.status = 'Restocking'
-                            inv.save()
+                            inv.adjust_variation_stock(item.selected_variation, -item.quantity)
                     invoice.inventory_deducted = True
                     deducted_this_time = True
 
