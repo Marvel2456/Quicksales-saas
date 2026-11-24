@@ -93,6 +93,8 @@ def inventory_list(request, pk):
             invenvtory_instance = form.save(commit=False)
             invenvtory_instance.branch = branch
             invenvtory_instance.organization = organization
+            if invenvtory_instance.reorder_level is None:
+                invenvtory_instance.reorder_level = 0
             if request.POST.get('use_variation_quantities') == 'on':
                 var_names = request.POST.getlist('variation_name[]')
                 var_qtys = request.POST.getlist('variation_qty[]')
@@ -126,6 +128,12 @@ def inventory_list(request, pk):
                 for key_pattern in cache.keys(f"inventory_list:org:{organization.id}:*"):
                     cache.delete(key_pattern)
             return redirect('inventorys', pk=branch.id)
+        else:
+            error_parts = []
+            for field_name, errs in form.errors.items():
+                label = field_name.replace('_', ' ').title()
+                error_parts.append(f"{label}: {', '.join(errs)}")
+            messages.error(request, 'Could not create inventory. ' + ' | '.join(error_parts))
 
     pending_restock_count = RestockRequest.objects.filter(
         organization=organization,

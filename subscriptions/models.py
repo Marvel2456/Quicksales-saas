@@ -57,6 +57,10 @@ class Plan(models.Model):
     def has_unlimited_products(self):
         return self.max_products is not None and self.max_products > 5000
 
+    @property
+    def has_unlimited_users(self):
+        return self.max_users is not None and self.max_users > 5000
+
     def __str__(self):
         if self.name:
             return self.name

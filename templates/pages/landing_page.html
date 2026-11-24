@@ -2179,8 +2179,7 @@
                                             <li class="d-flex align-items-center">
                                                 <i class="bi bi-check-lg me-2 {% if plan.tier == 'growth' %}text-white{% else %}text-dark{% endif %}"></i>
                                                 <span>
-                                                    {% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %}
-                                                    {% if plan.max_users == 1 %}user{% else %}users{% endif %}
+                                                    {% if plan.has_unlimited_users %}Unlimited users{% else %}{{ plan.max_users|intcomma }} {% if plan.max_users == 1 %}user{% else %}users{% endif %}{% endif %}
                                                 </span>
                                             </li>
                                             <li class="d-flex align-items-center">
@@ -2280,7 +2279,7 @@
                                         <ul class="list-unstyled mb-0 d-grid gap-2">
                                             <li class="d-flex align-items-center">
                                                 <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>
-                                                <span>{% if plan.max_users > 100 %}Unlimited{% else %}{{ plan.max_users }}{% endif %} {% if plan.max_users == 1 %}user{% else %}users{% endif %}</span>
+                                                <span>{% if plan.has_unlimited_users %}Unlimited users{% else %}{{ plan.max_users|intcomma }} {% if plan.max_users == 1 %}user{% else %}users{% endif %}{% endif %}</span>
                                             </li>
                                             <li class="d-flex align-items-center">
                                                 <i class="bi bi-check-lg me-2 {% if plan.has_online_store %}text-white{% else %}text-dark{% endif %}"></i>

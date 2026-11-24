@@ -53,18 +53,18 @@
             </div>
             <div class="col-sm-6">
               <label for="reorder_level" class="form-label">Reorder Level</label>
-              <input name="reorder_level" type="number" min="0" class="form-control" placeholder="0" {% block Value-reorder_level %} {% endblock Value-reorder_level %}>
+              <input name="reorder_level" type="number" min="0" class="form-control" placeholder="0" {% block Value-reorder_level %}value="0"{% endblock Value-reorder_level %}>
             </div>
           </div>
 
           <div class="row g-3">
             <div class="col-sm-6">
-              <label for="cost_price" class="form-label">Cost Price</label>
-              <input name="cost_price" type="text" class="form-control" placeholder="0.00" required {% block Value-cost_price %} {% endblock Value-cost_price %}>
+              <label for="cost_price" class="form-label">Cost Price <span class="text-danger">*</span></label>
+              <input name="cost_price" id="cost_price" type="number" min="0" step="any" class="form-control" placeholder="0.00" required {% block Value-cost_price %} {% endblock Value-cost_price %}>
             </div>
             <div class="col-sm-6">
-              <label for="sale_price" class="form-label">Sale Price</label>
-              <input name="sale_price" type="text" class="form-control" placeholder="0.00" required {% block Value-sale_price %} {% endblock Value-sale_price %}>
+              <label for="sale_price" class="form-label">Sale Price <span class="text-danger">*</span></label>
+              <input name="sale_price" id="sale_price" type="number" min="0" step="any" class="form-control" placeholder="0.00" required {% block Value-sale_price %} {% endblock Value-sale_price %}>
             </div>
           </div>
         </div>
