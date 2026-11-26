@@ -301,7 +301,7 @@
 
     <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script>
-        const maxQty = {{ listing.inventory.quantity_available|default:1 }};
+        let maxQty = {{ listing.stock_quantity|default:1 }};
         const CHECKOUT_URL = "{% url 'store_checkout' organization.slug %}";
 
         function switchMainImage(url, thumbEl) {
@@ -319,9 +319,11 @@
 
         function changeQty(delta) {
             const el = document.getElementById('buyQty');
-            let val = parseInt(el.value || 1) + delta;
+            if (!el) return;
+            const currentMax = parseInt(el.max, 10) || maxQty || 1;
+            let val = (parseInt(el.value, 10) || 1) + delta;
             if (val < 1) val = 1;
-            if (val > maxQty) val = maxQty;
+            if (val > currentMax) val = currentMax;
             el.value = val;
         }
 
@@ -373,9 +375,11 @@
             if (hid) hid.value = btn.dataset.varVal || '';
             const qtyInput = document.getElementById('buyQty');
             if (qtyInput && btn.dataset.varQty) {
-                qtyInput.max = btn.dataset.varQty;
-                if (parseInt(qtyInput.value || 1) > parseInt(btn.dataset.varQty)) {
-                    qtyInput.value = Math.max(1, parseInt(btn.dataset.varQty));
+                const varMax = Math.max(1, parseInt(btn.dataset.varQty, 10) || 1);
+                maxQty = varMax;
+                qtyInput.max = varMax;
+                if ((parseInt(qtyInput.value, 10) || 1) > varMax) {
+                    qtyInput.value = varMax;
                 }
             }
         }

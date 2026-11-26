@@ -105,7 +105,7 @@
     <div class="modal fade" id="editListingModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content rounded-4 border-0 shadow">
-                <form method="post" enctype="multipart/form-data">
+                <form id="editListingForm" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="edit_details">
                     <input type="hidden" name="listing_id" id="editModalListingId" value="">
@@ -150,11 +150,26 @@
                         </div>
                     </div>
                     <div class="modal-footer border-top-0 pt-0">
-                        <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn app-btn-primary rounded-pill px-4 fw-bold">Save Details</button>
+                        <button type="button" id="editListingCancelBtn" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="editListingSubmitBtn" class="btn app-btn-primary rounded-pill px-4 fw-bold">Save Details</button>
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- Centered Full-Screen Circular Loader Overlay -->
+    <div id="listingSaveLoaderOverlay"
+         class="d-none"
+         role="status"
+         aria-live="polite"
+         aria-label="Saving listing details"
+         style="position: fixed; inset: 0; z-index: 99999; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); align-items: center; justify-content: center;">
+        <div class="bg-white rounded-4 shadow-lg px-4 py-4 d-flex flex-column align-items-center gap-3 text-center" style="min-width: 200px;">
+            <div class="spinner-border text-primary" style="width: 2.75rem; height: 2.75rem; border-width: 0.28em;" role="status">
+                <span class="visually-hidden">Saving...</span>
+            </div>
+            <div class="fw-semibold text-dark small">Saving listing details...</div>
         </div>
     </div>
 
@@ -333,6 +348,57 @@ document.body.addEventListener('updateTotalCount', function(evt) {
     var countEl = document.getElementById('totalCount');
     if (countEl && evt.detail && evt.detail.count !== undefined) {
         countEl.textContent = evt.detail.count;
+    }
+});
+
+// Centered circular loader & double-submit guard for Customize Store Listing modal
+// Uses delegated listener so it works both in desktop Bootstrap modals and the iPhone bottom sheet.
+document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (!form || form.id !== 'editListingForm') return;
+
+    if (form.dataset.submitting === 'true') {
+        e.preventDefault();
+        return;
+    }
+
+    form.dataset.submitting = 'true';
+
+    var submitBtn = form.querySelector('#editListingSubmitBtn') || form.querySelector('button[type="submit"]');
+    var cancelBtn = form.querySelector('#editListingCancelBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+    }
+    if (cancelBtn) {
+        cancelBtn.disabled = true;
+    }
+
+    var overlay = document.getElementById('listingSaveLoaderOverlay');
+    if (overlay) {
+        overlay.classList.remove('d-none');
+        overlay.classList.add('d-flex');
+    }
+});
+
+window.addEventListener('pageshow', function() {
+    var form = document.getElementById('editListingForm');
+    if (form) {
+        delete form.dataset.submitting;
+        var submitBtn = form.querySelector('#editListingSubmitBtn');
+        var cancelBtn = form.querySelector('#editListingCancelBtn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Details';
+        }
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+        }
+    }
+    var overlay = document.getElementById('listingSaveLoaderOverlay');
+    if (overlay) {
+        overlay.classList.add('d-none');
+        overlay.classList.remove('d-flex');
     }
 });
 </script>
